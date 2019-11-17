@@ -8,12 +8,14 @@ type Function struct {
 	Name   string
 	Args   map[string]string
 	Return string
+	// Statement is required to hack p.go createFunction type conversion
+	Body *Statement
 }
 
 // I moved this function to another interface,
 // function will not have parent for now.
 /*
-func (f Function) ParentNode() *Node {
+func (f Function) ParentNode() *Statement {
 	return nil
 }
 */
@@ -24,11 +26,12 @@ func (f Function) HasVariable(name string) bool {
 }
 
 type Statement interface {
-	ParentNode() *Node
+	HasVariable(string) bool
+	ParentNode() *Statement
 }
 
 type Block struct {
-	parent     *Node
+	parent     *Statement
 	Vars       map[string]string
 	Statements []Statement
 }
@@ -45,6 +48,26 @@ func (b Block) HasVariable(name string) bool {
 	return false
 }
 
-func (b Block) ParentNode() *Node {
+func (b Block) ParentNode() *Statement {
 	return b.parent
+}
+
+// Refactor to something like function call
+// function call fmt.Println or something
+// different what should be in the standard
+// library.
+type HTML struct {
+	Parent  *Statement
+	Content string
+}
+
+func (h HTML) ParentNode() *Statement {
+	return h.Parent
+}
+
+func (h HTML) HasVariable(name string) bool {
+	if h.Parent != nil {
+		return (*h.Parent).HasVariable(name)
+	}
+	return false
 }

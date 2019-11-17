@@ -33,9 +33,9 @@ func main() {
 	}
 
 	rootNode := parser.GetRootNode()
-	p.Run(rootNode.(*node.Root))
 
 	print(rootNode)
+	p.Run(rootNode.(*node.Root))
 }
 
 func print(n node.Node) {

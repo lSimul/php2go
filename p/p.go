@@ -2,6 +2,7 @@ package p
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/z7zmey/php-parser/node"
 	"github.com/z7zmey/php-parser/node/stmt"
@@ -55,5 +56,40 @@ func mainDef() *lang.Function {
 	}
 }
 
+// func createFunction(l *lang.Function, stmts []node.Node) {
 func createFunction(l *lang.Function, stmts []node.Node) {
+	for _, s := range stmts {
+		switch s.(type) {
+		case *stmt.Nop:
+			// Alias for <?php ?>, nothing to do.
+
+		case *stmt.InlineHtml:
+			html := &lang.HTML{
+				// Byl jsi krátkozraký, blok může patřit funkci, spousta věcí může patřit asi jen funkci.
+				// A blok může patřit bloku atd., hnusné to je.
+				//
+				// K tomuto převádění nebude docházet, bude to všechno krásně k bloku. Vždycky.
+				// Nebude problém ani s funkcí, ty argumenty se hodí jako proměnná do bloku, možná lehce zprzněné
+				// o příznak zda už bylo definováno, něco takového. Ani to asi nebude třeba.
+				// Proměnné takhle umístěné slouží jedinému účelu, zkoumání zda je něco nedefinovaného,
+				// definováno nějak hnusně mimo scope atp.
+				// Možná budu muset přidat další chytrosti a zas tak přímočaře to nepojede,
+				//
+				// for ($i = 0; $i < 10; $i++) {} echo $i;
+				//
+				// Je bohužel validní PHP kód co vypíše 10, to teď se svoji strukturou nezvládnu vyřešit.
+				Parent:  l.Body,
+				Content: s.(*stmt.InlineHtml).Value,
+			}
+			l.Body.Statements = append(l.Body.Statements, html)
+		default:
+			panic(`Unexpected statement.`)
+		}
+	}
+}
+
+func ptr(obj *lang.Function) *lang.Node {
+	vp := reflect.New(reflect.TypeOf(obj))
+	vp.Elem().Set(reflect.ValueOf(obj))
+	return vp.Interface().(*lang.Node)
 }
