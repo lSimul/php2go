@@ -2,25 +2,29 @@ package p
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/z7zmey/php-parser/node"
+	"github.com/z7zmey/php-parser/node/expr"
+	"github.com/z7zmey/php-parser/node/expr/assign"
 	"github.com/z7zmey/php-parser/node/stmt"
 
 	"php2go/lang"
 )
 
-func Run(r *node.Root) {
-
+func Run(r *node.Root) *lang.GlobalContext {
+	gc := lang.CreateGlobalContext()
 	ms, fs := sanitizeRootStmts(r)
 	main := mainDef()
 	createFunction(main, ms)
+
+	gc.Add(*main)
 
 	for _, s := range fs {
 		f := funcDef(&s)
 		createFunction(f, s.Stmts)
 		fmt.Println(f.Name, s.Stmts)
 	}
+	return gc
 }
 
 // SanitizeRootStmts splits statements based on their type,
@@ -51,45 +55,68 @@ func funcDef(f *stmt.Function) *lang.Function {
 }
 
 func mainDef() *lang.Function {
-	return &lang.Function{
-		Name: "main",
-	}
+	return lang.CreateMain()
 }
 
 // func createFunction(l *lang.Function, stmts []node.Node) {
 func createFunction(l *lang.Function, stmts []node.Node) {
+	var n lang.Node
 	for _, s := range stmts {
 		switch s.(type) {
 		case *stmt.Nop:
-			// Alias for <?php ?>, nothing to do.
+			// Alias for <?php ?> and "empty semicolon", nothing to do.
 
 		case *stmt.InlineHtml:
-			html := &lang.HTML{
-				// Byl jsi krátkozraký, blok může patřit funkci, spousta věcí může patřit asi jen funkci.
-				// A blok může patřit bloku atd., hnusné to je.
-				//
-				// K tomuto převádění nebude docházet, bude to všechno krásně k bloku. Vždycky.
-				// Nebude problém ani s funkcí, ty argumenty se hodí jako proměnná do bloku, možná lehce zprzněné
-				// o příznak zda už bylo definováno, něco takového. Ani to asi nebude třeba.
-				// Proměnné takhle umístěné slouží jedinému účelu, zkoumání zda je něco nedefinovaného,
-				// definováno nějak hnusně mimo scope atp.
-				// Možná budu muset přidat další chytrosti a zas tak přímočaře to nepojede,
-				//
-				// for ($i = 0; $i < 10; $i++) {} echo $i;
-				//
-				// Je bohužel validní PHP kód co vypíše 10, to teď se svoji strukturou nezvládnu vyřešit.
-				Parent:  l.Body,
+			n = lang.HTML{
 				Content: s.(*stmt.InlineHtml).Value,
 			}
-			l.Body.Statements = append(l.Body.Statements, html)
+			l.AddStatement(n)
+
+		case *stmt.Expression:
+			defineExpression(l, s.(*stmt.Expression))
+
 		default:
 			panic(`Unexpected statement.`)
 		}
 	}
 }
 
-func ptr(obj *lang.Function) *lang.Node {
-	vp := reflect.New(reflect.TypeOf(obj))
-	vp.Elem().Set(reflect.ValueOf(obj))
-	return vp.Interface().(*lang.Node)
+func defineExpression(l *lang.Function, e *stmt.Expression) {
+	switch e.Expr.(type) {
+	case *expr.Variable:
+		name := identifierName(e.Expr.(*expr.Variable))
+		if !(*l).HasVariable(name) {
+			panic("Using undefined variable \"" + name + "\".")
+		}
+
+	// Every expression should have return value.
+	// Otherwise I cannot say what the assigned value will have.
+	case *assign.Assign:
+		a := e.Expr.(*assign.Assign)
+		n := identifierName(a.Variable.(*expr.Variable))
+
+		v := lang.Variable{
+			// Type will be taken from the right side.
+			Type:      "int",
+			Name:      n,
+			Const:     false,
+			Reference: false,
+		}
+		l.DefineVariable(v)
+	}
+}
+
+/**
+ * Function makes things much easier, I expect
+ * identifier name to be just simple right now
+ * defined string, no variable etc.
+ */
+func identifierName(v *expr.Variable) string {
+	switch v.VarName.(type) {
+	case *node.Identifier:
+		return v.VarName.(*node.Identifier).Value
+
+	default:
+		panic(`Variable name is not defined as a simple string.`)
+	}
 }
