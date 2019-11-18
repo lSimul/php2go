@@ -1,11 +1,14 @@
 package p
 
 import (
-	"fmt"
+	"strconv"
 
 	"github.com/z7zmey/php-parser/node"
 	"github.com/z7zmey/php-parser/node/expr"
 	"github.com/z7zmey/php-parser/node/expr/assign"
+	"github.com/z7zmey/php-parser/node/expr/binary"
+	"github.com/z7zmey/php-parser/node/name"
+	"github.com/z7zmey/php-parser/node/scalar"
 	"github.com/z7zmey/php-parser/node/stmt"
 
 	"php2go/lang"
@@ -22,7 +25,7 @@ func Run(r *node.Root) *lang.GlobalContext {
 	for _, s := range fs {
 		f := funcDef(&s)
 		createFunction(f, s.Stmts)
-		fmt.Println(f.Name, s.Stmts)
+		gc.Add(*f)
 	}
 	return gc
 }
@@ -47,15 +50,29 @@ func sanitizeRootStmts(r *node.Root) ([]node.Node, []stmt.Function) {
 	return main, functions
 }
 
-func funcDef(f *stmt.Function) *lang.Function {
-	fn := f.FunctionName
-	return &lang.Function{
-		Name: fn.(*node.Identifier).Value,
+func funcDef(fc *stmt.Function) *lang.Function {
+	f := lang.CreateFunc(fc.FunctionName.(*node.Identifier).Value)
+
+	for _, pr := range fc.Params {
+		p := pr.(*node.Parameter)
+		v := lang.Variable{
+			Type:      constructName(p.VariableType.(*name.Name)),
+			Name:      identifierName(p.Variable.(*expr.Variable)),
+			Const:     false,
+			Reference: false,
+		}
+		f.Args = append(f.Args, v)
 	}
+
+	if fc.ReturnType != nil {
+		f.Return = constructName(fc.ReturnType.(*name.Name))
+	}
+
+	return f
 }
 
 func mainDef() *lang.Function {
-	return lang.CreateMain()
+	return lang.CreateFunc("main")
 }
 
 // func createFunction(l *lang.Function, stmts []node.Node) {
@@ -75,6 +92,28 @@ func createFunction(l *lang.Function, stmts []node.Node) {
 		case *stmt.Expression:
 			defineExpression(l, s.(*stmt.Expression))
 
+		// Return is not an expression, this is fucked up (for my structure).
+		case *stmt.Return:
+			r := &lang.Return{
+				Expression: expression(l, s.(*stmt.Return).Expr),
+			}
+			l.AddStatement(r)
+
+		case *stmt.Echo:
+			f := &lang.FunctionCall{
+				Name: "fmt.Print",
+				Args: make([]lang.Expression, 0),
+			}
+
+			ex := s.(*stmt.Echo)
+			for _, e := range ex.Exprs {
+				// TODO: Do not ignore information in Argument,
+				// it has interesting information like if it is
+				// send by reference and others.
+				f.AddArg(expression(l, e))
+			}
+			l.AddStatement(f)
+
 		default:
 			panic(`Unexpected statement.`)
 		}
@@ -82,27 +121,104 @@ func createFunction(l *lang.Function, stmts []node.Node) {
 }
 
 func defineExpression(l *lang.Function, e *stmt.Expression) {
-	switch e.Expr.(type) {
+	ex := expression(l, e.Expr)
+	l.AddStatement(ex)
+}
+
+func expression(l *lang.Function, nn node.Node) lang.Expression {
+	switch nn.(type) {
 	case *expr.Variable:
-		name := identifierName(e.Expr.(*expr.Variable))
+		name := identifierName(nn.(*expr.Variable))
 		if !(*l).HasVariable(name) {
 			panic("Using undefined variable \"" + name + "\".")
+		}
+		return &lang.Variable{
+			// Type will be taken from the right side.
+			Type:      lang.Int,
+			Name:      name,
+			Const:     false,
+			Reference: false,
 		}
 
 	// Every expression should have return value.
 	// Otherwise I cannot say what the assigned value will have.
 	case *assign.Assign:
-		a := e.Expr.(*assign.Assign)
+		a := nn.(*assign.Assign)
 		n := identifierName(a.Variable.(*expr.Variable))
 
 		v := lang.Variable{
 			// Type will be taken from the right side.
-			Type:      "int",
+			Type:      lang.Int,
 			Name:      n,
 			Const:     false,
 			Reference: false,
 		}
 		l.DefineVariable(v)
+		r := expression(l, a.Expression)
+		if r == nil {
+			panic(`Missing right side for assignment.`)
+		}
+
+		as := lang.CreateAssign(&v, r)
+		return *as
+
+	case *expr.UnaryPlus:
+		return expression(l, nn.(*expr.UnaryPlus).Expr)
+
+	case *expr.UnaryMinus:
+		return &lang.UnaryMinus{
+			Right: expression(l, nn.(*expr.UnaryMinus).Expr),
+		}
+
+	case *scalar.Lnumber:
+		// Missing parent definition. Whatever.
+		s := nn.(*scalar.Lnumber).Value
+		i, _ := strconv.Atoi(s)
+		return &lang.Number{
+			Value: i,
+		}
+
+	case *scalar.Dnumber:
+		// Missing parent definition. Whatever.
+		s := nn.(*scalar.Dnumber).Value
+		return &lang.Float{
+			Value: s,
+		}
+
+	case *scalar.String:
+		// Missing parent definition. Whatever.
+		s := nn.(*scalar.String).Value
+		return &lang.Str{
+			Value: s,
+		}
+
+	case *binary.Plus:
+		p := nn.(*binary.Plus)
+		return &lang.BinaryPlus{
+			Left:  expression(l, p.Left),
+			Right: expression(l, p.Right),
+		}
+
+	case *expr.FunctionCall:
+		fc := nn.(*expr.FunctionCall)
+
+		// Solve return type and argument list.
+		f := &lang.FunctionCall{
+			Name: constructName(fc.Function.(*name.Name)),
+			Args: make([]lang.Expression, 0),
+		}
+
+		al := fc.ArgumentList
+		for _, a := range al.Arguments {
+			// TODO: Do not ignore information in Argument,
+			// it has interesting information like if it is
+			// send by reference and others.
+			f.AddArg(expression(l, a.(*node.Argument).Expr))
+		}
+		return f
+
+	default:
+		panic(`Something else uncatched.`)
 	}
 }
 
@@ -119,4 +235,12 @@ func identifierName(v *expr.Variable) string {
 	default:
 		panic(`Variable name is not defined as a simple string.`)
 	}
+}
+
+func constructName(nm *name.Name) string {
+	res := ""
+	for _, n := range nm.Parts {
+		res += n.(*name.NamePart).Value
+	}
+	return res
 }

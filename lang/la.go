@@ -35,11 +35,11 @@ func (gc GlobalContext) Print() {
 type Function struct {
 	parent Node
 
-	args []Variable
+	Args []Variable
 	body Code
 
 	Name   string
-	Return Variable
+	Return string
 }
 
 func (f Function) Parent() Node {
@@ -51,7 +51,7 @@ func (f *Function) SetParent(n Node) {
 }
 
 func (f Function) HasVariable(name string) bool {
-	for _, a := range f.args {
+	for _, a := range f.Args {
 		if a.Name == name {
 			return true
 		}
@@ -73,12 +73,29 @@ func (f *Function) DefineVariable(v Variable) {
 }
 
 func (f Function) Print() {
-	fmt.Print("func " + f.Name + "() ")
+	fmt.Print("func " + f.Name + "(")
+	for i := 0; i < len(f.Args); i++ {
+		a := f.Args[i]
+		fmt.Print(a.Name + " " + a.GetType())
+		if i < len(f.Args)-1 {
+			fmt.Print(", ")
+		}
+	}
+	fmt.Print(") ")
+
+	if f.Return != Void {
+		fmt.Print(f.Return + " ")
+	}
 	f.body.Print()
+	fmt.Print("\n")
 }
 
 func (f *Function) AddStatement(n Node) {
 	f.body.AddStatement(n)
+}
+
+func (f Function) GetType() string {
+	return f.Return
 }
 
 type Code struct {
@@ -114,11 +131,12 @@ func (c *Code) AddStatement(n Node) {
 }
 
 func (c Code) Print() {
-	fmt.Println("{")
+	fmt.Print("{\n")
 	for _, s := range c.Statements {
 		s.Print()
+		fmt.Print("\n")
 	}
-	fmt.Println("}")
+	fmt.Print("}\n")
 }
 
 // Refactor to something like function call
@@ -148,15 +166,261 @@ func (h HTML) HasVariable(name string) bool {
 }
 
 func (h HTML) Print() {
-	fmt.Println("fmt.Print(`" + h.Content + "`)")
+	fmt.Print("fmt.Print(`" + h.Content + "`)")
 }
 
-func CreateMain() *Function {
+func CreateFunc(name string) *Function {
 	return &Function{
-		Name: "main",
+		Name: name,
 		body: Code{
 			Vars:       make([]Variable, 0),
 			Statements: make([]Node, 0),
 		},
+		Return: Void,
 	}
+}
+
+type Return struct {
+	parent Node
+
+	Expression Expression
+}
+
+func (r Return) Parent() Node {
+	return r.parent
+}
+
+func (r /* * */ Return) SetParent(n Node) {
+	r.parent = n
+}
+
+func (r Return) HasVariable(name string) bool {
+	if r.parent != nil {
+		return r.parent.HasVariable(name)
+	}
+	return false
+}
+
+func (r Return) GetType() string {
+	return r.Expression.GetType()
+}
+
+func (r Return) Print() {
+	fmt.Print("return ")
+	r.Expression.Print()
+}
+
+type Assign struct {
+	parent Node
+
+	left  *Variable
+	right *Expression
+}
+
+func (a Assign) Parent() Node {
+	return a.parent
+}
+
+func (a /* * */ Assign) SetParent(n Node) {
+	a.parent = n
+}
+
+func (a Assign) HasVariable(name string) bool {
+	if a.parent != nil {
+		return a.parent.HasVariable(name)
+	}
+	return false
+}
+
+func (a Assign) GetType() string {
+	return a.left.Type
+}
+
+func (a Assign) Print() {
+	fmt.Print(a.left.Name + " = ")
+	(*a.right).Print()
+}
+
+func CreateAssign(left *Variable, right Expression) *Assign {
+	return &Assign{
+		left:  left,
+		right: &right,
+	}
+}
+
+type Number struct {
+	parent Node
+
+	Value int
+}
+
+func (a Number) Parent() Node {
+	return a.parent
+}
+
+func (a /* * */ Number) SetParent(n Node) {
+	a.parent = n
+}
+
+func (n Number) HasVariable(name string) bool {
+	return false
+}
+
+func (n Number) GetType() string {
+	return Int
+}
+
+func (n Number) Print() {
+	fmt.Print(n.Value)
+}
+
+// Float and Number can be merged, only Type is different.
+// There is no way how can I write down 0.0 as some nice string
+// for := operator.
+type Float struct {
+	parent Node
+
+	Value string
+}
+
+func (f Float) Parent() Node {
+	return f.parent
+}
+
+func (f /* * */ Float) SetParent(n Node) {
+	f.parent = n
+}
+
+func (f Float) HasVariable(name string) bool {
+	return false
+}
+
+func (f Float) GetType() string {
+	return Float64
+}
+
+func (f Float) Print() {
+	fmt.Print(f.Value)
+}
+
+type Str struct {
+	parent Node
+
+	Value string
+}
+
+func (a Str) Parent() Node {
+	return a.parent
+}
+
+func (a /* * */ Str) SetParent(n Node) {
+	a.parent = n
+}
+
+func (n Str) HasVariable(name string) bool {
+	return false
+}
+
+func (n Str) GetType() string {
+	return String
+}
+
+func (n Str) Print() {
+	fmt.Print(n.Value)
+}
+
+type UnaryMinus struct {
+	parent Node
+
+	Right Expression
+}
+
+func (m UnaryMinus) Parent() Node {
+	return m.parent
+}
+
+func (m /* * */ UnaryMinus) SetParent(n Node) {
+	m.parent = n
+}
+
+func (m UnaryMinus) HasVariable(name string) bool {
+	return false
+}
+
+func (m UnaryMinus) GetType() string {
+	return m.Right.GetType()
+}
+
+func (m UnaryMinus) Print() {
+	fmt.Print("-")
+	m.Right.Print()
+}
+
+type BinaryPlus struct {
+	parent Node
+
+	Right Expression
+	Left  Expression
+}
+
+func (p BinaryPlus) Parent() Node {
+	return p.parent
+}
+
+func (p /* * */ BinaryPlus) SetParent(n Node) {
+	p.parent = n
+}
+
+func (p BinaryPlus) HasVariable(name string) bool {
+	return false
+}
+
+func (p BinaryPlus) GetType() string {
+	return p.Right.GetType()
+}
+
+func (p BinaryPlus) Print() {
+	p.Left.Print()
+	fmt.Print(" + ")
+	p.Right.Print()
+}
+
+type FunctionCall struct {
+	parent Node
+
+	Name string
+	Args []Expression
+}
+
+func (f *FunctionCall) AddArg(e Expression) {
+	f.Args = append(f.Args, e)
+}
+
+func (f FunctionCall) Parent() Node {
+	return f.parent
+}
+
+func (f /* * */ FunctionCall) SetParent(n Node) {
+	f.parent = n
+}
+
+func (f FunctionCall) HasVariable(name string) bool {
+	return false
+}
+
+// TODO: This needs to be solved
+func (f FunctionCall) GetType() string {
+	return Void
+}
+
+func (f FunctionCall) Print() {
+	fmt.Print(f.Name)
+	fmt.Print("(")
+	for i := 0; i < len(f.Args); i++ {
+		f.Args[i].Print()
+		if i < len(f.Args)-1 {
+			fmt.Print(", ")
+		}
+	}
+	fmt.Print(")")
 }
