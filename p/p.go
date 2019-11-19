@@ -14,8 +14,10 @@ import (
 	"php2go/lang"
 )
 
+var gc *lang.GlobalContext
+
 func Run(r *node.Root) *lang.GlobalContext {
-	gc := lang.CreateGlobalContext()
+	gc = lang.CreateGlobalContext()
 	ms, fs := sanitizeRootStmts(r)
 	main := mainDef()
 	createFunction(main, ms)
@@ -153,13 +155,17 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 			Const:     false,
 			Reference: false,
 		}
-		l.DefineVariable(v)
 		r := expression(l, a.Expression)
 		if r == nil {
 			panic(`Missing right side for assignment.`)
 		}
 
 		as := lang.CreateAssign(&v, r)
+		if !l.HasVariable(n) {
+			as.FirstDefinition = true
+		}
+		l.DefineVariable(v)
+
 		return *as
 
 	case *expr.UnaryPlus:
@@ -194,7 +200,27 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 
 	case *binary.Plus:
 		p := nn.(*binary.Plus)
-		return &lang.BinaryPlus{
+		return &lang.BinaryOp{
+			Operation: "+",
+
+			Left:  expression(l, p.Left),
+			Right: expression(l, p.Right),
+		}
+
+	case *binary.Minus:
+		p := nn.(*binary.Minus)
+		return &lang.BinaryOp{
+			Operation: "-",
+
+			Left:  expression(l, p.Left),
+			Right: expression(l, p.Right),
+		}
+
+	case *binary.Mul:
+		p := nn.(*binary.Mul)
+		return &lang.BinaryOp{
+			Operation: "*",
+
 			Left:  expression(l, p.Left),
 			Right: expression(l, p.Right),
 		}

@@ -215,6 +215,8 @@ type Assign struct {
 
 	left  *Variable
 	right *Expression
+
+	FirstDefinition bool
 }
 
 func (a Assign) Parent() Node {
@@ -237,7 +239,12 @@ func (a Assign) GetType() string {
 }
 
 func (a Assign) Print() {
-	fmt.Print(a.left.Name + " = ")
+	fmt.Print(a.left.Name)
+	if a.FirstDefinition {
+		fmt.Print(" := ")
+	} else {
+		fmt.Print(" = ")
+	}
 	(*a.right).Print()
 }
 
@@ -245,6 +252,8 @@ func CreateAssign(left *Variable, right Expression) *Assign {
 	return &Assign{
 		left:  left,
 		right: &right,
+
+		FirstDefinition: false,
 	}
 }
 
@@ -356,32 +365,34 @@ func (m UnaryMinus) Print() {
 	m.Right.Print()
 }
 
-type BinaryPlus struct {
+type BinaryOp struct {
 	parent Node
+
+	Operation string
 
 	Right Expression
 	Left  Expression
 }
 
-func (p BinaryPlus) Parent() Node {
+func (p BinaryOp) Parent() Node {
 	return p.parent
 }
 
-func (p /* * */ BinaryPlus) SetParent(n Node) {
+func (p /* * */ BinaryOp) SetParent(n Node) {
 	p.parent = n
 }
 
-func (p BinaryPlus) HasVariable(name string) bool {
+func (p BinaryOp) HasVariable(name string) bool {
 	return false
 }
 
-func (p BinaryPlus) GetType() string {
+func (p BinaryOp) GetType() string {
 	return p.Right.GetType()
 }
 
-func (p BinaryPlus) Print() {
+func (p BinaryOp) Print() {
 	p.Left.Print()
-	fmt.Print(" + ")
+	fmt.Print(" " + p.Operation + " ")
 	p.Right.Print()
 }
 
