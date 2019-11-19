@@ -77,7 +77,6 @@ func mainDef() *lang.Function {
 	return lang.CreateFunc("main")
 }
 
-// func createFunction(l *lang.Function, stmts []node.Node) {
 func createFunction(l *lang.Function, stmts []node.Node) {
 	var n lang.Node
 	for _, s := range stmts {
@@ -86,7 +85,7 @@ func createFunction(l *lang.Function, stmts []node.Node) {
 			// Alias for <?php ?> and "empty semicolon", nothing to do.
 
 		case *stmt.InlineHtml:
-			n = lang.HTML{
+			n = &lang.HTML{
 				Content: s.(*stmt.InlineHtml).Value,
 			}
 			l.AddStatement(n)
@@ -152,59 +151,71 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 			panic(`Missing right side for assignment.`)
 		}
 
-		la, ok := r.(lang.Assign)
+		la, ok := r.(*lang.Assign)
 		if ok {
 			l.AddStatement(la)
 			r = la.Left()
 		}
 
 		n := identifierName(a.Variable.(*expr.Variable))
-		v := lang.Variable{
-			// Type will be taken from the right side.
-			Type:      lang.Int,
-			Name:      n,
-			Const:     false,
-			Reference: false,
-		}
 
-		as := lang.CreateAssign(&v, r)
-		if vr := l.HasVariable(n); vr == nil {
+		var as *lang.Assign
+		if v := l.HasVariable(n); v == nil {
+			v = &lang.Variable{
+				Type:      r.GetType(),
+				Name:      n,
+				Const:     false,
+				Reference: false,
+			}
+			if v.Type == lang.Void {
+				panic("Cannot assign \"void\" " + "to \"" + n + "\".")
+			}
+			as = lang.CreateAssign(v, r)
 			as.FirstDefinition = true
-		}
-		l.DefineVariable(v)
 
-		return *as
+			l.DefineVariable(*v)
+		} else {
+			if v.GetType() != r.GetType() {
+				panic("Unable assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+			}
+
+			as = lang.CreateAssign(v, r)
+		}
+
+		return as
 
 	case *expr.UnaryPlus:
 		return expression(l, nn.(*expr.UnaryPlus).Expr)
 
+	// TODO: Set parent
 	case *expr.UnaryMinus:
 		return &lang.UnaryMinus{
 			Right: expression(l, nn.(*expr.UnaryMinus).Expr),
 		}
 
+	// TODO: Set parent
 	case *scalar.Lnumber:
-		// Missing parent definition. Whatever.
 		s := nn.(*scalar.Lnumber).Value
 		i, _ := strconv.Atoi(s)
 		return &lang.Number{
 			Value: i,
 		}
 
+	// TODO: Set parent
 	case *scalar.Dnumber:
-		// Missing parent definition. Whatever.
 		s := nn.(*scalar.Dnumber).Value
 		return &lang.Float{
 			Value: s,
 		}
 
+	// TODO: Set parent
 	case *scalar.String:
-		// Missing parent definition. Whatever.
 		s := nn.(*scalar.String).Value
 		return &lang.Str{
 			Value: s,
 		}
 
+	// TODO: Set parent
 	case *binary.Plus:
 		p := nn.(*binary.Plus)
 		return &lang.BinaryOp{
@@ -214,6 +225,7 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 			Right: expression(l, p.Right),
 		}
 
+	// TODO: Set parent
 	case *binary.Minus:
 		p := nn.(*binary.Minus)
 		return &lang.BinaryOp{
@@ -223,6 +235,7 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 			Right: expression(l, p.Right),
 		}
 
+	// TODO: Set parent
 	case *binary.Mul:
 		p := nn.(*binary.Mul)
 		return &lang.BinaryOp{
@@ -232,6 +245,7 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 			Right: expression(l, p.Right),
 		}
 
+	// TODO: Set parent
 	case *expr.FunctionCall:
 		fc := nn.(*expr.FunctionCall)
 

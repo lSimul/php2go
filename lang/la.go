@@ -152,9 +152,7 @@ func (h HTML) Parent() Node {
 	return h.parent
 }
 
-// p/p.go:69:6: cannot use lang.HTML literal (type lang.HTML) as type lang.Node in assignment:
-// lang.HTML does not implement lang.Node (SetParent method has pointer receiver)
-func (h /* * */ HTML) SetParent(n Node) {
+func (h *HTML) SetParent(n Node) {
 	h.parent = n
 }
 
@@ -190,7 +188,7 @@ func (r Return) Parent() Node {
 	return r.parent
 }
 
-func (r /* * */ Return) SetParent(n Node) {
+func (r *Return) SetParent(n Node) {
 	r.parent = n
 }
 
@@ -223,7 +221,7 @@ func (a Assign) Parent() Node {
 	return a.parent
 }
 
-func (a /* * */ Assign) SetParent(n Node) {
+func (a *Assign) SetParent(n Node) {
 	a.parent = n
 }
 
@@ -271,7 +269,7 @@ func (a Number) Parent() Node {
 	return a.parent
 }
 
-func (a /* * */ Number) SetParent(n Node) {
+func (a *Number) SetParent(n Node) {
 	a.parent = n
 }
 
@@ -300,7 +298,7 @@ func (f Float) Parent() Node {
 	return f.parent
 }
 
-func (f /* * */ Float) SetParent(n Node) {
+func (f *Float) SetParent(n Node) {
 	f.parent = n
 }
 
@@ -326,7 +324,7 @@ func (a Str) Parent() Node {
 	return a.parent
 }
 
-func (a /* * */ Str) SetParent(n Node) {
+func (a *Str) SetParent(n Node) {
 	a.parent = n
 }
 
@@ -352,11 +350,14 @@ func (m UnaryMinus) Parent() Node {
 	return m.parent
 }
 
-func (m /* * */ UnaryMinus) SetParent(n Node) {
+func (m *UnaryMinus) SetParent(n Node) {
 	m.parent = n
 }
 
 func (m UnaryMinus) HasVariable(name string) *Variable {
+	if m.parent != nil {
+		return m.parent.HasVariable(name)
+	}
 	return nil
 }
 
@@ -382,11 +383,14 @@ func (p BinaryOp) Parent() Node {
 	return p.parent
 }
 
-func (p /* * */ BinaryOp) SetParent(n Node) {
+func (p *BinaryOp) SetParent(n Node) {
 	p.parent = n
 }
 
 func (p BinaryOp) HasVariable(name string) *Variable {
+	if p.parent != nil {
+		return p.parent.HasVariable(name)
+	}
 	return nil
 }
 
@@ -415,11 +419,14 @@ func (f FunctionCall) Parent() Node {
 	return f.parent
 }
 
-func (f /* * */ FunctionCall) SetParent(n Node) {
+func (f *FunctionCall) SetParent(n Node) {
 	f.parent = n
 }
 
 func (f FunctionCall) HasVariable(name string) *Variable {
+	if f.parent != nil {
+		return f.parent.HasVariable(name)
+	}
 	return nil
 }
 
