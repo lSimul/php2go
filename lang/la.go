@@ -248,6 +248,10 @@ func (a Assign) Print() {
 	(*a.right).Print()
 }
 
+func (a Assign) Left() *Variable {
+	return a.left
+}
+
 func CreateAssign(left *Variable, right Expression) *Assign {
 	return &Assign{
 		left:  left,

@@ -160,6 +160,12 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 			panic(`Missing right side for assignment.`)
 		}
 
+		la, ok := r.(lang.Assign)
+		if ok {
+			l.AddStatement(la)
+			r = la.Left()
+		}
+
 		as := lang.CreateAssign(&v, r)
 		if !l.HasVariable(n) {
 			as.FirstDefinition = true
