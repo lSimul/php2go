@@ -50,20 +50,20 @@ func (f *Function) SetParent(n Node) {
 	f.parent = n
 }
 
-func (f Function) HasVariable(name string) bool {
+func (f Function) HasVariable(name string) *Variable {
 	for _, a := range f.Args {
 		if a.Name == name {
-			return true
+			return &a
 		}
 	}
-	if f.body.HasVariable(name) {
-		return true
+	if v := f.body.HasVariable(name); v != nil {
+		return v
 	}
 
 	if p := f.Parent(); p != nil {
 		return p.HasVariable(name)
 	}
-	return false
+	return nil
 }
 
 // Might be good put it into the interface.
@@ -113,16 +113,16 @@ func (c *Code) SetParent(n Node) {
 	c.parent = n
 }
 
-func (c Code) HasVariable(name string) bool {
+func (c Code) HasVariable(name string) *Variable {
 	for _, v := range c.Vars {
 		if v.Name == name {
-			return true
+			return &v
 		}
 	}
 	if p := c.Parent(); p != nil {
 		return p.HasVariable(name)
 	}
-	return false
+	return nil
 }
 
 func (c *Code) AddStatement(n Node) {
@@ -158,11 +158,11 @@ func (h /* * */ HTML) SetParent(n Node) {
 	h.parent = n
 }
 
-func (h HTML) HasVariable(name string) bool {
+func (h HTML) HasVariable(name string) *Variable {
 	if h.parent != nil {
 		return h.parent.HasVariable(name)
 	}
-	return false
+	return nil
 }
 
 func (h HTML) Print() {
@@ -194,11 +194,11 @@ func (r /* * */ Return) SetParent(n Node) {
 	r.parent = n
 }
 
-func (r Return) HasVariable(name string) bool {
+func (r Return) HasVariable(name string) *Variable {
 	if r.parent != nil {
 		return r.parent.HasVariable(name)
 	}
-	return false
+	return nil
 }
 
 func (r Return) GetType() string {
@@ -227,11 +227,11 @@ func (a /* * */ Assign) SetParent(n Node) {
 	a.parent = n
 }
 
-func (a Assign) HasVariable(name string) bool {
+func (a Assign) HasVariable(name string) *Variable {
 	if a.parent != nil {
 		return a.parent.HasVariable(name)
 	}
-	return false
+	return nil
 }
 
 func (a Assign) GetType() string {
@@ -275,8 +275,8 @@ func (a /* * */ Number) SetParent(n Node) {
 	a.parent = n
 }
 
-func (n Number) HasVariable(name string) bool {
-	return false
+func (n Number) HasVariable(name string) *Variable {
+	return nil
 }
 
 func (n Number) GetType() string {
@@ -304,8 +304,8 @@ func (f /* * */ Float) SetParent(n Node) {
 	f.parent = n
 }
 
-func (f Float) HasVariable(name string) bool {
-	return false
+func (f Float) HasVariable(name string) *Variable {
+	return nil
 }
 
 func (f Float) GetType() string {
@@ -330,8 +330,8 @@ func (a /* * */ Str) SetParent(n Node) {
 	a.parent = n
 }
 
-func (n Str) HasVariable(name string) bool {
-	return false
+func (n Str) HasVariable(name string) *Variable {
+	return nil
 }
 
 func (n Str) GetType() string {
@@ -356,8 +356,8 @@ func (m /* * */ UnaryMinus) SetParent(n Node) {
 	m.parent = n
 }
 
-func (m UnaryMinus) HasVariable(name string) bool {
-	return false
+func (m UnaryMinus) HasVariable(name string) *Variable {
+	return nil
 }
 
 func (m UnaryMinus) GetType() string {
@@ -386,8 +386,8 @@ func (p /* * */ BinaryOp) SetParent(n Node) {
 	p.parent = n
 }
 
-func (p BinaryOp) HasVariable(name string) bool {
-	return false
+func (p BinaryOp) HasVariable(name string) *Variable {
+	return nil
 }
 
 func (p BinaryOp) GetType() string {
@@ -419,8 +419,8 @@ func (f /* * */ FunctionCall) SetParent(n Node) {
 	f.parent = n
 }
 
-func (f FunctionCall) HasVariable(name string) bool {
-	return false
+func (f FunctionCall) HasVariable(name string) *Variable {
+	return nil
 }
 
 // TODO: This needs to be solved

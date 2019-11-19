@@ -10,14 +10,14 @@ const (
 )
 
 type Node interface {
-	HasVariable(string) bool
+	HasVariable(string) *Variable
 	SetParent(Node)
 	Parent() Node // Might be extra.
 	Print()
 }
 
 type Block interface {
-	HasVariable(string) bool
+	HasVariable(string) *Variable
 	SetParent(Node)
 	Parent() Node
 	Print()
@@ -32,8 +32,11 @@ type Variable struct {
 	Reference bool
 }
 
-func (v Variable) HasVariable(n string) bool {
-	return n == v.Name
+func (v *Variable) HasVariable(n string) *Variable {
+	if n == v.Name {
+		return v
+	}
+	return nil
 }
 
 func (v Variable) SetParent(Node) {}
@@ -52,7 +55,7 @@ func (v Variable) GetType() string {
 
 type Expression interface {
 	// Do I need this?
-	HasVariable(string) bool
+	HasVariable(string) *Variable
 	// Uncommented, addStatement did not work because of this.
 
 	SetParent(Node)

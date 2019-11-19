@@ -131,7 +131,7 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 	switch nn.(type) {
 	case *expr.Variable:
 		name := identifierName(nn.(*expr.Variable))
-		if !(*l).HasVariable(name) {
+		if v := (*l).HasVariable(name); v == nil {
 			panic("Using undefined variable \"" + name + "\".")
 		}
 		return &lang.Variable{
@@ -146,15 +146,7 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 	// Otherwise I cannot say what the assigned value will have.
 	case *assign.Assign:
 		a := nn.(*assign.Assign)
-		n := identifierName(a.Variable.(*expr.Variable))
 
-		v := lang.Variable{
-			// Type will be taken from the right side.
-			Type:      lang.Int,
-			Name:      n,
-			Const:     false,
-			Reference: false,
-		}
 		r := expression(l, a.Expression)
 		if r == nil {
 			panic(`Missing right side for assignment.`)
@@ -166,8 +158,17 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 			r = la.Left()
 		}
 
+		n := identifierName(a.Variable.(*expr.Variable))
+		v := lang.Variable{
+			// Type will be taken from the right side.
+			Type:      lang.Int,
+			Name:      n,
+			Const:     false,
+			Reference: false,
+		}
+
 		as := lang.CreateAssign(&v, r)
-		if !l.HasVariable(n) {
+		if vr := l.HasVariable(n); vr == nil {
 			as.FirstDefinition = true
 		}
 		l.DefineVariable(v)
