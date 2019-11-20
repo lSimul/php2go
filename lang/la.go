@@ -6,19 +6,23 @@ type GlobalContext struct {
 	parent Node
 
 	Vars  []Variable
-	Funcs []Function
+	Funcs map[string]*Function
 }
 
 func CreateGlobalContext() *GlobalContext {
 	return &GlobalContext{
 		parent: nil,
 		Vars:   make([]Variable, 0),
-		Funcs:  make([]Function, 0),
+		Funcs:  make(map[string]*Function, 0),
 	}
 }
 
-func (gc *GlobalContext) Add(f Function) {
-	gc.Funcs = append(gc.Funcs, f)
+func (gc *GlobalContext) Add(f *Function) {
+	gc.Funcs[f.Name] = f
+}
+
+func (gc GlobalContext) Get(name string) *Function {
+	return gc.Funcs[name]
 }
 
 func (gc GlobalContext) Print() {
@@ -407,8 +411,9 @@ func (p BinaryOp) Print() {
 type FunctionCall struct {
 	parent Node
 
-	Name string
-	Args []Expression
+	Name   string
+	Args   []Expression
+	Return string
 }
 
 func (f *FunctionCall) AddArg(e Expression) {
@@ -432,7 +437,7 @@ func (f FunctionCall) HasVariable(name string) *Variable {
 
 // TODO: This needs to be solved
 func (f FunctionCall) GetType() string {
-	return Void
+	return f.Return
 }
 
 func (f FunctionCall) Print() {

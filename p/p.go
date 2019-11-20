@@ -19,16 +19,23 @@ var gc *lang.GlobalContext
 func Run(r *node.Root) *lang.GlobalContext {
 	gc = lang.CreateGlobalContext()
 	ms, fs := sanitizeRootStmts(r)
-	main := mainDef()
-	createFunction(main, ms)
 
-	gc.Add(*main)
+	// Added to keep the order of the functions,
+	// main first.
+	main := mainDef()
+	gc.Add(main)
 
 	for _, s := range fs {
 		f := funcDef(&s)
 		createFunction(f, s.Stmts)
-		gc.Add(*f)
+		gc.Add(f)
 	}
+
+	for _, s := range fs {
+		f := funcDef(&s)
+		createFunction(f, s.Stmts)
+	}
+	createFunction(main, ms)
 	return gc
 }
 
@@ -67,7 +74,11 @@ func funcDef(fc *stmt.Function) *lang.Function {
 	}
 
 	if fc.ReturnType != nil {
-		f.Return = constructName(fc.ReturnType.(*name.Name))
+		n := constructName(fc.ReturnType.(*name.Name))
+		if n == "void" {
+			n = lang.Void
+		}
+		f.Return = n
 	}
 
 	return f
@@ -176,7 +187,7 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 			l.DefineVariable(*v)
 		} else {
 			if v.GetType() != r.GetType() {
-				panic("Unable assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
 			}
 
 			as = lang.CreateAssign(v, r)
@@ -249,10 +260,11 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 	case *expr.FunctionCall:
 		fc := nn.(*expr.FunctionCall)
 
-		// Solve return type and argument list.
+		n := constructName(fc.Function.(*name.Name))
 		f := &lang.FunctionCall{
-			Name: constructName(fc.Function.(*name.Name)),
-			Args: make([]lang.Expression, 0),
+			Name:   n,
+			Args:   make([]lang.Expression, 0),
+			Return: gc.Get(n).GetType(),
 		}
 
 		al := fc.ArgumentList
