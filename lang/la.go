@@ -175,7 +175,7 @@ func CreateFunc(name string) *Function {
 		},
 		Return: Void,
 	}
-	f.Body.parent = f
+	f.Body.SetParent(f)
 	return f
 }
 
@@ -263,7 +263,7 @@ func CreateAssign(left *Variable, right Expression) *Assign {
 type Number struct {
 	parent Node
 
-	Value int
+	Value string
 }
 
 func (a Number) Parent() Node {

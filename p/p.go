@@ -1,8 +1,6 @@
 package p
 
 import (
-	"strconv"
-
 	"github.com/z7zmey/php-parser/node"
 	"github.com/z7zmey/php-parser/node/expr"
 	"github.com/z7zmey/php-parser/node/expr/assign"
@@ -27,6 +25,7 @@ func Run(r *node.Root) *lang.GlobalContext {
 	for _, s := range fs {
 		f := funcDef(&s)
 		createFunction(&f.Body, s.Stmts)
+		gc.Add(f)
 	}
 
 	main := mainDef()
@@ -220,10 +219,8 @@ func expression(l *lang.Code, nn node.Node) lang.Expression {
 		return i
 
 	case *scalar.Lnumber:
-		s := nn.(*scalar.Lnumber).Value
-		i, _ := strconv.Atoi(s)
 		n := &lang.Number{
-			Value: i,
+			Value: nn.(*scalar.Lnumber).Value,
 		}
 		n.SetParent(l)
 		return n
