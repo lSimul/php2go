@@ -405,6 +405,14 @@ func (p BinaryOp) Print() {
 	p.Right.Print()
 }
 
+func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
+	return &BinaryOp{
+		Operation: op,
+		Left:      left,
+		Right:     right,
+	}
+}
+
 type FunctionCall struct {
 	parent Node
 

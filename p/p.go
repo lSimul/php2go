@@ -200,77 +200,68 @@ func expression(l *lang.Code, nn node.Node) lang.Expression {
 
 		return as
 
-	// TODO: Set parent
 	case *expr.UnaryPlus:
-		return expression(l, nn.(*expr.UnaryPlus).Expr)
+		e := expression(l, nn.(*expr.UnaryPlus).Expr)
+		e.SetParent(l)
+		return e
 
-	// TODO: Set parent
 	case *expr.UnaryMinus:
-		return &lang.UnaryMinus{
+		m := &lang.UnaryMinus{
 			Right: expression(l, nn.(*expr.UnaryMinus).Expr),
 		}
+		m.SetParent(l)
+		return m
 
-	// TODO: Set parent
 	case *expr.PostInc:
-		return &lang.Inc{
+		i := &lang.Inc{
 			Var: expression(l, nn.(*expr.PostInc).Variable).(*lang.Variable),
 		}
+		i.SetParent(l)
+		return i
 
-	// TODO: Set parent
 	case *scalar.Lnumber:
 		s := nn.(*scalar.Lnumber).Value
 		i, _ := strconv.Atoi(s)
-		return &lang.Number{
+		n := &lang.Number{
 			Value: i,
 		}
+		n.SetParent(l)
+		return n
 
-	// TODO: Set parent
 	case *scalar.Dnumber:
 		s := nn.(*scalar.Dnumber).Value
-		return &lang.Float{
+		f := &lang.Float{
 			Value: s,
 		}
+		f.SetParent(l)
+		return f
 
-	// TODO: Set parent
 	case *scalar.String:
 		s := nn.(*scalar.String).Value
-		return &lang.Str{
+		str := &lang.Str{
 			Value: s,
 		}
+		str.SetParent(l)
+		return str
 
-	// TODO: Refactor every binary operation, this stinks, alot.
-
-	// TODO: Set parent
 	case *binary.Plus:
 		p := nn.(*binary.Plus)
-		return &lang.BinaryOp{
-			Operation: "+",
+		op := lang.CreateBinaryOp("+", expression(l, p.Left), expression(l, p.Right))
+		op.SetParent(l)
+		return op
 
-			Left:  expression(l, p.Left),
-			Right: expression(l, p.Right),
-		}
-
-	// TODO: Set parent
 	case *binary.Minus:
 		p := nn.(*binary.Minus)
-		return &lang.BinaryOp{
-			Operation: "-",
+		op := lang.CreateBinaryOp("-", expression(l, p.Left), expression(l, p.Right))
+		op.SetParent(l)
+		return op
 
-			Left:  expression(l, p.Left),
-			Right: expression(l, p.Right),
-		}
-
-	// TODO: Set parent
 	case *binary.Mul:
 		p := nn.(*binary.Mul)
-		return &lang.BinaryOp{
-			Operation: "*",
+		op := lang.CreateBinaryOp("*", expression(l, p.Left), expression(l, p.Right))
+		op.SetParent(l)
+		return op
 
-			Left:  expression(l, p.Left),
-			Right: expression(l, p.Right),
-		}
-
-	// TODO: Set parent
 	case *expr.FunctionCall:
 		fc := nn.(*expr.FunctionCall)
 
