@@ -40,7 +40,7 @@ type Function struct {
 	parent Node
 
 	Args []Variable
-	body Code
+	Body Code
 
 	Name   string
 	Return string
@@ -60,20 +60,11 @@ func (f Function) HasVariable(name string) *Variable {
 			return &a
 		}
 	}
-	if v := f.body.HasVariable(name); v != nil {
-		return v
-	}
 
 	if p := f.Parent(); p != nil {
 		return p.HasVariable(name)
 	}
 	return nil
-}
-
-// Might be good put it into the interface.
-// And Code should know it too, right?
-func (f *Function) DefineVariable(v Variable) {
-	f.body.Vars = append(f.body.Vars, v)
 }
 
 func (f Function) Print() {
@@ -90,12 +81,12 @@ func (f Function) Print() {
 	if f.Return != Void {
 		fmt.Print(f.Return + " ")
 	}
-	f.body.Print()
+	f.Body.Print()
 	fmt.Print("\n")
 }
 
 func (f *Function) AddStatement(n Node) {
-	f.body.AddStatement(n)
+	f.Body.AddStatement(n)
 }
 
 func (f Function) GetType() string {
@@ -127,6 +118,10 @@ func (c Code) HasVariable(name string) *Variable {
 		return p.HasVariable(name)
 	}
 	return nil
+}
+
+func (c *Code) DefineVariable(v Variable) {
+	c.Vars = append(c.Vars, v)
 }
 
 func (c *Code) AddStatement(n Node) {
@@ -172,14 +167,16 @@ func (h HTML) Print() {
 }
 
 func CreateFunc(name string) *Function {
-	return &Function{
+	f := &Function{
 		Name: name,
-		body: Code{
+		Body: Code{
 			Vars:       make([]Variable, 0),
 			Statements: make([]Node, 0),
 		},
 		Return: Void,
 	}
+	f.Body.parent = f
+	return f
 }
 
 type Return struct {
@@ -435,7 +432,6 @@ func (f FunctionCall) HasVariable(name string) *Variable {
 	return nil
 }
 
-// TODO: This needs to be solved
 func (f FunctionCall) GetType() string {
 	return f.Return
 }
@@ -450,4 +446,34 @@ func (f FunctionCall) Print() {
 		}
 	}
 	fmt.Print(")")
+}
+
+type Inc struct {
+	parent Node
+
+	Var *Variable
+}
+
+func (i Inc) Parent() Node {
+	return i.parent
+}
+
+func (i *Inc) SetParent(n Node) {
+	i.parent = n
+}
+
+func (i Inc) HasVariable(name string) *Variable {
+	if i.parent != nil {
+		return i.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (i Inc) GetType() string {
+	return i.Var.GetType()
+}
+
+func (i Inc) Print() {
+	i.Var.Print()
+	fmt.Print("++")
 }

@@ -20,22 +20,18 @@ func Run(r *node.Root) *lang.GlobalContext {
 	gc = lang.CreateGlobalContext()
 	ms, fs := sanitizeRootStmts(r)
 
-	// Added to keep the order of the functions,
-	// main first.
-	main := mainDef()
-	gc.Add(main)
-
 	for _, s := range fs {
 		f := funcDef(&s)
-		createFunction(f, s.Stmts)
 		gc.Add(f)
 	}
-
 	for _, s := range fs {
 		f := funcDef(&s)
-		createFunction(f, s.Stmts)
+		createFunction(&f.Body, s.Stmts)
 	}
-	createFunction(main, ms)
+
+	main := mainDef()
+	gc.Add(main)
+	createFunction(&main.Body, ms)
 	return gc
 }
 
@@ -88,7 +84,7 @@ func mainDef() *lang.Function {
 	return lang.CreateFunc("main")
 }
 
-func createFunction(l *lang.Function, stmts []node.Node) {
+func createFunction(l *lang.Code, stmts []node.Node) {
 	var n lang.Node
 	for _, s := range stmts {
 		switch s.(type) {
@@ -100,6 +96,15 @@ func createFunction(l *lang.Function, stmts []node.Node) {
 				Content: s.(*stmt.InlineHtml).Value,
 			}
 			l.AddStatement(n)
+
+		case *stmt.StmtList:
+			list := &lang.Code{
+				Vars:       make([]lang.Variable, 0),
+				Statements: make([]lang.Node, 0),
+			}
+			list.SetParent(l)
+			l.AddStatement(list)
+			createFunction(list, s.(*stmt.StmtList).Stmts)
 
 		case *stmt.Expression:
 			defineExpression(l, s.(*stmt.Expression))
@@ -132,12 +137,12 @@ func createFunction(l *lang.Function, stmts []node.Node) {
 	}
 }
 
-func defineExpression(l *lang.Function, e *stmt.Expression) {
+func defineExpression(l *lang.Code, e *stmt.Expression) {
 	ex := expression(l, e.Expr)
 	l.AddStatement(ex)
 }
 
-func expression(l *lang.Function, nn node.Node) lang.Expression {
+func expression(l *lang.Code, nn node.Node) lang.Expression {
 	switch nn.(type) {
 	case *expr.Variable:
 		name := identifierName(nn.(*expr.Variable))
@@ -195,6 +200,7 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 
 		return as
 
+	// TODO: Set parent
 	case *expr.UnaryPlus:
 		return expression(l, nn.(*expr.UnaryPlus).Expr)
 
@@ -202,6 +208,12 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 	case *expr.UnaryMinus:
 		return &lang.UnaryMinus{
 			Right: expression(l, nn.(*expr.UnaryMinus).Expr),
+		}
+
+	// TODO: Set parent
+	case *expr.PostInc:
+		return &lang.Inc{
+			Var: expression(l, nn.(*expr.PostInc).Variable).(*lang.Variable),
 		}
 
 	// TODO: Set parent
@@ -225,6 +237,8 @@ func expression(l *lang.Function, nn node.Node) lang.Expression {
 		return &lang.Str{
 			Value: s,
 		}
+
+	// TODO: Refactor every binary operation, this stinks, alot.
 
 	// TODO: Set parent
 	case *binary.Plus:
