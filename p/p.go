@@ -83,7 +83,7 @@ func mainDef() *lang.Function {
 	return lang.CreateFunc("main")
 }
 
-func createFunction(l *lang.Code, stmts []node.Node) {
+func createFunction(b lang.Block, stmts []node.Node) {
 	var n lang.Node
 	for _, s := range stmts {
 		switch s.(type) {
@@ -94,26 +94,26 @@ func createFunction(l *lang.Code, stmts []node.Node) {
 			n = &lang.HTML{
 				Content: s.(*stmt.InlineHtml).Value,
 			}
-			l.AddStatement(n)
+			b.AddStatement(n)
 
 		case *stmt.StmtList:
 			list := &lang.Code{
 				Vars:       make([]lang.Variable, 0),
 				Statements: make([]lang.Node, 0),
 			}
-			list.SetParent(l)
-			l.AddStatement(list)
+			list.SetParent(b)
+			b.AddStatement(list)
 			createFunction(list, s.(*stmt.StmtList).Stmts)
 
 		case *stmt.Expression:
-			defineExpression(l, s.(*stmt.Expression))
+			defineExpression(b, s.(*stmt.Expression))
 
 		// Return is not an expression, this is fucked up (for my structure).
 		case *stmt.Return:
 			r := &lang.Return{
-				Expression: expression(l, s.(*stmt.Return).Expr),
+				Expression: expression(b, s.(*stmt.Return).Expr),
 			}
-			l.AddStatement(r)
+			b.AddStatement(r)
 
 		case *stmt.Echo:
 			f := &lang.FunctionCall{
@@ -126,9 +126,9 @@ func createFunction(l *lang.Code, stmts []node.Node) {
 				// TODO: Do not ignore information in Argument,
 				// it has interesting information like if it is
 				// send by reference and others.
-				f.AddArg(expression(l, e))
+				f.AddArg(expression(b, e))
 			}
-			l.AddStatement(f)
+			b.AddStatement(f)
 
 		default:
 			panic(`Unexpected statement.`)
@@ -136,16 +136,16 @@ func createFunction(l *lang.Code, stmts []node.Node) {
 	}
 }
 
-func defineExpression(l *lang.Code, e *stmt.Expression) {
-	ex := expression(l, e.Expr)
-	l.AddStatement(ex)
+func defineExpression(b lang.Block, e *stmt.Expression) {
+	ex := expression(b, e.Expr)
+	b.AddStatement(ex)
 }
 
-func expression(l *lang.Code, nn node.Node) lang.Expression {
+func expression(b lang.Block, nn node.Node) lang.Expression {
 	switch nn.(type) {
 	case *expr.Variable:
 		name := identifierName(nn.(*expr.Variable))
-		if v := (*l).HasVariable(name); v == nil {
+		if v := b.HasVariable(name); v == nil {
 			panic("Using undefined variable \"" + name + "\".")
 		}
 		return &lang.Variable{
@@ -161,21 +161,21 @@ func expression(l *lang.Code, nn node.Node) lang.Expression {
 	case *assign.Assign:
 		a := nn.(*assign.Assign)
 
-		r := expression(l, a.Expression)
+		r := expression(b, a.Expression)
 		if r == nil {
 			panic(`Missing right side for assignment.`)
 		}
 
 		la, ok := r.(*lang.Assign)
 		if ok {
-			l.AddStatement(la)
+			b.AddStatement(la)
 			r = la.Left()
 		}
 
 		n := identifierName(a.Variable.(*expr.Variable))
 
 		var as *lang.Assign
-		if v := l.HasVariable(n); v == nil {
+		if v := b.HasVariable(n); v == nil {
 			v = &lang.Variable{
 				Type:      r.GetType(),
 				Name:      n,
@@ -188,7 +188,7 @@ func expression(l *lang.Code, nn node.Node) lang.Expression {
 			as = lang.CreateAssign(v, r)
 			as.FirstDefinition = true
 
-			l.DefineVariable(*v)
+			b.DefineVariable(*v)
 		} else {
 			if v.GetType() != r.GetType() {
 				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
@@ -200,29 +200,29 @@ func expression(l *lang.Code, nn node.Node) lang.Expression {
 		return as
 
 	case *expr.UnaryPlus:
-		e := expression(l, nn.(*expr.UnaryPlus).Expr)
-		e.SetParent(l)
+		e := expression(b, nn.(*expr.UnaryPlus).Expr)
+		e.SetParent(b)
 		return e
 
 	case *expr.UnaryMinus:
 		m := &lang.UnaryMinus{
-			Right: expression(l, nn.(*expr.UnaryMinus).Expr),
+			Right: expression(b, nn.(*expr.UnaryMinus).Expr),
 		}
-		m.SetParent(l)
+		m.SetParent(b)
 		return m
 
 	case *expr.PostInc:
 		i := &lang.Inc{
-			Var: expression(l, nn.(*expr.PostInc).Variable).(*lang.Variable),
+			Var: expression(b, nn.(*expr.PostInc).Variable).(*lang.Variable),
 		}
-		i.SetParent(l)
+		i.SetParent(b)
 		return i
 
 	case *scalar.Lnumber:
 		n := &lang.Number{
 			Value: nn.(*scalar.Lnumber).Value,
 		}
-		n.SetParent(l)
+		n.SetParent(b)
 		return n
 
 	case *scalar.Dnumber:
@@ -230,7 +230,7 @@ func expression(l *lang.Code, nn node.Node) lang.Expression {
 		f := &lang.Float{
 			Value: s,
 		}
-		f.SetParent(l)
+		f.SetParent(b)
 		return f
 
 	case *scalar.String:
@@ -238,25 +238,25 @@ func expression(l *lang.Code, nn node.Node) lang.Expression {
 		str := &lang.Str{
 			Value: s,
 		}
-		str.SetParent(l)
+		str.SetParent(b)
 		return str
 
 	case *binary.Plus:
 		p := nn.(*binary.Plus)
-		op := lang.CreateBinaryOp("+", expression(l, p.Left), expression(l, p.Right))
-		op.SetParent(l)
+		op := lang.CreateBinaryOp("+", expression(b, p.Left), expression(b, p.Right))
+		op.SetParent(b)
 		return op
 
 	case *binary.Minus:
 		p := nn.(*binary.Minus)
-		op := lang.CreateBinaryOp("-", expression(l, p.Left), expression(l, p.Right))
-		op.SetParent(l)
+		op := lang.CreateBinaryOp("-", expression(b, p.Left), expression(b, p.Right))
+		op.SetParent(b)
 		return op
 
 	case *binary.Mul:
 		p := nn.(*binary.Mul)
-		op := lang.CreateBinaryOp("*", expression(l, p.Left), expression(l, p.Right))
-		op.SetParent(l)
+		op := lang.CreateBinaryOp("*", expression(b, p.Left), expression(b, p.Right))
+		op.SetParent(b)
 		return op
 
 	case *expr.FunctionCall:
@@ -274,7 +274,7 @@ func expression(l *lang.Code, nn node.Node) lang.Expression {
 			// TODO: Do not ignore information in Argument,
 			// it has interesting information like if it is
 			// send by reference and others.
-			f.AddArg(expression(l, a.(*node.Argument).Expr))
+			f.AddArg(expression(b, a.(*node.Argument).Expr))
 		}
 		return f
 

@@ -23,6 +23,7 @@ type Block interface {
 	Print()
 
 	AddStatement(Node)
+	DefineVariable(Variable)
 }
 
 type Variable struct {
