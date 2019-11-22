@@ -108,7 +108,6 @@ func createFunction(b lang.Block, stmts []node.Node) {
 		case *stmt.Expression:
 			defineExpression(b, s.(*stmt.Expression))
 
-		// Return is not an expression, this is fucked up (for my structure).
 		case *stmt.Return:
 			r := &lang.Return{
 				Expression: expression(b, s.(*stmt.Return).Expr),
