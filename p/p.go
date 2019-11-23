@@ -140,10 +140,10 @@ func defineExpression(b lang.Block, e *stmt.Expression) {
 	b.AddStatement(ex)
 }
 
-func expression(b lang.Block, nn node.Node) lang.Expression {
-	switch nn.(type) {
+func expression(b lang.Block, n node.Node) lang.Expression {
+	switch n.(type) {
 	case *expr.Variable:
-		name := identifierName(nn.(*expr.Variable))
+		name := identifierName(n.(*expr.Variable))
 		if v := b.HasVariable(name); v == nil {
 			panic("Using undefined variable \"" + name + "\".")
 		}
@@ -158,7 +158,7 @@ func expression(b lang.Block, nn node.Node) lang.Expression {
 	// Every expression should have return value.
 	// Otherwise I cannot say what the assigned value will have.
 	case *assign.Assign:
-		a := nn.(*assign.Assign)
+		a := n.(*assign.Assign)
 
 		r := expression(b, a.Expression)
 		if r == nil {
@@ -199,33 +199,33 @@ func expression(b lang.Block, nn node.Node) lang.Expression {
 		return as
 
 	case *expr.UnaryPlus:
-		e := expression(b, nn.(*expr.UnaryPlus).Expr)
+		e := expression(b, n.(*expr.UnaryPlus).Expr)
 		e.SetParent(b)
 		return e
 
 	case *expr.UnaryMinus:
 		m := &lang.UnaryMinus{
-			Right: expression(b, nn.(*expr.UnaryMinus).Expr),
+			Right: expression(b, n.(*expr.UnaryMinus).Expr),
 		}
 		m.SetParent(b)
 		return m
 
 	case *expr.PostInc:
 		i := &lang.Inc{
-			Var: expression(b, nn.(*expr.PostInc).Variable).(*lang.Variable),
+			Var: expression(b, n.(*expr.PostInc).Variable).(*lang.Variable),
 		}
 		i.SetParent(b)
 		return i
 
 	case *scalar.Lnumber:
 		n := &lang.Number{
-			Value: nn.(*scalar.Lnumber).Value,
+			Value: n.(*scalar.Lnumber).Value,
 		}
 		n.SetParent(b)
 		return n
 
 	case *scalar.Dnumber:
-		s := nn.(*scalar.Dnumber).Value
+		s := n.(*scalar.Dnumber).Value
 		f := &lang.Float{
 			Value: s,
 		}
@@ -233,7 +233,7 @@ func expression(b lang.Block, nn node.Node) lang.Expression {
 		return f
 
 	case *scalar.String:
-		s := nn.(*scalar.String).Value
+		s := n.(*scalar.String).Value
 		str := &lang.Str{
 			Value: s,
 		}
@@ -241,25 +241,25 @@ func expression(b lang.Block, nn node.Node) lang.Expression {
 		return str
 
 	case *binary.Plus:
-		p := nn.(*binary.Plus)
+		p := n.(*binary.Plus)
 		op := lang.CreateBinaryOp("+", expression(b, p.Left), expression(b, p.Right))
 		op.SetParent(b)
 		return op
 
 	case *binary.Minus:
-		p := nn.(*binary.Minus)
+		p := n.(*binary.Minus)
 		op := lang.CreateBinaryOp("-", expression(b, p.Left), expression(b, p.Right))
 		op.SetParent(b)
 		return op
 
 	case *binary.Mul:
-		p := nn.(*binary.Mul)
+		p := n.(*binary.Mul)
 		op := lang.CreateBinaryOp("*", expression(b, p.Left), expression(b, p.Right))
 		op.SetParent(b)
 		return op
 
 	case *expr.FunctionCall:
-		fc := nn.(*expr.FunctionCall)
+		fc := n.(*expr.FunctionCall)
 
 		n := constructName(fc.Function.(*name.Name))
 		f := &lang.FunctionCall{
