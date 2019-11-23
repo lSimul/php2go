@@ -163,6 +163,11 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			}
 			b.AddStatement(f)
 
+		case *stmt.Break:
+			br := &lang.Break{}
+			br.SetParent(b)
+			b.AddStatement(br)
+
 		default:
 			panic(`Unexpected statement.`)
 		}
@@ -400,6 +405,14 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		op := lang.CreateBinaryOp("<", expression(b, p.Left), expression(b, p.Right))
 		op.SetParent(b)
 		return op
+
+	case *expr.ConstFetch:
+		cf := n.(*expr.ConstFetch)
+		c := &lang.Const{
+			Value: constructName(cf.Constant.(*name.Name)),
+		}
+		c.SetParent(b)
+		return c
 
 	case *expr.FunctionCall:
 		fc := n.(*expr.FunctionCall)

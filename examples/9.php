@@ -11,13 +11,11 @@ for ($i = 0; $i < 10; $i++) {
 $i = 0;
 for (; $i < 10; $i++) echo $i;
 
-// TODO
-//for (;;) break;
+for (;;) break;
 
 // Unreachable code. Go is almost OK with it, it compiles.
 // But it is not that cool about this, it shows notice in VS Code.
-// TODO
-//for (; false; ) ;
+for (; false; ) ;
 // Translated to:
 /*
 for false {}

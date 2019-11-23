@@ -7,6 +7,7 @@ const (
 	Int     = "int"
 	String  = "string"
 	Float64 = "float64"
+	Bool    = "bool"
 )
 
 type Node interface {

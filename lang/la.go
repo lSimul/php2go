@@ -546,3 +546,53 @@ func (i Inc) Print() {
 	i.Var.Print()
 	fmt.Print("++")
 }
+
+type Break struct {
+	parent Node
+}
+
+func (b Break) Parent() Node {
+	return b.parent
+}
+
+func (b *Break) SetParent(n Node) {
+	b.parent = n
+}
+
+func (b Break) HasVariable(name string) *Variable {
+	return nil
+}
+
+func (b Break) GetType() string {
+	return Void
+}
+
+func (b Break) Print() {
+	fmt.Print("break")
+}
+
+type Const struct {
+	parent Node
+
+	Value string
+}
+
+func (c Const) Parent() Node {
+	return c.parent
+}
+
+func (c *Const) SetParent(n Node) {
+	c.parent = n
+}
+
+func (c Const) HasVariable(name string) *Variable {
+	return nil
+}
+
+func (c Const) GetType() string {
+	return Bool
+}
+
+func (c Const) Print() {
+	fmt.Print(c.Value)
+}
