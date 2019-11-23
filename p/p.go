@@ -110,7 +110,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 		case *stmt.Return:
 			r := &lang.Return{
-				Expression: expression(b, s.(*stmt.Return).Expr),
+				Expression: complexExpression(b, s.(*stmt.Return).Expr),
 			}
 			b.AddStatement(r)
 
@@ -125,7 +125,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				// TODO: Do not ignore information in Argument,
 				// it has interesting information like if it is
 				// send by reference and others.
-				f.AddArg(expression(b, e))
+				f.AddArg(complexExpression(b, e))
 			}
 			b.AddStatement(f)
 
@@ -136,8 +136,111 @@ func createFunction(b lang.Block, stmts []node.Node) {
 }
 
 func defineExpression(b lang.Block, e *stmt.Expression) {
-	ex := expression(b, e.Expr)
+	ex := complexExpression(b, e.Expr)
 	b.AddStatement(ex)
+}
+
+func simpleExpression(b lang.Block, n node.Node) lang.Expression {
+	e := expression(b, n)
+	if e != nil {
+		return e
+	}
+
+	switch n.(type) {
+	case *assign.Assign:
+		a := n.(*assign.Assign)
+
+		r := simpleExpression(b, a.Expression)
+		if r == nil {
+			panic(`Missing right side for assignment.`)
+		}
+
+		_, ok := r.(*lang.Assign)
+		if ok {
+			panic(`Simple expression does not support multiple assignments.`)
+		}
+
+		n := identifierName(a.Variable.(*expr.Variable))
+
+		var as *lang.Assign
+		if v := b.HasVariable(n); v == nil {
+			v = &lang.Variable{
+				Type:      r.GetType(),
+				Name:      n,
+				Const:     false,
+				Reference: false,
+			}
+			if v.Type == lang.Void {
+				panic("Cannot assign \"void\" " + "to \"" + n + "\".")
+			}
+			as = lang.CreateAssign(v, r)
+			as.FirstDefinition = true
+
+			b.DefineVariable(*v)
+		} else {
+			if v.GetType() != r.GetType() {
+				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+			}
+
+			as = lang.CreateAssign(v, r)
+		}
+
+		return as
+	}
+	panic(`Something else uncatched.`)
+}
+
+func complexExpression(b lang.Block, n node.Node) lang.Expression {
+	e := expression(b, n)
+	if e != nil {
+		return e
+	}
+
+	switch n.(type) {
+	// Every expression should have return value.
+	// Otherwise I cannot say what the assigned value will have.
+	case *assign.Assign:
+		a := n.(*assign.Assign)
+
+		r := expression(b, a.Expression)
+		if r == nil {
+			panic(`Missing right side for assignment.`)
+		}
+
+		la, ok := r.(*lang.Assign)
+		if ok {
+			b.AddStatement(la)
+			r = la.Left()
+		}
+
+		n := identifierName(a.Variable.(*expr.Variable))
+
+		var as *lang.Assign
+		if v := b.HasVariable(n); v == nil {
+			v = &lang.Variable{
+				Type:      r.GetType(),
+				Name:      n,
+				Const:     false,
+				Reference: false,
+			}
+			if v.Type == lang.Void {
+				panic("Cannot assign \"void\" " + "to \"" + n + "\".")
+			}
+			as = lang.CreateAssign(v, r)
+			as.FirstDefinition = true
+
+			b.DefineVariable(*v)
+		} else {
+			if v.GetType() != r.GetType() {
+				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+			}
+
+			as = lang.CreateAssign(v, r)
+		}
+
+		return as
+	}
+	panic(`Something else uncatched.`)
 }
 
 func expression(b lang.Block, n node.Node) lang.Expression {
