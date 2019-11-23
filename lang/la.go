@@ -179,6 +179,67 @@ func CreateFunc(name string) *Function {
 	return f
 }
 
+type For struct {
+	parent Node
+
+	Vars []Variable
+
+	Init Expression
+	Cond Expression
+	Loop Expression
+
+	Block *Code
+}
+
+func (f For) Parent() Node {
+	return f.parent
+}
+
+func (f *For) SetParent(n Node) {
+	f.parent = n
+}
+
+func (f For) HasVariable(name string) *Variable {
+	for _, v := range f.Vars {
+		if v.Name == name {
+			return &v
+		}
+	}
+	if f.parent != nil {
+		return f.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (f *For) DefineVariable(v Variable) {
+	f.Vars = append(f.Vars, v)
+}
+
+func (f For) GetType() string {
+	return Void
+}
+
+func (f *For) AddStatement(n Node) {
+	f.Block.AddStatement(n)
+}
+
+func (f For) Print() {
+	fmt.Print("for ")
+	if f.Init != nil {
+		f.Init.Print()
+	}
+	fmt.Print("; ")
+	if f.Cond != nil {
+		f.Cond.Print()
+	}
+	fmt.Print("; ")
+	if f.Loop != nil {
+		f.Loop.Print()
+	}
+	fmt.Print(" ")
+	f.Block.Print()
+}
+
 type Return struct {
 	parent Node
 

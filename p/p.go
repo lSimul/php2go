@@ -108,6 +108,40 @@ func createFunction(b lang.Block, stmts []node.Node) {
 		case *stmt.Expression:
 			defineExpression(b, s.(*stmt.Expression))
 
+		case *stmt.For:
+			f := s.(*stmt.For)
+			// TODO: Move definition into the function, this is kinda long.
+			lf := &lang.For{
+				Vars: make([]lang.Variable, 0),
+			}
+			lf.SetParent(b)
+
+			if f.Init != nil {
+				n := f.Init[0]
+				ex := simpleExpression(lf, n)
+				lf.Init = ex
+			}
+
+			if f.Cond != nil {
+				n := f.Cond[0]
+				ex := simpleExpression(lf, n)
+				lf.Cond = ex
+			}
+
+			if f.Loop != nil {
+				n := f.Loop[0]
+				ex := simpleExpression(lf, n)
+				lf.Loop = ex
+			}
+
+			lf.Block = &lang.Code{
+				Vars:       make([]lang.Variable, 0),
+				Statements: make([]lang.Node, 0),
+			}
+			lf.Block.SetParent(lf)
+			createFunction(lf.Block, []node.Node{f.Stmt})
+			b.AddStatement(lf)
+
 		case *stmt.Return:
 			r := &lang.Return{
 				Expression: complexExpression(b, s.(*stmt.Return).Expr),
@@ -358,6 +392,12 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 	case *binary.Mul:
 		p := n.(*binary.Mul)
 		op := lang.CreateBinaryOp("*", expression(b, p.Left), expression(b, p.Right))
+		op.SetParent(b)
+		return op
+
+	case *binary.Smaller:
+		p := n.(*binary.Smaller)
+		op := lang.CreateBinaryOp("<", expression(b, p.Left), expression(b, p.Right))
 		op.SetParent(b)
 		return op
 
