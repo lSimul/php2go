@@ -230,6 +230,10 @@ func (f For) Print() {
 	}
 	fmt.Print("; ")
 	if f.Cond != nil {
+		if f.Cond.GetType() != Bool {
+			panic(`Condition does not return bool.`)
+		}
+
 		f.Cond.Print()
 	}
 	fmt.Print("; ")
@@ -457,6 +461,14 @@ func (p BinaryOp) HasVariable(name string) *Variable {
 }
 
 func (p BinaryOp) GetType() string {
+	if p.Right.GetType() != p.Left.GetType() {
+		panic(`Left operand has different type than the right one.`)
+	}
+
+	if p.Operation == "<" {
+		return Bool
+	}
+
 	return p.Right.GetType()
 }
 
