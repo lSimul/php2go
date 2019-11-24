@@ -149,36 +149,8 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			b.AddStatement(lf)
 
 		case *stmt.If:
-			i := s.(*stmt.If)
-			nif := &lang.If{}
-			nif.SetParent(b)
-			nif.Cond = simpleExpression(nif, i.Cond)
-			nif.True = &lang.Code{
-				Vars:       make([]lang.Variable, 0),
-				Statements: make([]lang.Node, 0),
-			}
-			list, ok := i.Stmt.(*stmt.StmtList)
-			if ok {
-				createFunction(nif.True, list.Stmts)
-			} else {
-				createFunction(nif.True, []node.Node{i.Stmt})
-			}
-
-			if i.Else != nil {
-				nif.False = &lang.Code{
-					Vars:       make([]lang.Variable, 0),
-					Statements: make([]lang.Node, 0),
-				}
-				e := i.Else.(*stmt.Else).Stmt
-				list, ok := e.(*stmt.StmtList)
-				if ok {
-					createFunction(nif.False, list.Stmts)
-				} else {
-					createFunction(nif.False, []node.Node{e})
-				}
-			}
-
-			b.AddStatement(nif)
+			i := constructIf(b, s.(*stmt.If))
+			b.AddStatement(i)
 
 		case *stmt.Return:
 			r := &lang.Return{
@@ -210,6 +182,70 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			panic(`Unexpected statement.`)
 		}
 	}
+}
+
+func constructIf(b lang.Node, i *stmt.If) *lang.If {
+	nif := &lang.If{}
+	nif.SetParent(b)
+	nif.Cond = simpleExpression(nif, i.Cond)
+	nif.True = &lang.Code{
+		Vars:       make([]lang.Variable, 0),
+		Statements: make([]lang.Node, 0),
+	}
+	nif.True.SetParent(nif)
+	list, ok := i.Stmt.(*stmt.StmtList)
+	if ok {
+		createFunction(nif.True, list.Stmts)
+	} else {
+		createFunction(nif.True, []node.Node{i.Stmt})
+	}
+
+	lif := nif
+	for _, ei := range i.ElseIf {
+		lif.False = constructElif(b, ei.(*stmt.ElseIf))
+		lif = lif.False.(*lang.If)
+	}
+
+	if i.Else != nil {
+		e := i.Else.(*stmt.Else).Stmt
+		switch e.(type) {
+		case *stmt.If:
+			lif.False = constructIf(lif, e.(*stmt.If))
+
+		default:
+			c := &lang.Code{
+				Vars:       make([]lang.Variable, 0),
+				Statements: make([]lang.Node, 0),
+			}
+			c.SetParent(lif)
+			list, ok := e.(*stmt.StmtList)
+			if ok {
+				createFunction(c, list.Stmts)
+			} else {
+				createFunction(c, []node.Node{e})
+			}
+			lif.False = c
+		}
+	}
+	return nif
+}
+
+func constructElif(b lang.Node, i *stmt.ElseIf) *lang.If {
+	nif := &lang.If{}
+	nif.SetParent(b)
+	nif.Cond = simpleExpression(nif, i.Cond)
+	nif.True = &lang.Code{
+		Vars:       make([]lang.Variable, 0),
+		Statements: make([]lang.Node, 0),
+	}
+	nif.True.SetParent(nif)
+	list, ok := i.Stmt.(*stmt.StmtList)
+	if ok {
+		createFunction(nif.True, list.Stmts)
+	} else {
+		createFunction(nif.True, []node.Node{i.Stmt})
+	}
+	return nif
 }
 
 func defineExpression(b lang.Block, e *stmt.Expression) {
@@ -453,6 +489,12 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 	case *binary.Greater:
 		p := n.(*binary.Greater)
 		op := lang.CreateBinaryOp(">", expression(b, p.Left), expression(b, p.Right))
+		op.SetParent(b)
+		return op
+
+	case *binary.Identical:
+		p := n.(*binary.Identical)
+		op := lang.CreateBinaryOp("==", expression(b, p.Left), expression(b, p.Right))
 		op.SetParent(b)
 		return op
 

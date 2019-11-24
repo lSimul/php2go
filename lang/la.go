@@ -120,6 +120,10 @@ func (c Code) HasVariable(name string) *Variable {
 	return nil
 }
 
+func (c Code) GetType() string {
+	return Void
+}
+
 func (c *Code) DefineVariable(v Variable) {
 	c.Vars = append(c.Vars, v)
 }
@@ -253,7 +257,7 @@ type If struct {
 	Cond Expression
 
 	True  *Code
-	False *Code
+	False Expression
 }
 
 func (i If) Parent() Node {
@@ -529,7 +533,7 @@ func (p BinaryOp) GetType() string {
 	}
 
 	op := p.Operation
-	if op == "<" || op == ">" || op == ">=" {
+	if op == "<" || op == ">" || op == ">=" || op == "==" {
 		return Bool
 	}
 
