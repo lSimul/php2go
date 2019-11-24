@@ -142,6 +142,28 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			createFunction(lf.Block, []node.Node{f.Stmt})
 			b.AddStatement(lf)
 
+		case *stmt.If:
+			i := s.(*stmt.If)
+			nif := &lang.If{}
+			nif.SetParent(b)
+			nif.Cond = simpleExpression(nif, i.Cond)
+			nif.True = &lang.Code{
+				Vars:       make([]lang.Variable, 0),
+				Statements: make([]lang.Node, 0),
+			}
+			createFunction(nif.True, []node.Node{i.Stmt})
+
+			if i.Else != nil {
+				nif.False = &lang.Code{
+					Vars:       make([]lang.Variable, 0),
+					Statements: make([]lang.Node, 0),
+				}
+				e := i.Else.(*stmt.Else).Stmt
+				createFunction(nif.False, []node.Node{e})
+			}
+
+			b.AddStatement(nif)
+
 		case *stmt.Return:
 			r := &lang.Return{
 				Expression: complexExpression(b, s.(*stmt.Return).Expr),
@@ -403,6 +425,18 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 	case *binary.Smaller:
 		p := n.(*binary.Smaller)
 		op := lang.CreateBinaryOp("<", expression(b, p.Left), expression(b, p.Right))
+		op.SetParent(b)
+		return op
+
+	case *binary.GreaterOrEqual:
+		p := n.(*binary.GreaterOrEqual)
+		op := lang.CreateBinaryOp(">=", expression(b, p.Left), expression(b, p.Right))
+		op.SetParent(b)
+		return op
+
+	case *binary.Greater:
+		p := n.(*binary.Greater)
+		op := lang.CreateBinaryOp(">", expression(b, p.Left), expression(b, p.Right))
 		op.SetParent(b)
 		return op
 

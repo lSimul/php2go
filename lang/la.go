@@ -135,7 +135,7 @@ func (c Code) Print() {
 		s.Print()
 		fmt.Print("\n")
 	}
-	fmt.Print("}\n")
+	fmt.Print("}")
 }
 
 // Refactor to something like function call
@@ -242,6 +242,69 @@ func (f For) Print() {
 	}
 	fmt.Print(" ")
 	f.Block.Print()
+}
+
+type If struct {
+	parent Node
+
+	Vars []Variable
+
+	Init Expression
+	Cond Expression
+
+	True  *Code
+	False *Code
+}
+
+func (i If) Parent() Node {
+	return i.parent
+}
+
+func (i *If) SetParent(n Node) {
+	i.parent = n
+}
+
+func (i If) HasVariable(name string) *Variable {
+	for _, v := range i.Vars {
+		if v.Name == name {
+			return &v
+		}
+	}
+	if i.parent != nil {
+		return i.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (i *If) DefineVariable(v Variable) {
+	i.Vars = append(i.Vars, v)
+}
+
+func (i If) GetType() string {
+	return Void
+}
+
+func (i *If) AddStatement(n Node) {}
+
+func (i If) Print() {
+	fmt.Print("if ")
+	if i.Init != nil {
+		i.Init.Print()
+		fmt.Print("; ")
+	}
+	if i.Cond != nil {
+		if i.Cond.GetType() != Bool {
+			panic(`Condition does not return bool.`)
+		}
+
+		i.Cond.Print()
+	}
+	fmt.Print(" ")
+	i.True.Print()
+	if i.False != nil {
+		fmt.Print(" else ")
+		i.False.Print()
+	}
 }
 
 type Return struct {
@@ -465,7 +528,8 @@ func (p BinaryOp) GetType() string {
 		panic(`Left operand has different type than the right one.`)
 	}
 
-	if p.Operation == "<" {
+	op := p.Operation
+	if op == "<" || op == ">" || op == ">=" {
 		return Bool
 	}
 
