@@ -139,7 +139,13 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				Statements: make([]lang.Node, 0),
 			}
 			lf.Block.SetParent(lf)
-			createFunction(lf.Block, []node.Node{f.Stmt})
+
+			list, ok := f.Stmt.(*stmt.StmtList)
+			if ok {
+				createFunction(lf.Block, list.Stmts)
+			} else {
+				createFunction(lf.Block, []node.Node{f.Stmt})
+			}
 			b.AddStatement(lf)
 
 		case *stmt.If:
@@ -151,7 +157,12 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				Vars:       make([]lang.Variable, 0),
 				Statements: make([]lang.Node, 0),
 			}
-			createFunction(nif.True, []node.Node{i.Stmt})
+			list, ok := i.Stmt.(*stmt.StmtList)
+			if ok {
+				createFunction(nif.True, list.Stmts)
+			} else {
+				createFunction(nif.True, []node.Node{i.Stmt})
+			}
 
 			if i.Else != nil {
 				nif.False = &lang.Code{
@@ -159,7 +170,12 @@ func createFunction(b lang.Block, stmts []node.Node) {
 					Statements: make([]lang.Node, 0),
 				}
 				e := i.Else.(*stmt.Else).Stmt
-				createFunction(nif.False, []node.Node{e})
+				list, ok := e.(*stmt.StmtList)
+				if ok {
+					createFunction(nif.False, list.Stmts)
+				} else {
+					createFunction(nif.False, []node.Node{e})
+				}
 			}
 
 			b.AddStatement(nif)
