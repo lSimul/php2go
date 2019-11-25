@@ -503,6 +503,37 @@ func (m UnaryMinus) Print() {
 	m.Right.Print()
 }
 
+type Negation struct {
+	parent Node
+
+	Right Expression
+}
+
+func (neg Negation) Parent() Node {
+	return neg.parent
+}
+
+func (neg *Negation) SetParent(n Node) {
+	neg.parent = n
+}
+
+func (neg Negation) HasVariable(name string) *Variable {
+	if neg.parent != nil {
+		return neg.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (neg Negation) GetType() string {
+	return neg.Right.GetType()
+}
+
+func (neg Negation) Print() {
+	fmt.Print("!(")
+	neg.Right.Print()
+	fmt.Print(")")
+}
+
 type BinaryOp struct {
 	parent Node
 
@@ -533,7 +564,7 @@ func (p BinaryOp) GetType() string {
 	}
 
 	op := p.Operation
-	if op == "<" || op == ">" || op == ">=" || op == "==" {
+	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" {
 		return Bool
 	}
 
@@ -627,6 +658,36 @@ func (i Inc) Print() {
 	fmt.Print("++")
 }
 
+type Dec struct {
+	parent Node
+
+	Var *Variable
+}
+
+func (d Dec) Parent() Node {
+	return d.parent
+}
+
+func (d *Dec) SetParent(n Node) {
+	d.parent = n
+}
+
+func (d Dec) HasVariable(name string) *Variable {
+	if d.parent != nil {
+		return d.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (d Dec) GetType() string {
+	return d.Var.GetType()
+}
+
+func (d Dec) Print() {
+	d.Var.Print()
+	fmt.Print("--")
+}
+
 type Break struct {
 	parent Node
 }
@@ -649,6 +710,30 @@ func (b Break) GetType() string {
 
 func (b Break) Print() {
 	fmt.Print("break")
+}
+
+type Continue struct {
+	parent Node
+}
+
+func (c Continue) Parent() Node {
+	return c.parent
+}
+
+func (c *Continue) SetParent(n Node) {
+	c.parent = n
+}
+
+func (c Continue) HasVariable(name string) *Variable {
+	return nil
+}
+
+func (c Continue) GetType() string {
+	return Void
+}
+
+func (c Continue) Print() {
+	fmt.Print("continue")
 }
 
 type Const struct {

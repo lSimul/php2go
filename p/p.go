@@ -112,9 +112,9 @@ func createFunction(b lang.Block, stmts []node.Node) {
 		case *stmt.Expression:
 			defineExpression(b, s.(*stmt.Expression))
 
+		// TODO: Move definition into the function, this is kinda long.
 		case *stmt.For:
 			f := s.(*stmt.For)
-			// TODO: Move definition into the function, this is kinda long.
 			lf := &lang.For{
 				Vars: make([]lang.Variable, 0),
 			}
@@ -152,6 +152,72 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			}
 			b.AddStatement(lf)
 
+		case *stmt.While:
+			w := s.(*stmt.While)
+			f := &lang.For{
+				Vars: make([]lang.Variable, 0),
+			}
+			f.SetParent(b)
+
+			ex := simpleExpression(f, w.Cond)
+			f.Cond = ex
+
+			f.Block = &lang.Code{
+				Vars:       make([]lang.Variable, 0),
+				Statements: make([]lang.Node, 0),
+			}
+			f.Block.SetParent(f)
+
+			list, ok := w.Stmt.(*stmt.StmtList)
+			if ok {
+				createFunction(f.Block, list.Stmts)
+			} else {
+				createFunction(f.Block, []node.Node{w.Stmt})
+			}
+			b.AddStatement(f)
+
+		case *stmt.Do:
+			w := s.(*stmt.Do)
+			lf := &lang.For{
+				Vars: make([]lang.Variable, 0),
+			}
+			lf.SetParent(b)
+
+			lf.Block = &lang.Code{
+				Vars:       make([]lang.Variable, 0),
+				Statements: make([]lang.Node, 0),
+			}
+			lf.Block.SetParent(lf)
+
+			list, ok := w.Stmt.(*stmt.StmtList)
+			if ok {
+				createFunction(lf.Block, list.Stmts)
+			} else {
+				createFunction(lf.Block, []node.Node{w.Stmt})
+			}
+
+			i := &lang.If{
+				Vars: make([]lang.Variable, 0),
+				True: &lang.Code{
+					Vars:       make([]lang.Variable, 0),
+					Statements: make([]lang.Node, 0),
+				},
+			}
+			i.True.SetParent(i)
+			i.SetParent(lf)
+			c := simpleExpression(i, w.Cond)
+			neg := &lang.Negation{
+				Right: c,
+			}
+			c.SetParent(neg)
+			i.Cond = neg
+			neg.SetParent(i)
+			i.True.AddStatement(&lang.Break{})
+			lf.Block.AddStatement(i)
+
+			b.AddStatement(lf)
+		//
+
 		case *stmt.If:
 			i := constructIf(b, s.(*stmt.If))
 			b.AddStatement(i)
@@ -181,6 +247,11 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			br := &lang.Break{}
 			br.SetParent(b)
 			b.AddStatement(br)
+
+		case *stmt.Continue:
+			c := &lang.Continue{}
+			c.SetParent(b)
+			b.AddStatement(c)
 
 		default:
 			panic(`Unexpected statement.`)
@@ -437,6 +508,13 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		i.SetParent(b)
 		return i
 
+	case *expr.PostDec:
+		i := &lang.Dec{
+			Var: expression(b, n.(*expr.PostDec).Variable).(*lang.Variable),
+		}
+		i.SetParent(b)
+		return i
+
 	case *scalar.Lnumber:
 		n := &lang.Number{
 			Value: n.(*scalar.Lnumber).Value,
@@ -481,6 +559,12 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 	case *binary.Smaller:
 		p := n.(*binary.Smaller)
 		op := lang.CreateBinaryOp("<", expression(b, p.Left), expression(b, p.Right))
+		op.SetParent(b)
+		return op
+
+	case *binary.SmallerOrEqual:
+		p := n.(*binary.SmallerOrEqual)
+		op := lang.CreateBinaryOp("<=", expression(b, p.Left), expression(b, p.Right))
 		op.SetParent(b)
 		return op
 
