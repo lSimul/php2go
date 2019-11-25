@@ -55,7 +55,11 @@ func sanitizeRootStmts(r *node.Root) ([]node.Node, []stmt.Function) {
 }
 
 func funcDef(fc *stmt.Function) *lang.Function {
-	f := lang.CreateFunc(fc.FunctionName.(*node.Identifier).Value)
+	n := fc.FunctionName.(*node.Identifier).Value
+	if n == "func" {
+		n = "function"
+	}
+	f := lang.CreateFunc(n)
 
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
@@ -549,6 +553,10 @@ func constructName(nm *name.Name) string {
 	res := ""
 	for _, n := range nm.Parts {
 		res += n.(*name.NamePart).Value
+	}
+	switch res {
+	case "func":
+		res = "function"
 	}
 	return res
 }
