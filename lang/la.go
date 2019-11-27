@@ -29,6 +29,7 @@ func (gc GlobalContext) Print() {
 	fmt.Println("package main")
 	fmt.Println()
 	fmt.Println("import \"fmt\"")
+	fmt.Println("import \"php2go/std\"")
 	fmt.Println()
 
 	for _, f := range gc.Funcs {

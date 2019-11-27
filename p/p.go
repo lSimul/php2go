@@ -594,6 +594,19 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		c.SetParent(b)
 		return c
 
+	// TODO: Add std functions to this parser, so it does not have to be
+	// hacked like this.
+	case *binary.Concat:
+		c := n.(*binary.Concat)
+		f := &lang.FunctionCall{
+			Name:   "std.Concat",
+			Args:   make([]lang.Expression, 0),
+			Return: lang.String,
+		}
+		f.AddArg(expression(b, c.Left))
+		f.AddArg(expression(b, c.Right))
+		return f
+
 	case *expr.FunctionCall:
 		fc := n.(*expr.FunctionCall)
 
