@@ -437,12 +437,13 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 	switch n.(type) {
 	case *expr.Variable:
 		name := identifierName(n.(*expr.Variable))
-		if v := b.HasVariable(name); v == nil {
+		v := b.HasVariable(name)
+		if v == nil {
 			panic("Using undefined variable \"" + name + "\".")
 		}
 		return &lang.Variable{
 			// Type will be taken from the right side.
-			Type:      lang.Int,
+			Type:      v.GetType(),
 			Name:      name,
 			Const:     false,
 			Reference: false,

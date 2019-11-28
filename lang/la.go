@@ -582,12 +582,108 @@ func (p BinaryOp) Print() {
 	p.Right.Print()
 }
 
+// Binary operation should require two same types, for now.
+// Seeing Void will cause code to panic.
 func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
-	return &BinaryOp{
+	lt := left.GetType()
+	rt := right.GetType()
+
+	if lt == Void || rt == Void {
+		panic(`Binary op cannot be used with "void"`)
+	}
+
+	if lt == rt {
+		ret := &BinaryOp{
+			Operation: op,
+			Left:      left,
+			Right:     right,
+		}
+		left.SetParent(ret)
+		right.SetParent(ret)
+		return ret
+	}
+
+	// PHP tries to convert string to number,
+	// skipping for now.
+	switch lt {
+	case Bool:
+		switch rt {
+		case Int:
+			f := &FunctionCall{
+				Name:   "std.BoolToInt",
+				Args:   make([]Expression, 1),
+				Return: Int,
+			}
+			f.Args[0] = left
+			f.SetParent(left)
+			left = f
+
+		case Float64:
+			f := &FunctionCall{
+				Name:   "std.BoolToFloat64",
+				Args:   make([]Expression, 1),
+				Return: Float64,
+			}
+			f.Args[0] = left
+			f.SetParent(left)
+			left = f
+		}
+
+	case Int:
+		switch rt {
+		case Bool:
+			f := &FunctionCall{
+				Name:   "std.BoolToInt",
+				Args:   make([]Expression, 1),
+				Return: Int,
+			}
+			f.Args[0] = right
+			f.SetParent(right)
+			right = f
+
+		case Float64:
+			f := &FunctionCall{
+				Name:   "float64",
+				Args:   make([]Expression, 1),
+				Return: Float64,
+			}
+			f.Args[0] = left
+			f.SetParent(left)
+			left = f
+		}
+
+	case Float64:
+		switch rt {
+		case Bool:
+			f := &FunctionCall{
+				Name:   "std.BoolToFloat64",
+				Args:   make([]Expression, 1),
+				Return: Float64,
+			}
+			f.Args[0] = right
+			f.SetParent(right)
+			right = f
+
+		case Int:
+			f := &FunctionCall{
+				Name:   "float",
+				Args:   make([]Expression, 1),
+				Return: Float64,
+			}
+			f.Args[0] = right
+			f.SetParent(right)
+			right = f
+		}
+	}
+
+	ret := &BinaryOp{
 		Operation: op,
 		Left:      left,
 		Right:     right,
 	}
+	left.SetParent(ret)
+	right.SetParent(ret)
+	return ret
 }
 
 type FunctionCall struct {
