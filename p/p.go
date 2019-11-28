@@ -1,6 +1,8 @@
 package p
 
 import (
+	"errors"
+
 	"github.com/z7zmey/php-parser/node"
 	"github.com/z7zmey/php-parser/node/expr"
 	"github.com/z7zmey/php-parser/node/expr/assign"
@@ -67,7 +69,7 @@ func funcDef(fc *stmt.Function) *lang.Function {
 			Type:      constructName(p.VariableType.(*name.Name)),
 			Name:      identifierName(p.Variable.(*expr.Variable)),
 			Const:     false,
-			Reference: false,
+			Reference: p.ByRef,
 		}
 		f.Args = append(f.Args, v)
 	}
@@ -502,8 +504,13 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		return m
 
 	case *expr.PostInc:
+		v, isVar := expression(b, n.(*expr.PostInc).Variable).(*lang.Variable)
+		if !isVar {
+			panic(`Sadly enough, "++" requires variable, for now`)
+		}
+		v = b.HasVariable(v.Name)
 		i := &lang.Inc{
-			Var: expression(b, n.(*expr.PostInc).Variable).(*lang.Variable),
+			Var: v,
 		}
 		i.SetParent(b)
 		return i
@@ -611,6 +618,11 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		fc := n.(*expr.FunctionCall)
 
 		n := constructName(fc.Function.(*name.Name))
+		lf := gc.Get(n)
+		if gc == nil {
+			panic(n + " is not defined")
+		}
+
 		f := &lang.FunctionCall{
 			Name:   n,
 			Args:   make([]lang.Expression, 0),
@@ -618,17 +630,44 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		}
 
 		al := fc.ArgumentList
-		for _, a := range al.Arguments {
-			// TODO: Do not ignore information in Argument,
-			// it has interesting information like if it is
-			// send by reference and others.
-			f.AddArg(expression(b, a.(*node.Argument).Expr))
+		err := checkArguments(lf.Args, al.Arguments)
+		if err != nil {
+			panic(err)
+		}
+		for i, a := range al.Arguments {
+			var arg lang.Expression
+			if lf.Args[i].Reference {
+				v := expression(b, a.(*node.Argument).Expr).(*lang.Variable)
+				v.Reference = true
+				arg = v
+			} else {
+				// TODO: Do not ignore information in Argument,
+				// it has interesting information like if it is
+				// send by reference and others.
+				arg = expression(b, a.(*node.Argument).Expr)
+			}
+			f.AddArg(arg)
 		}
 		return f
 
 	default:
 		panic(`Something else uncatched.`)
 	}
+}
+
+func checkArguments(vars []lang.Variable, call []node.Node) error {
+	if len(vars) != len(call) {
+		return errors.New("wrong argument count")
+	}
+	for i := 0; i < len(vars); i++ {
+		_, isVar := call[i].(*node.Argument).Expr.(*expr.Variable)
+		// This is something even PHP linter is aware of.
+		if vars[i].Reference && !isVar {
+			return errors.New("only variable can be parsed by reference")
+		}
+	}
+
+	return nil
 }
 
 /**

@@ -72,7 +72,11 @@ func (f Function) Print() {
 	fmt.Print("func " + f.Name + "(")
 	for i := 0; i < len(f.Args); i++ {
 		a := f.Args[i]
-		fmt.Print(a.Name + " " + a.GetType())
+		fmt.Print(a.Name + " ")
+		if a.Reference {
+			fmt.Print("*")
+		}
+		fmt.Print(a.GetType())
 		if i < len(f.Args)-1 {
 			fmt.Print(", ")
 		}
@@ -621,6 +625,12 @@ func (f FunctionCall) Print() {
 	fmt.Print(f.Name)
 	fmt.Print("(")
 	for i := 0; i < len(f.Args); i++ {
+		if v, isVar := f.Args[i].(*Variable); isVar {
+			if v.Reference {
+				fmt.Print("&")
+			}
+		}
+
 		f.Args[i].Print()
 		if i < len(f.Args)-1 {
 			fmt.Print(", ")
@@ -655,7 +665,13 @@ func (i Inc) GetType() string {
 }
 
 func (i Inc) Print() {
-	i.Var.Print()
+	if i.Var.Reference {
+		fmt.Print("(*")
+		i.Var.Print()
+		fmt.Print(")")
+	} else {
+		i.Var.Print()
+	}
 	fmt.Print("++")
 }
 
