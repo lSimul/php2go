@@ -224,6 +224,16 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			i := constructIf(b, s.(*stmt.If))
 			b.AddStatement(i)
 
+		case *stmt.Switch:
+			s := s.(*stmt.Switch)
+			sw := &lang.Switch{
+				Cases: make([]lang.Node, 0),
+			}
+			sw.SetParent(b)
+			sw.Condition = expression(sw, s.Cond)
+			constructSwitch(sw, s.CaseList)
+			b.AddStatement(sw)
+
 		case *stmt.Return:
 			r := &lang.Return{
 				Expression: complexExpression(b, s.(*stmt.Return).Expr),
@@ -323,6 +333,54 @@ func constructElif(b lang.Node, i *stmt.ElseIf) *lang.If {
 		createFunction(nif.True, []node.Node{i.Stmt})
 	}
 	return nif
+}
+
+func constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
+	for _, c := range cl.Cases {
+		switch c.(type) {
+		case *stmt.Case:
+			c := c.(*stmt.Case)
+			lc := &lang.Case{
+				Vars:       make([]lang.Variable, 0),
+				Statements: make([]lang.Node, 0),
+			}
+			lc.SetParent(s)
+			s.Cases = append(s.Cases, lc)
+			lc.Condition = expression(lc, c.Cond)
+			createFunction(lc, c.Stmts)
+			if len(lc.Statements) > 0 {
+				_, ok := lc.Statements[len(lc.Statements)-1].(*lang.Break)
+				if ok {
+					lc.Statements = lc.Statements[:len(lc.Statements)-1]
+				} else {
+					f := &lang.Fallthrough{}
+					f.SetParent(lc)
+					lc.Statements = append(lc.Statements, f)
+				}
+			}
+
+		case *stmt.Default:
+			c := c.(*stmt.Default)
+			d := &lang.Default{
+				Vars:       make([]lang.Variable, 0),
+				Statements: make([]lang.Node, 0),
+			}
+			d.SetParent(s)
+			s.Cases = append(s.Cases, d)
+			createFunction(d, c.Stmts)
+
+			if len(d.Statements) > 0 {
+				_, ok := d.Statements[len(d.Statements)-1].(*lang.Break)
+				if ok {
+					d.Statements = d.Statements[:len(d.Statements)-1]
+				} else {
+					f := &lang.Fallthrough{}
+					f.SetParent(d)
+					d.Statements = append(d.Statements, f)
+				}
+			}
+		}
+	}
 }
 
 func defineExpression(b lang.Block, e *stmt.Expression) {

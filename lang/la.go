@@ -686,6 +686,136 @@ func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
 	return ret
 }
 
+type Switch struct {
+	parent Node
+
+	Condition Expression
+	// Default will end up here too,
+	// to keep the order from PHP.
+	Cases []Node
+}
+
+func (p Switch) Parent() Node {
+	return p.parent
+}
+
+func (p *Switch) SetParent(n Node) {
+	p.parent = n
+}
+
+func (p Switch) HasVariable(name string) *Variable {
+	if p.parent != nil {
+		return p.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (p Switch) GetType() string {
+	return Void
+}
+
+func (p *Switch) AddStatement(n Node)       {}
+func (p *Switch) DefineVariable(v Variable) {}
+
+func (p Switch) Print() {
+	fmt.Print("switch ")
+	p.Condition.Print()
+	fmt.Print(" {\n")
+	for _, c := range p.Cases {
+		c.Print()
+	}
+	fmt.Print("}")
+}
+
+type Case struct {
+	parent Node
+
+	Statements []Node
+	Vars       []Variable
+	Condition  Expression
+}
+
+func (p Case) Parent() Node {
+	return p.parent
+}
+
+func (p *Case) SetParent(n Node) {
+	p.parent = n
+}
+
+func (p Case) HasVariable(name string) *Variable {
+	if p.parent != nil {
+		return p.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (p Case) GetType() string {
+	return p.Condition.GetType()
+}
+
+func (p Case) Print() {
+	fmt.Print("case ")
+	p.Condition.Print()
+	fmt.Print(":\n")
+	for _, e := range p.Statements {
+		e.Print()
+		fmt.Print("\n")
+	}
+	fmt.Print("\n")
+}
+
+func (c *Case) AddStatement(n Node) {
+	c.Statements = append(c.Statements, n)
+}
+
+func (c *Case) DefineVariable(v Variable) {
+	c.Vars = append(c.Vars, v)
+}
+
+type Default struct {
+	parent Node
+
+	Vars       []Variable
+	Statements []Node
+}
+
+func (p Default) Parent() Node {
+	return p.parent
+}
+
+func (p *Default) SetParent(n Node) {
+	p.parent = n
+}
+
+func (p Default) HasVariable(name string) *Variable {
+	if p.parent != nil {
+		return p.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (p Default) GetType() string {
+	return Void
+}
+
+func (p Default) Print() {
+	fmt.Print("default:\n")
+	for _, e := range p.Statements {
+		e.Print()
+		fmt.Print("\n")
+	}
+	fmt.Print("\n")
+}
+
+func (c *Default) AddStatement(n Node) {
+	c.Statements = append(c.Statements, n)
+}
+
+func (c *Default) DefineVariable(v Variable) {
+	c.Vars = append(c.Vars, v)
+}
+
 type FunctionCall struct {
 	parent Node
 
@@ -873,4 +1003,28 @@ func (c Const) GetType() string {
 
 func (c Const) Print() {
 	fmt.Print(c.Value)
+}
+
+type Fallthrough struct {
+	parent Node
+}
+
+func (c Fallthrough) Parent() Node {
+	return c.parent
+}
+
+func (c *Fallthrough) SetParent(n Node) {
+	c.parent = n
+}
+
+func (c Fallthrough) HasVariable(name string) *Variable {
+	return nil
+}
+
+func (c Fallthrough) GetType() string {
+	return Void
+}
+
+func (c Fallthrough) Print() {
+	fmt.Print("fallthrough")
 }
