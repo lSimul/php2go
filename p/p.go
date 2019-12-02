@@ -2,6 +2,7 @@ package p
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/z7zmey/php-parser/node"
 	"github.com/z7zmey/php-parser/node/expr"
@@ -550,6 +551,45 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 		return as
 
+	case *scalar.Encapsed:
+		e := n.(*scalar.Encapsed)
+		f := &lang.FunctionCall{
+			Name: "fmt.Sprintf",
+			Args: make([]lang.Expression, 1),
+		}
+		s := &lang.Str{
+			Value: "\"",
+		}
+		s.SetParent(f)
+		for _, p := range e.Parts {
+			switch p.(type) {
+			case *scalar.EncapsedStringPart:
+				s.Value += p.(*scalar.EncapsedStringPart).Value
+
+			case *expr.Variable:
+				vn := identifierName(p.(*expr.Variable))
+				v := b.HasVariable(vn)
+				if v == nil || v.GetType() == lang.Void {
+					panic(vn + " is not defined.")
+				}
+				switch v.GetType() {
+				case lang.Int:
+					s.Value += "%d"
+
+				case lang.Float64:
+					s.Value += "%g"
+
+				case lang.String:
+					s.Value += "%s"
+				}
+				f.AddArg(v)
+			}
+		}
+		s.Value += "\""
+		f.Args[0] = s
+		f.SetParent(b)
+		return f
+
 	case *expr.UnaryPlus:
 		e := expression(b, n.(*expr.UnaryPlus).Expr)
 		e.SetParent(b)
@@ -598,6 +638,11 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *scalar.String:
 		s := n.(*scalar.String).Value
+		if s[0] == '\'' && s[len(s)-1] == '\'' {
+			s = strings.ReplaceAll(s, "\\", "\\\\")
+			s = strings.ReplaceAll(s, "\"", "\\\"")
+			s = strings.ReplaceAll(s, "'", "\"")
+		}
 		str := &lang.Str{
 			Value: s,
 		}
