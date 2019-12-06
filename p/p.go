@@ -684,41 +684,33 @@ func checkArguments(vars []lang.Variable, call []node.Node) error {
 }
 
 func buildAssignment(parent lang.Block, varName string, right lang.Expression) *lang.Assign {
-	var as *lang.Assign
-	if v := parent.HasVariable(varName); v == nil {
-		v = &lang.Variable{
-			Type:      right.GetType(),
-			Name:      varName,
-			Const:     false,
-			Reference: false,
-		}
-		if v.Type == lang.Void {
-			panic("Cannot assign \"void\" " + "to \"" + varName + "\".")
-		}
-		as = lang.CreateAssign(v, right)
-		as.FirstDefinition = true
+	t := right.GetType()
+	if t == lang.Void {
+		panic("Cannot assign \"void\" " + "to \"" + varName + "\".")
+	}
+	av := &lang.Variable{
+		Type:      t,
+		Name:      varName,
+		Const:     false,
+		Reference: false,
+	}
 
-		parent.DefineVariable(*v)
-	} else {
-		fd := false
-		if v.GetType() != right.GetType() {
+	fd := true
+	if v := parent.HasVariable(varName); v != nil {
+		fd = false
+		if v.GetType() != t {
 			if parent.DefinesVariable(varName) == nil {
 				fd = true
-				v = &lang.Variable{
-					Type:      right.GetType(),
-					Name:      varName,
-					Const:     false,
-					Reference: false,
-				}
-				parent.DefineVariable(*v)
+				parent.DefineVariable(*av)
 			} else {
-				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + right.GetType() + "\" given.")
+				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + t + "\" given.")
 			}
 		}
-
-		as = lang.CreateAssign(v, right)
-		as.FirstDefinition = fd
+	} else {
+		parent.DefineVariable(*av)
 	}
+	as := lang.CreateAssign(av, right)
+	as.FirstDefinition = fd
 	as.SetParent(parent)
 
 	return as
