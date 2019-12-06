@@ -454,7 +454,6 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 			panic("Using undefined variable \"" + name + "\".")
 		}
 		return &lang.Variable{
-			// Type will be taken from the right side.
 			Type:      v.GetType(),
 			Name:      name,
 			Const:     false,
@@ -676,7 +675,7 @@ func checkArguments(vars []lang.Variable, call []node.Node) error {
 		_, isVar := call[i].(*node.Argument).Expr.(*expr.Variable)
 		// This is something even PHP linter is aware of.
 		if vars[i].Reference && !isVar {
-			return errors.New("only variable can be parsed by reference")
+			return errors.New("only variable can be passed by reference")
 		}
 	}
 
