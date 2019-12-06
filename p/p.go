@@ -102,6 +102,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			n = &lang.HTML{
 				Content: s.(*stmt.InlineHtml).Value,
 			}
+			n.SetParent(b)
 			b.AddStatement(n)
 
 		case *stmt.StmtList:

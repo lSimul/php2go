@@ -427,24 +427,24 @@ type Number struct {
 	Value string
 }
 
-func (a Number) Parent() Node {
-	return a.parent
+func (nb Number) Parent() Node {
+	return nb.parent
 }
 
-func (a *Number) SetParent(n Node) {
-	a.parent = n
+func (nb *Number) SetParent(n Node) {
+	nb.parent = n
 }
 
-func (n Number) HasVariable(name string) *Variable {
+func (nb Number) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (n Number) GetType() string {
+func (nb Number) GetType() string {
 	return Int
 }
 
-func (n Number) Print() {
-	fmt.Print(n.Value)
+func (nb Number) Print() {
+	fmt.Print(nb.Value)
 }
 
 // Float and Number can be merged, only Type is different.
@@ -482,24 +482,24 @@ type Str struct {
 	Value string
 }
 
-func (a Str) Parent() Node {
-	return a.parent
+func (s Str) Parent() Node {
+	return s.parent
 }
 
-func (a *Str) SetParent(n Node) {
-	a.parent = n
+func (s *Str) SetParent(n Node) {
+	s.parent = n
 }
 
-func (n Str) HasVariable(name string) *Variable {
+func (s Str) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (n Str) GetType() string {
+func (s Str) GetType() string {
 	return String
 }
 
-func (n Str) Print() {
-	fmt.Print(n.Value)
+func (s Str) Print() {
+	fmt.Print(s.Value)
 }
 
 type UnaryMinus struct {
@@ -719,37 +719,37 @@ type Switch struct {
 	Cases []Node
 }
 
-func (p Switch) Parent() Node {
-	return p.parent
+func (sw Switch) Parent() Node {
+	return sw.parent
 }
 
-func (p *Switch) SetParent(n Node) {
-	p.parent = n
+func (sw *Switch) SetParent(n Node) {
+	sw.parent = n
 }
 
-func (p Switch) HasVariable(name string) *Variable {
-	if p.parent != nil {
-		return p.parent.HasVariable(name)
+func (sw Switch) HasVariable(name string) *Variable {
+	if sw.parent != nil {
+		return sw.parent.HasVariable(name)
 	}
 	return nil
 }
 
-func (p Switch) GetType() string {
+func (sw Switch) GetType() string {
 	return Void
 }
 
-func (p *Switch) AddStatement(n Node)       {}
-func (p *Switch) DefineVariable(v Variable) {}
+func (sw *Switch) AddStatement(n Node)       {}
+func (sw *Switch) DefineVariable(v Variable) {}
 
-func (p Switch) DefinesVariable(name string) *Variable {
+func (sw Switch) DefinesVariable(name string) *Variable {
 	return nil
 }
 
-func (p Switch) Print() {
+func (sw Switch) Print() {
 	fmt.Print("switch ")
-	p.Condition.Print()
+	sw.Condition.Print()
 	fmt.Print(" {\n")
-	for _, c := range p.Cases {
+	for _, c := range sw.Cases {
 		c.Print()
 	}
 	fmt.Print("}")
@@ -763,34 +763,34 @@ type Case struct {
 	Condition  Expression
 }
 
-func (p Case) Parent() Node {
-	return p.parent
+func (c Case) Parent() Node {
+	return c.parent
 }
 
-func (p *Case) SetParent(n Node) {
-	p.parent = n
+func (c *Case) SetParent(n Node) {
+	c.parent = n
 }
 
-func (p Case) HasVariable(name string) *Variable {
-	v := p.DefinesVariable(name)
+func (c Case) HasVariable(name string) *Variable {
+	v := c.DefinesVariable(name)
 	if v != nil {
 		return v
 	}
-	if p.parent != nil {
-		return p.parent.HasVariable(name)
+	if c.parent != nil {
+		return c.parent.HasVariable(name)
 	}
 	return nil
 }
 
-func (p Case) GetType() string {
-	return p.Condition.GetType()
+func (c Case) GetType() string {
+	return c.Condition.GetType()
 }
 
-func (p Case) Print() {
+func (c Case) Print() {
 	fmt.Print("case ")
-	p.Condition.Print()
+	c.Condition.Print()
 	fmt.Print(":\n")
-	for _, e := range p.Statements {
+	for _, e := range c.Statements {
 		e.Print()
 		fmt.Print("\n")
 	}
@@ -805,8 +805,8 @@ func (c *Case) DefineVariable(v Variable) {
 	c.Vars = append(c.Vars, v)
 }
 
-func (p Case) DefinesVariable(name string) *Variable {
-	for _, v := range p.Vars {
+func (c Case) DefinesVariable(name string) *Variable {
+	for _, v := range c.Vars {
 		if v.Name == name {
 			return &v
 		}
@@ -821,48 +821,48 @@ type Default struct {
 	Statements []Node
 }
 
-func (p Default) Parent() Node {
-	return p.parent
+func (d Default) Parent() Node {
+	return d.parent
 }
 
-func (p *Default) SetParent(n Node) {
-	p.parent = n
+func (d *Default) SetParent(n Node) {
+	d.parent = n
 }
 
-func (p Default) HasVariable(name string) *Variable {
-	v := p.DefinesVariable(name)
+func (d Default) HasVariable(name string) *Variable {
+	v := d.DefinesVariable(name)
 	if v != nil {
 		return v
 	}
-	if p.parent != nil {
-		return p.parent.HasVariable(name)
+	if d.parent != nil {
+		return d.parent.HasVariable(name)
 	}
 	return nil
 }
 
-func (p Default) GetType() string {
+func (d Default) GetType() string {
 	return Void
 }
 
-func (p Default) Print() {
+func (d Default) Print() {
 	fmt.Print("default:\n")
-	for _, e := range p.Statements {
+	for _, e := range d.Statements {
 		e.Print()
 		fmt.Print("\n")
 	}
 	fmt.Print("\n")
 }
 
-func (c *Default) AddStatement(n Node) {
-	c.Statements = append(c.Statements, n)
+func (d *Default) AddStatement(n Node) {
+	d.Statements = append(d.Statements, n)
 }
 
-func (c *Default) DefineVariable(v Variable) {
-	c.Vars = append(c.Vars, v)
+func (d *Default) DefineVariable(v Variable) {
+	d.Vars = append(d.Vars, v)
 }
 
-func (c Default) DefinesVariable(name string) *Variable {
-	for _, v := range c.Vars {
+func (d Default) DefinesVariable(name string) *Variable {
+	for _, v := range d.Vars {
 		if v.Name == name {
 			return &v
 		}
