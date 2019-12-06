@@ -25,6 +25,8 @@ type Block interface {
 
 	AddStatement(Node)
 	DefineVariable(Variable)
+
+	DefinesVariable(string) *Variable
 }
 
 type Variable struct {

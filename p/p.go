@@ -58,6 +58,7 @@ func sanitizeRootStmts(r *node.Root) ([]node.Node, []stmt.Function) {
 }
 
 func funcDef(fc *stmt.Function) *lang.Function {
+	// IdentifierName method is for this.
 	n := fc.FunctionName.(*node.Identifier).Value
 	if n == "func" {
 		n = "function"
@@ -427,11 +428,24 @@ func simpleExpression(b lang.Block, n node.Node) lang.Expression {
 
 			b.DefineVariable(*v)
 		} else {
+			fd := false
 			if v.GetType() != r.GetType() {
-				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+				if b.DefinesVariable(n) == nil {
+					fd = true
+					v = &lang.Variable{
+						Type:      r.GetType(),
+						Name:      n,
+						Const:     false,
+						Reference: false,
+					}
+					b.DefineVariable(*v)
+				} else {
+					panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+				}
 			}
 
 			as = lang.CreateAssign(v, r)
+			as.FirstDefinition = fd
 		}
 
 		return as
@@ -480,11 +494,23 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 
 			b.DefineVariable(*v)
 		} else {
+			fd := false
 			if v.GetType() != r.GetType() {
-				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+				if b.DefinesVariable(n) == nil {
+					fd = true
+					v = &lang.Variable{
+						Type:      r.GetType(),
+						Name:      n,
+						Const:     false,
+						Reference: false,
+					}
+					b.DefineVariable(*v)
+				} else {
+					panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+				}
 			}
-
 			as = lang.CreateAssign(v, r)
+			as.FirstDefinition = fd
 		}
 
 		return as
@@ -542,11 +568,23 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 			b.DefineVariable(*v)
 		} else {
+			fd := false
 			if v.GetType() != r.GetType() {
-				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+				if b.DefinesVariable(n) == nil {
+					fd = true
+					v = &lang.Variable{
+						Type:      r.GetType(),
+						Name:      n,
+						Const:     false,
+						Reference: false,
+					}
+					b.DefineVariable(*v)
+				} else {
+					panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + r.GetType() + "\" given.")
+				}
 			}
-
 			as = lang.CreateAssign(v, r)
+			as.FirstDefinition = fd
 		}
 
 		return as
@@ -572,6 +610,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 				if v == nil || v.GetType() == lang.Void {
 					panic(vn + " is not defined.")
 				}
+				// TODO: Type could know this.
 				switch v.GetType() {
 				case lang.Int:
 					s.Value += "%d"

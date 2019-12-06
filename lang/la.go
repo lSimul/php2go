@@ -114,10 +114,9 @@ func (c *Code) SetParent(n Node) {
 }
 
 func (c Code) HasVariable(name string) *Variable {
-	for _, v := range c.Vars {
-		if v.Name == name {
-			return &v
-		}
+	v := c.DefinesVariable(name)
+	if v != nil {
+		return v
 	}
 	if p := c.Parent(); p != nil {
 		return p.HasVariable(name)
@@ -131,6 +130,15 @@ func (c Code) GetType() string {
 
 func (c *Code) DefineVariable(v Variable) {
 	c.Vars = append(c.Vars, v)
+}
+
+func (c Code) DefinesVariable(name string) *Variable {
+	for _, v := range c.Vars {
+		if v.Name == name {
+			return &v
+		}
+	}
+	return nil
 }
 
 func (c *Code) AddStatement(n Node) {
@@ -209,10 +217,9 @@ func (f *For) SetParent(n Node) {
 }
 
 func (f For) HasVariable(name string) *Variable {
-	for _, v := range f.Vars {
-		if v.Name == name {
-			return &v
-		}
+	v := f.DefinesVariable(name)
+	if v != nil {
+		return v
 	}
 	if f.parent != nil {
 		return f.parent.HasVariable(name)
@@ -222,6 +229,15 @@ func (f For) HasVariable(name string) *Variable {
 
 func (f *For) DefineVariable(v Variable) {
 	f.Vars = append(f.Vars, v)
+}
+
+func (f For) DefinesVariable(name string) *Variable {
+	for _, v := range f.Vars {
+		if v.Name == name {
+			return &v
+		}
+	}
+	return nil
 }
 
 func (f For) GetType() string {
@@ -274,10 +290,9 @@ func (i *If) SetParent(n Node) {
 }
 
 func (i If) HasVariable(name string) *Variable {
-	for _, v := range i.Vars {
-		if v.Name == name {
-			return &v
-		}
+	v := i.DefinesVariable(name)
+	if v != nil {
+		return v
 	}
 	if i.parent != nil {
 		return i.parent.HasVariable(name)
@@ -287,6 +302,15 @@ func (i If) HasVariable(name string) *Variable {
 
 func (i *If) DefineVariable(v Variable) {
 	i.Vars = append(i.Vars, v)
+}
+
+func (i If) DefinesVariable(name string) *Variable {
+	for _, v := range i.Vars {
+		if v.Name == name {
+			return &v
+		}
+	}
+	return nil
 }
 
 func (i If) GetType() string {
@@ -717,6 +741,10 @@ func (p Switch) GetType() string {
 func (p *Switch) AddStatement(n Node)       {}
 func (p *Switch) DefineVariable(v Variable) {}
 
+func (p Switch) DefinesVariable(name string) *Variable {
+	return nil
+}
+
 func (p Switch) Print() {
 	fmt.Print("switch ")
 	p.Condition.Print()
@@ -744,6 +772,10 @@ func (p *Case) SetParent(n Node) {
 }
 
 func (p Case) HasVariable(name string) *Variable {
+	v := p.DefinesVariable(name)
+	if v != nil {
+		return v
+	}
 	if p.parent != nil {
 		return p.parent.HasVariable(name)
 	}
@@ -773,6 +805,15 @@ func (c *Case) DefineVariable(v Variable) {
 	c.Vars = append(c.Vars, v)
 }
 
+func (p Case) DefinesVariable(name string) *Variable {
+	for _, v := range p.Vars {
+		if v.Name == name {
+			return &v
+		}
+	}
+	return nil
+}
+
 type Default struct {
 	parent Node
 
@@ -789,6 +830,10 @@ func (p *Default) SetParent(n Node) {
 }
 
 func (p Default) HasVariable(name string) *Variable {
+	v := p.DefinesVariable(name)
+	if v != nil {
+		return v
+	}
 	if p.parent != nil {
 		return p.parent.HasVariable(name)
 	}
@@ -814,6 +859,15 @@ func (c *Default) AddStatement(n Node) {
 
 func (c *Default) DefineVariable(v Variable) {
 	c.Vars = append(c.Vars, v)
+}
+
+func (c Default) DefinesVariable(name string) *Variable {
+	for _, v := range c.Vars {
+		if v.Name == name {
+			return &v
+		}
+	}
+	return nil
 }
 
 type FunctionCall struct {
