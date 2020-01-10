@@ -566,6 +566,8 @@ func (neg Negation) Print() {
 type BinaryOp struct {
 	parent Node
 
+	inBrackets bool
+
 	Operation string
 
 	Right Expression
@@ -600,14 +602,67 @@ func (p BinaryOp) GetType() string {
 	return p.Right.GetType()
 }
 
+// See https://golang.org/ref/spec#Operator_precedence
+func (p BinaryOp) OperatorPrecedence() int {
+	switch p.Operation {
+	case "*":
+		fallthrough
+	case "/":
+		fallthrough
+	case "%":
+		fallthrough
+	case "<<":
+		fallthrough
+	case ">>":
+		fallthrough
+	case "&":
+		fallthrough
+	case "&^":
+		return 5
+
+	case "+":
+		fallthrough
+	case "-":
+		fallthrough
+	case "|":
+		fallthrough
+	case "^":
+		return 4
+
+	case "==":
+		fallthrough
+	case "!=":
+		fallthrough
+	case "<":
+		fallthrough
+	case "<=":
+		fallthrough
+	case ">":
+		fallthrough
+	case ">=":
+		return 3
+
+	case "&&":
+		return 2
+
+	case "||":
+		return 1
+	}
+	panic(`Unknown type "` + p.Operation + `"`)
+}
+
 func (p BinaryOp) Print() {
+	if p.inBrackets {
+		fmt.Print("(")
+	}
 	p.Left.Print()
 	fmt.Print(" " + p.Operation + " ")
 	p.Right.Print()
+	if p.inBrackets {
+		fmt.Print(")")
+	}
 }
 
-// Binary operation should require two same types, for now.
-// Seeing Void will cause code to panic.
 func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
 	lt := left.GetType()
 	rt := right.GetType()
@@ -618,10 +673,21 @@ func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
 
 	if lt == rt {
 		ret := &BinaryOp{
-			Operation: op,
-			Left:      left,
-			Right:     right,
+			inBrackets: false,
+			Operation:  op,
+			Left:       left,
+			Right:      right,
 		}
+
+		bp, ok := left.(*BinaryOp)
+		if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+			bp.inBrackets = true
+		}
+		bp, ok = right.(*BinaryOp)
+		if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+			bp.inBrackets = true
+		}
+
 		left.SetParent(ret)
 		right.SetParent(ret)
 		return ret
@@ -701,12 +767,23 @@ func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
 	}
 
 	ret := &BinaryOp{
-		Operation: op,
-		Left:      left,
-		Right:     right,
+		inBrackets: false,
+		Operation:  op,
+		Left:       left,
+		Right:      right,
 	}
 	left.SetParent(ret)
 	right.SetParent(ret)
+
+	bp, ok := left.(*BinaryOp)
+	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+		bp.inBrackets = true
+	}
+	bp, ok = right.(*BinaryOp)
+	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+		bp.inBrackets = true
+	}
+
 	return ret
 }
 
