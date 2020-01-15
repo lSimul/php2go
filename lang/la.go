@@ -671,26 +671,33 @@ func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
 		panic(`Binary op cannot be used with "void"`)
 	}
 
+	convertToMatchingType(left, right)
+	ret := &BinaryOp{
+		inBrackets: false,
+		Operation:  op,
+		Left:       left,
+		Right:      right,
+	}
+	left.SetParent(ret)
+	right.SetParent(ret)
+
+	bp, ok := left.(*BinaryOp)
+	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+		bp.inBrackets = true
+	}
+	bp, ok = right.(*BinaryOp)
+	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+		bp.inBrackets = true
+	}
+
+	return ret
+}
+
+func convertToMatchingType(left, right Expression) {
+	lt := left.GetType()
+	rt := right.GetType()
 	if lt == rt {
-		ret := &BinaryOp{
-			inBrackets: false,
-			Operation:  op,
-			Left:       left,
-			Right:      right,
-		}
-
-		bp, ok := left.(*BinaryOp)
-		if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
-			bp.inBrackets = true
-		}
-		bp, ok = right.(*BinaryOp)
-		if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
-			bp.inBrackets = true
-		}
-
-		left.SetParent(ret)
-		right.SetParent(ret)
-		return ret
+		return
 	}
 
 	// PHP tries to convert string to number,
@@ -765,26 +772,6 @@ func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
 			right = f
 		}
 	}
-
-	ret := &BinaryOp{
-		inBrackets: false,
-		Operation:  op,
-		Left:       left,
-		Right:      right,
-	}
-	left.SetParent(ret)
-	right.SetParent(ret)
-
-	bp, ok := left.(*BinaryOp)
-	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
-		bp.inBrackets = true
-	}
-	bp, ok = right.(*BinaryOp)
-	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
-		bp.inBrackets = true
-	}
-
-	return ret
 }
 
 type Switch struct {
