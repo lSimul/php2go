@@ -820,7 +820,7 @@ func (sw Switch) Print() {
 }
 
 type Case struct {
-	parent Node
+	parent *Switch
 
 	Statements []Node
 	Vars       []Variable
@@ -832,7 +832,11 @@ func (c Case) Parent() Node {
 }
 
 func (c *Case) SetParent(n Node) {
-	c.parent = n
+	sw, ok := n.(*Switch)
+	if !ok {
+		panic(`Expected pointer to switch, something else given.`)
+	}
+	c.parent = sw
 }
 
 func (c Case) HasVariable(name string) *Variable {
@@ -879,7 +883,7 @@ func (c Case) DefinesVariable(name string) *Variable {
 }
 
 type Default struct {
-	parent Node
+	parent *Switch
 
 	Vars       []Variable
 	Statements []Node
@@ -890,7 +894,11 @@ func (d Default) Parent() Node {
 }
 
 func (d *Default) SetParent(n Node) {
-	d.parent = n
+	sw, ok := n.(*Switch)
+	if !ok {
+		panic(`Expected pointer to switch, something else given.`)
+	}
+	d.parent = sw
 }
 
 func (d Default) HasVariable(name string) *Variable {
