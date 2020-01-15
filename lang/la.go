@@ -799,7 +799,7 @@ func (sw Switch) HasVariable(name string) *Variable {
 }
 
 func (sw Switch) GetType() string {
-	return Void
+	return sw.Condition.GetType()
 }
 
 func (sw *Switch) AddStatement(n Node)       {}
