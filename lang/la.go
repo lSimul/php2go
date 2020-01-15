@@ -505,7 +505,7 @@ func (s Str) Print() {
 type UnaryMinus struct {
 	parent Node
 
-	Right Expression
+	Expr Expression
 }
 
 func (m UnaryMinus) Parent() Node {
@@ -524,12 +524,12 @@ func (m UnaryMinus) HasVariable(name string) *Variable {
 }
 
 func (m UnaryMinus) GetType() string {
-	return m.Right.GetType()
+	return m.Expr.GetType()
 }
 
 func (m UnaryMinus) Print() {
 	fmt.Print("-")
-	m.Right.Print()
+	m.Expr.Print()
 }
 
 type Negation struct {

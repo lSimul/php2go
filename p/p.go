@@ -508,7 +508,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *expr.UnaryMinus:
 		m := &lang.UnaryMinus{
-			Right: expression(b, n.(*expr.UnaryMinus).Expr),
+			Expr: expression(b, n.(*expr.UnaryMinus).Expr),
 		}
 		m.SetParent(b)
 		return m
