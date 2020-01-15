@@ -1065,10 +1065,6 @@ func (b Break) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (b Break) GetType() string {
-	return Void
-}
-
 func (b Break) Print() {
 	fmt.Print("break")
 }
@@ -1087,10 +1083,6 @@ func (c *Continue) SetParent(n Node) {
 
 func (c Continue) HasVariable(name string) *Variable {
 	return nil
-}
-
-func (c Continue) GetType() string {
-	return Void
 }
 
 func (c Continue) Print() {
@@ -1115,6 +1107,7 @@ func (c Const) HasVariable(name string) *Variable {
 	return nil
 }
 
+// TODO: Is this correct return type?
 func (c Const) GetType() string {
 	return Bool
 }
@@ -1137,10 +1130,6 @@ func (c *Fallthrough) SetParent(n Node) {
 
 func (c Fallthrough) HasVariable(name string) *Variable {
 	return nil
-}
-
-func (c Fallthrough) GetType() string {
-	return Void
 }
 
 func (c Fallthrough) Print() {
