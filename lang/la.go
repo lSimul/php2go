@@ -207,6 +207,19 @@ func (f For) Print() {
 	f.Block.Print()
 }
 
+func ConstructFor(parent Block) *For {
+	f := &For{
+		parent: parent,
+		Vars:   make([]Variable, 0),
+		Block: &Code{
+			Vars:       make([]Variable, 0),
+			Statements: make([]Node, 0),
+		},
+	}
+	f.Block.SetParent(f)
+	return f
+}
+
 type Switch struct {
 	parent Node
 

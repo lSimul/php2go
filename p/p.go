@@ -117,13 +117,9 @@ func createFunction(b lang.Block, stmts []node.Node) {
 		case *stmt.Expression:
 			defineExpression(b, s.(*stmt.Expression))
 
-		// TODO: Move definition into the function, this is kinda long.
 		case *stmt.For:
 			f := s.(*stmt.For)
-			lf := &lang.For{
-				Vars: make([]lang.Variable, 0),
-			}
-			lf.SetParent(b)
+			lf := lang.ConstructFor(b)
 
 			if f.Init != nil {
 				n := f.Init[0]
@@ -143,12 +139,6 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				lf.Loop = ex
 			}
 
-			lf.Block = &lang.Code{
-				Vars:       make([]lang.Variable, 0),
-				Statements: make([]lang.Node, 0),
-			}
-			lf.Block.SetParent(lf)
-
 			list, ok := f.Stmt.(*stmt.StmtList)
 			if ok {
 				createFunction(lf.Block, list.Stmts)
@@ -159,40 +149,22 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 		case *stmt.While:
 			w := s.(*stmt.While)
-			f := &lang.For{
-				Vars: make([]lang.Variable, 0),
-			}
-			f.SetParent(b)
+			lf := lang.ConstructFor(b)
 
-			ex := simpleExpression(f, w.Cond)
-			f.Cond = ex
-
-			f.Block = &lang.Code{
-				Vars:       make([]lang.Variable, 0),
-				Statements: make([]lang.Node, 0),
-			}
-			f.Block.SetParent(f)
+			ex := simpleExpression(lf, w.Cond)
+			lf.Cond = ex
 
 			list, ok := w.Stmt.(*stmt.StmtList)
 			if ok {
-				createFunction(f.Block, list.Stmts)
+				createFunction(lf.Block, list.Stmts)
 			} else {
-				createFunction(f.Block, []node.Node{w.Stmt})
+				createFunction(lf.Block, []node.Node{w.Stmt})
 			}
-			b.AddStatement(f)
+			b.AddStatement(lf)
 
 		case *stmt.Do:
 			w := s.(*stmt.Do)
-			lf := &lang.For{
-				Vars: make([]lang.Variable, 0),
-			}
-			lf.SetParent(b)
-
-			lf.Block = &lang.Code{
-				Vars:       make([]lang.Variable, 0),
-				Statements: make([]lang.Node, 0),
-			}
-			lf.Block.SetParent(lf)
+			lf := lang.ConstructFor(b)
 
 			list, ok := w.Stmt.(*stmt.StmtList)
 			if ok {
@@ -221,7 +193,6 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			lf.Block.AddStatement(i)
 
 			b.AddStatement(lf)
-		//
 
 		case *stmt.If:
 			i := constructIf(b, s.(*stmt.If))
