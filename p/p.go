@@ -139,12 +139,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				lf.Loop = ex
 			}
 
-			list, ok := f.Stmt.(*stmt.StmtList)
-			if ok {
-				createFunction(lf.Block, list.Stmts)
-			} else {
-				createFunction(lf.Block, []node.Node{f.Stmt})
-			}
+			createFunction(lf.Block, nodeList(f.Stmt))
 			b.AddStatement(lf)
 
 		case *stmt.While:
@@ -154,24 +149,14 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			ex := simpleExpression(lf, w.Cond)
 			lf.Cond = ex
 
-			list, ok := w.Stmt.(*stmt.StmtList)
-			if ok {
-				createFunction(lf.Block, list.Stmts)
-			} else {
-				createFunction(lf.Block, []node.Node{w.Stmt})
-			}
+			createFunction(lf.Block, nodeList(w.Stmt))
 			b.AddStatement(lf)
 
 		case *stmt.Do:
 			w := s.(*stmt.Do)
 			lf := lang.ConstructFor(b)
 
-			list, ok := w.Stmt.(*stmt.StmtList)
-			if ok {
-				createFunction(lf.Block, list.Stmts)
-			} else {
-				createFunction(lf.Block, []node.Node{w.Stmt})
-			}
+			createFunction(lf.Block, nodeList(w.Stmt))
 
 			i := &lang.If{
 				Vars: make([]lang.Variable, 0),
@@ -245,6 +230,15 @@ func createFunction(b lang.Block, stmts []node.Node) {
 	}
 }
 
+func nodeList(n node.Node) []node.Node {
+	list, ok := n.(*stmt.StmtList)
+	if ok {
+		return list.Stmts
+	} else {
+		return []node.Node{n}
+	}
+}
+
 func constructIf(b lang.Node, i *stmt.If) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
@@ -254,12 +248,7 @@ func constructIf(b lang.Node, i *stmt.If) *lang.If {
 		Statements: make([]lang.Node, 0),
 	}
 	nif.True.SetParent(nif)
-	list, ok := i.Stmt.(*stmt.StmtList)
-	if ok {
-		createFunction(nif.True, list.Stmts)
-	} else {
-		createFunction(nif.True, []node.Node{i.Stmt})
-	}
+	createFunction(nif.True, nodeList(i.Stmt))
 
 	lif := nif
 	for _, ei := range i.ElseIf {
@@ -279,12 +268,7 @@ func constructIf(b lang.Node, i *stmt.If) *lang.If {
 				Statements: make([]lang.Node, 0),
 			}
 			c.SetParent(lif)
-			list, ok := e.(*stmt.StmtList)
-			if ok {
-				createFunction(c, list.Stmts)
-			} else {
-				createFunction(c, []node.Node{e})
-			}
+			createFunction(c, nodeList(e))
 			lif.False = c
 		}
 	}
@@ -300,12 +284,7 @@ func constructElif(b lang.Node, i *stmt.ElseIf) *lang.If {
 		Statements: make([]lang.Node, 0),
 	}
 	nif.True.SetParent(nif)
-	list, ok := i.Stmt.(*stmt.StmtList)
-	if ok {
-		createFunction(nif.True, list.Stmts)
-	} else {
-		createFunction(nif.True, []node.Node{i.Stmt})
-	}
+	createFunction(nif.True, nodeList(i.Stmt))
 	return nif
 }
 
