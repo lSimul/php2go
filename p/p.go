@@ -106,11 +106,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			b.AddStatement(n)
 
 		case *stmt.StmtList:
-			list := &lang.Code{
-				Vars:       make([]lang.Variable, 0),
-				Statements: make([]lang.Node, 0),
-			}
-			list.SetParent(b)
+			list := lang.NewCode(b)
 			b.AddStatement(list)
 			createFunction(list, s.(*stmt.StmtList).Stmts)
 
@@ -160,12 +156,8 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 			i := &lang.If{
 				Vars: make([]lang.Variable, 0),
-				True: &lang.Code{
-					Vars:       make([]lang.Variable, 0),
-					Statements: make([]lang.Node, 0),
-				},
 			}
-			i.True.SetParent(i)
+			i.True = lang.NewCode(i)
 			i.SetParent(lf)
 			c := simpleExpression(i, w.Cond)
 			neg := &lang.Negation{
@@ -243,11 +235,7 @@ func constructIf(b lang.Node, i *stmt.If) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
 	nif.Cond = simpleExpression(nif, i.Cond)
-	nif.True = &lang.Code{
-		Vars:       make([]lang.Variable, 0),
-		Statements: make([]lang.Node, 0),
-	}
-	nif.True.SetParent(nif)
+	nif.True = lang.NewCode(nif)
 	createFunction(nif.True, nodeList(i.Stmt))
 
 	lif := nif
@@ -266,11 +254,7 @@ func constructIf(b lang.Node, i *stmt.If) *lang.If {
 		lif.False = constructIf(lif, e.(*stmt.If))
 
 	default:
-		c := &lang.Code{
-			Vars:       make([]lang.Variable, 0),
-			Statements: make([]lang.Node, 0),
-		}
-		c.SetParent(lif)
+		c := lang.NewCode(lif)
 		createFunction(c, nodeList(e))
 		lif.False = c
 	}
@@ -281,11 +265,7 @@ func constructElif(b lang.Node, i *stmt.ElseIf) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
 	nif.Cond = simpleExpression(nif, i.Cond)
-	nif.True = &lang.Code{
-		Vars:       make([]lang.Variable, 0),
-		Statements: make([]lang.Node, 0),
-	}
-	nif.True.SetParent(nif)
+	nif.True = lang.NewCode(nif)
 	createFunction(nif.True, nodeList(i.Stmt))
 	return nif
 }

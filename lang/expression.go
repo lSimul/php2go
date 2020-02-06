@@ -581,6 +581,14 @@ func (c Code) Print() {
 	fmt.Print("}")
 }
 
+func NewCode(parent Node) *Code {
+	return &Code{
+		parent:     parent,
+		Vars:       make([]Variable, 0),
+		Statements: make([]Node, 0),
+	}
+}
+
 type FunctionCall struct {
 	parent Node
 
