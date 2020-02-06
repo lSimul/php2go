@@ -256,21 +256,23 @@ func constructIf(b lang.Node, i *stmt.If) *lang.If {
 		lif = lif.False.(*lang.If)
 	}
 
-	if i.Else != nil {
-		e := i.Else.(*stmt.Else).Stmt
-		switch e.(type) {
-		case *stmt.If:
-			lif.False = constructIf(lif, e.(*stmt.If))
+	if i.Else == nil {
+		return nif
+	}
 
-		default:
-			c := &lang.Code{
-				Vars:       make([]lang.Variable, 0),
-				Statements: make([]lang.Node, 0),
-			}
-			c.SetParent(lif)
-			createFunction(c, nodeList(e))
-			lif.False = c
+	e := i.Else.(*stmt.Else).Stmt
+	switch e.(type) {
+	case *stmt.If:
+		lif.False = constructIf(lif, e.(*stmt.If))
+
+	default:
+		c := &lang.Code{
+			Vars:       make([]lang.Variable, 0),
+			Statements: make([]lang.Node, 0),
 		}
+		c.SetParent(lif)
+		createFunction(c, nodeList(e))
+		lif.False = c
 	}
 	return nif
 }
