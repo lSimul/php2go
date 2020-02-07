@@ -143,9 +143,9 @@ type For struct {
 
 	Vars []Variable
 
-	Init Expression
+	Init Node
 	Cond Expression
-	Loop Expression
+	Loop Node
 
 	Block *Code
 }
@@ -441,4 +441,62 @@ func (i If) Print() {
 		fmt.Print(" else ")
 		i.False.Print()
 	}
+}
+
+type Inc struct {
+	parent Node
+
+	Var *Variable
+}
+
+func (i Inc) Parent() Node {
+	return i.parent
+}
+
+func (i *Inc) SetParent(n Node) {
+	i.parent = n
+}
+
+func (i Inc) HasVariable(name string) *Variable {
+	if i.parent != nil {
+		return i.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (i Inc) Print() {
+	if i.Var.Reference {
+		fmt.Print("(*")
+		i.Var.Print()
+		fmt.Print(")")
+	} else {
+		i.Var.Print()
+	}
+	fmt.Print("++")
+}
+
+type Dec struct {
+	parent Node
+
+	Var *Variable
+}
+
+func (d Dec) Parent() Node {
+	return d.parent
+}
+
+func (d *Dec) SetParent(n Node) {
+	d.parent = n
+}
+
+func (d Dec) HasVariable(name string) *Variable {
+	if d.parent != nil {
+		return d.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (d Dec) Print() {
+	d.Var.Print()
+	fmt.Print("--")
 }

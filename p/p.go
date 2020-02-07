@@ -111,7 +111,8 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			createFunction(list, s.(*stmt.StmtList).Stmts)
 
 		case *stmt.Expression:
-			defineExpression(b, s.(*stmt.Expression))
+			ex := makeExpression(b, s.(*stmt.Expression))
+			b.AddStatement(ex)
 
 		case *stmt.For:
 			f := s.(*stmt.For)
@@ -125,8 +126,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 			if f.Cond != nil {
 				n := f.Cond[0]
-				ex := simpleExpression(lf, n)
-				lf.Cond = ex
+				lf.Cond = expression(lf, n)
 			}
 
 			if f.Loop != nil {
@@ -142,8 +142,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			w := s.(*stmt.While)
 			lf := lang.ConstructFor(b)
 
-			ex := simpleExpression(lf, w.Cond)
-			lf.Cond = ex
+			lf.Cond = expression(lf, w.Cond)
 
 			createFunction(lf.Block, nodeList(w.Stmt))
 			b.AddStatement(lf)
@@ -159,7 +158,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			}
 			i.True = lang.NewCode(i)
 			i.SetParent(lf)
-			c := simpleExpression(i, w.Cond)
+			c := expression(i, w.Cond)
 			neg := &lang.Negation{
 				Right: c,
 			}
@@ -187,7 +186,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 		case *stmt.Return:
 			r := &lang.Return{
-				Expression: complexExpression(b, s.(*stmt.Return).Expr),
+				Expression: expression(b, s.(*stmt.Return).Expr),
 			}
 			b.AddStatement(r)
 
@@ -202,7 +201,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				// TODO: Do not ignore information in Argument,
 				// it has interesting information like if it is
 				// send by reference and others.
-				f.AddArg(complexExpression(b, e))
+				f.AddArg(expression(b, e))
 			}
 			b.AddStatement(f)
 
@@ -234,7 +233,7 @@ func nodeList(n node.Node) []node.Node {
 func constructIf(b lang.Node, i *stmt.If) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	nif.Cond = simpleExpression(nif, i.Cond)
+	nif.Cond = expression(nif, i.Cond)
 	nif.True = lang.NewCode(nif)
 	createFunction(nif.True, nodeList(i.Stmt))
 
@@ -264,7 +263,7 @@ func constructIf(b lang.Node, i *stmt.If) *lang.If {
 func constructElif(b lang.Node, i *stmt.ElseIf) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	nif.Cond = simpleExpression(nif, i.Cond)
+	nif.Cond = expression(nif, i.Cond)
 	nif.True = lang.NewCode(nif)
 	createFunction(nif.True, nodeList(i.Stmt))
 	return nif
@@ -318,12 +317,20 @@ func constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 	}
 }
 
-func defineExpression(b lang.Block, e *stmt.Expression) {
-	ex := complexExpression(b, e.Expr)
-	b.AddStatement(ex)
+func makeExpression(b lang.Block, e *stmt.Expression) lang.Node {
+	s := statement(b, e.Expr)
+	if s != nil {
+		return s
+	}
+	return complexExpression(b, e.Expr)
 }
 
-func simpleExpression(b lang.Block, n node.Node) lang.Expression {
+func simpleExpression(b lang.Block, n node.Node) lang.Node {
+	s := statement(b, n)
+	if s != nil {
+		return s
+	}
+
 	e := expression(b, n)
 	if e != nil {
 		return e
@@ -333,14 +340,9 @@ func simpleExpression(b lang.Block, n node.Node) lang.Expression {
 	case *assign.Assign:
 		a := n.(*assign.Assign)
 
-		r := simpleExpression(b, a.Expression)
+		r := expression(b, a.Expression)
 		if r == nil {
 			panic(`Missing right side for assignment.`)
-		}
-
-		_, ok := r.(*lang.Assign)
-		if ok {
-			panic(`Simple expression does not support multiple assignments.`)
 		}
 
 		n := identifierName(a.Variable.(*expr.Variable))
@@ -361,7 +363,7 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 	case *assign.Assign:
 		a := n.(*assign.Assign)
 
-		r := expression(b, a.Expression)
+		r := complexExpression(b, a.Expression)
 		if r == nil {
 			panic(`Missing right side for assignment.`)
 		}
@@ -376,6 +378,35 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 		return buildAssignment(b, n, r)
 	}
 	panic(`Something else uncatched.`)
+}
+
+func statement(b lang.Block, n node.Node) lang.Node {
+	switch n.(type) {
+	case *expr.PostInc:
+		v, isVar := expression(b, n.(*expr.PostInc).Variable).(*lang.Variable)
+		if !isVar {
+			panic(`"++" requires variable.`)
+		}
+		v = b.HasVariable(v.Name)
+		i := &lang.Inc{
+			Var: v,
+		}
+		i.SetParent(b)
+		return i
+
+	case *expr.PostDec:
+		v, ok := expression(b, n.(*expr.PostDec).Variable).(*lang.Variable)
+		if !ok {
+			panic(`"--" requires variable.`)
+		}
+
+		i := &lang.Dec{
+			Var: v,
+		}
+		i.SetParent(b)
+		return i
+	}
+	return nil
 }
 
 func expression(b lang.Block, n node.Node) lang.Expression {
@@ -444,25 +475,6 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		}
 		m.SetParent(b)
 		return m
-
-	case *expr.PostInc:
-		v, isVar := expression(b, n.(*expr.PostInc).Variable).(*lang.Variable)
-		if !isVar {
-			panic(`Sadly enough, "++" requires variable, for now`)
-		}
-		v = b.HasVariable(v.Name)
-		i := &lang.Inc{
-			Var: v,
-		}
-		i.SetParent(b)
-		return i
-
-	case *expr.PostDec:
-		i := &lang.Dec{
-			Var: expression(b, n.(*expr.PostDec).Variable).(*lang.Variable),
-		}
-		i.SetParent(b)
-		return i
 
 	case *scalar.Lnumber:
 		n := &lang.Number{
