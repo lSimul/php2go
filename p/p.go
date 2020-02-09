@@ -348,7 +348,7 @@ func simpleExpression(b lang.Block, n node.Node) lang.Node {
 		n := identifierName(a.Variable.(*expr.Variable))
 		return buildAssignment(b, n, r)
 	}
-	panic(`Something else uncatched.`)
+	panic(`SimpleExpression: something else uncatched.`)
 }
 
 func complexExpression(b lang.Block, n node.Node) lang.Expression {
@@ -377,7 +377,7 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 		n := identifierName(a.Variable.(*expr.Variable))
 		return buildAssignment(b, n, r)
 	}
-	panic(`Something else uncatched.`)
+	panic(`ComplexExpression: something else uncatched.`)
 }
 
 func statement(b lang.Block, n node.Node) lang.Node {
@@ -506,49 +506,73 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Plus:
 		p := n.(*binary.Plus)
-		op := lang.CreateBinaryOp("+", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.CreateBinaryOp("+", expression(b, p.Left), expression(b, p.Right))
+		if err != nil {
+			panic(err)
+		}
 		op.SetParent(b)
 		return op
 
 	case *binary.Minus:
 		p := n.(*binary.Minus)
-		op := lang.CreateBinaryOp("-", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.CreateBinaryOp("-", expression(b, p.Left), expression(b, p.Right))
+		if err != nil {
+			panic(err)
+		}
 		op.SetParent(b)
 		return op
 
 	case *binary.Mul:
 		p := n.(*binary.Mul)
-		op := lang.CreateBinaryOp("*", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.CreateBinaryOp("*", expression(b, p.Left), expression(b, p.Right))
+		if err != nil {
+			panic(err)
+		}
 		op.SetParent(b)
 		return op
 
 	case *binary.Smaller:
 		p := n.(*binary.Smaller)
-		op := lang.CreateBinaryOp("<", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.CreateBinaryOp("<", expression(b, p.Left), expression(b, p.Right))
+		if err != nil {
+			panic(err)
+		}
 		op.SetParent(b)
 		return op
 
 	case *binary.SmallerOrEqual:
 		p := n.(*binary.SmallerOrEqual)
-		op := lang.CreateBinaryOp("<=", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.CreateBinaryOp("<=", expression(b, p.Left), expression(b, p.Right))
+		if err != nil {
+			panic(err)
+		}
 		op.SetParent(b)
 		return op
 
 	case *binary.GreaterOrEqual:
 		p := n.(*binary.GreaterOrEqual)
-		op := lang.CreateBinaryOp(">=", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.CreateBinaryOp(">=", expression(b, p.Left), expression(b, p.Right))
+		if err != nil {
+			panic(err)
+		}
 		op.SetParent(b)
 		return op
 
 	case *binary.Greater:
 		p := n.(*binary.Greater)
-		op := lang.CreateBinaryOp(">", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.CreateBinaryOp(">", expression(b, p.Left), expression(b, p.Right))
+		if err != nil {
+			panic(err)
+		}
 		op.SetParent(b)
 		return op
 
 	case *binary.Identical:
 		p := n.(*binary.Identical)
-		op := lang.CreateBinaryOp("==", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.CreateBinaryOp("==", expression(b, p.Left), expression(b, p.Right))
+		if err != nil {
+			panic(err)
+		}
 		op.SetParent(b)
 		return op
 

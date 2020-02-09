@@ -2,6 +2,8 @@ package lang
 
 import "fmt"
 
+import "errors"
+
 type Function struct {
 	parent Node
 
@@ -413,7 +415,13 @@ func (p BinaryOp) Print() {
 	}
 }
 
-func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
+func CreateBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
+	if left == nil {
+		return nil, errors.New("Left expression is missing.")
+	}
+	if right == nil {
+		return nil, errors.New("Left expression is missing.")
+	}
 	lt := left.GetType()
 	rt := right.GetType()
 
@@ -440,7 +448,7 @@ func CreateBinaryOp(op string, left, right Expression) *BinaryOp {
 		bp.inBrackets = true
 	}
 
-	return ret
+	return ret, nil
 }
 
 func convertToMatchingType(left, right Expression) {
