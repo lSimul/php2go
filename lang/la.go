@@ -1,6 +1,9 @@
 package lang
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type GlobalContext struct {
 	parent Node
@@ -367,10 +370,18 @@ type If struct {
 	Vars []Variable
 
 	Init Expression
-	Cond Expression
+	cond Expression
 
 	True  *Code
 	False Block
+}
+
+func (i *If) SetCond(e Expression) error {
+	if e.GetType() != Bool {
+		return errors.New(`Condition must be an expression returning bool.`)
+	}
+	i.cond = e
+	return nil
 }
 
 func (i If) Parent() Node {
@@ -415,12 +426,8 @@ func (i If) Print() {
 		i.Init.Print()
 		fmt.Print("; ")
 	}
-	if i.Cond != nil {
-		if i.Cond.GetType() != Bool {
-			panic(`Condition does not return bool.`)
-		}
-
-		i.Cond.Print()
+	if i.cond != nil {
+		i.cond.Print()
 	}
 	fmt.Print(" ")
 	i.True.Print()

@@ -163,7 +163,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				Right: c,
 			}
 			c.SetParent(neg)
-			i.Cond = neg
+			_ = i.SetCond(neg)
 			neg.SetParent(i)
 			i.True.AddStatement(&lang.Break{})
 			lf.Block.AddStatement(i)
@@ -233,7 +233,11 @@ func nodeList(n node.Node) []node.Node {
 func constructIf(b lang.Node, i *stmt.If) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	nif.Cond = expression(nif, i.Cond)
+	err := nif.SetCond(expression(nif, i.Cond))
+	if err != nil {
+		panic(err)
+	}
+
 	nif.True = lang.NewCode(nif)
 	createFunction(nif.True, nodeList(i.Stmt))
 
@@ -263,7 +267,11 @@ func constructIf(b lang.Node, i *stmt.If) *lang.If {
 func constructElif(b lang.Node, i *stmt.ElseIf) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	nif.Cond = expression(nif, i.Cond)
+	err := nif.SetCond(expression(nif, i.Cond))
+	if err != nil {
+		panic(err)
+	}
+
 	nif.True = lang.NewCode(nif)
 	createFunction(nif.True, nodeList(i.Stmt))
 	return nif
