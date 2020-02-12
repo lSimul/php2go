@@ -17,7 +17,6 @@ type Node interface {
 }
 
 type Block interface {
-	HasVariable(string) *Variable
 	SetParent(Node)
 	Parent() Node
 	Print()
@@ -25,6 +24,7 @@ type Block interface {
 	AddStatement(Node)
 	DefineVariable(Variable)
 
+	HasVariable(string) *Variable
 	DefinesVariable(string) *Variable
 }
 
