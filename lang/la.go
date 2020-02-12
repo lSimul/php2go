@@ -54,13 +54,6 @@ func (h *HTML) SetParent(n Node) {
 	h.parent = n
 }
 
-func (h HTML) HasVariable(name string) *Variable {
-	if h.parent != nil {
-		return h.parent.HasVariable(name)
-	}
-	return nil
-}
-
 func (h HTML) Print() {
 	fmt.Print("fmt.Print(`" + h.Content + "`)")
 }
@@ -90,10 +83,6 @@ func (b *Break) SetParent(n Node) {
 	b.parent = n
 }
 
-func (b Break) HasVariable(name string) *Variable {
-	return nil
-}
-
 func (b Break) Print() {
 	fmt.Print("break")
 }
@@ -108,10 +97,6 @@ func (c Continue) Parent() Node {
 
 func (c *Continue) SetParent(n Node) {
 	c.parent = n
-}
-
-func (c Continue) HasVariable(name string) *Variable {
-	return nil
 }
 
 func (c Continue) Print() {
@@ -130,16 +115,12 @@ func (c *Fallthrough) SetParent(n Node) {
 	c.parent = n
 }
 
-func (c Fallthrough) HasVariable(name string) *Variable {
-	return nil
-}
-
 func (c Fallthrough) Print() {
 	fmt.Print("fallthrough")
 }
 
 type For struct {
-	parent Node
+	parent Block
 
 	Vars []Variable
 
@@ -155,7 +136,9 @@ func (f For) Parent() Node {
 }
 
 func (f *For) SetParent(n Node) {
-	f.parent = n
+	// TODO: Make sure everybody knows
+	// it can fail.
+	f.parent = n.(Block)
 }
 
 func (f For) HasVariable(name string) *Variable {
@@ -221,7 +204,7 @@ func ConstructFor(parent Block) *For {
 }
 
 type Switch struct {
-	parent Node
+	parent Block
 
 	Condition Expression
 	// Default will end up here too,
@@ -234,7 +217,9 @@ func (sw Switch) Parent() Node {
 }
 
 func (sw *Switch) SetParent(n Node) {
-	sw.parent = n
+	// TODO: Make sure everybody knows
+	// it can fail.
+	sw.parent = n.(Block)
 }
 
 func (sw Switch) HasVariable(name string) *Variable {
@@ -377,7 +362,7 @@ func (d Default) DefinesVariable(name string) *Variable {
 }
 
 type If struct {
-	parent Node
+	parent Block
 
 	Vars []Variable
 
@@ -393,7 +378,9 @@ func (i If) Parent() Node {
 }
 
 func (i *If) SetParent(n Node) {
-	i.parent = n
+	// TODO: Make sure everybody knows
+	// it can fail.
+	i.parent = n.(Block)
 }
 
 func (i If) HasVariable(name string) *Variable {
@@ -457,13 +444,6 @@ func (i *Inc) SetParent(n Node) {
 	i.parent = n
 }
 
-func (i Inc) HasVariable(name string) *Variable {
-	if i.parent != nil {
-		return i.parent.HasVariable(name)
-	}
-	return nil
-}
-
 func (i Inc) Print() {
 	if i.Var.Reference {
 		fmt.Print("(*")
@@ -487,13 +467,6 @@ func (d Dec) Parent() Node {
 
 func (d *Dec) SetParent(n Node) {
 	d.parent = n
-}
-
-func (d Dec) HasVariable(name string) *Variable {
-	if d.parent != nil {
-		return d.parent.HasVariable(name)
-	}
-	return nil
 }
 
 func (d Dec) Print() {

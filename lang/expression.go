@@ -1,8 +1,9 @@
 package lang
 
-import "fmt"
-
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 type Function struct {
 	parent Node
@@ -23,14 +24,18 @@ func (f *Function) SetParent(n Node) {
 }
 
 func (f Function) HasVariable(name string) *Variable {
+	return f.DefinesVariable(name)
+}
+
+func (f *Function) DefineVariable(v Variable) {
+	f.Args = append(f.Args, v)
+}
+
+func (f Function) DefinesVariable(name string) *Variable {
 	for _, a := range f.Args {
 		if a.Name == name {
 			return &a
 		}
-	}
-
-	if p := f.Parent(); p != nil {
-		return p.HasVariable(name)
 	}
 	return nil
 }
@@ -79,10 +84,6 @@ func (c *Const) SetParent(n Node) {
 	c.parent = n
 }
 
-func (c Const) HasVariable(name string) *Variable {
-	return nil
-}
-
 // TODO: Is this correct return type?
 func (c Const) GetType() string {
 	return Bool
@@ -104,13 +105,6 @@ func (r Return) Parent() Node {
 
 func (r *Return) SetParent(n Node) {
 	r.parent = n
-}
-
-func (r Return) HasVariable(name string) *Variable {
-	if r.parent != nil {
-		return r.parent.HasVariable(name)
-	}
-	return nil
 }
 
 func (r Return) GetType() string {
@@ -137,13 +131,6 @@ func (a Assign) Parent() Node {
 
 func (a *Assign) SetParent(n Node) {
 	a.parent = n
-}
-
-func (a Assign) HasVariable(name string) *Variable {
-	if a.parent != nil {
-		return a.parent.HasVariable(name)
-	}
-	return nil
 }
 
 func (a Assign) GetType() string {
@@ -187,10 +174,6 @@ func (nb *Number) SetParent(n Node) {
 	nb.parent = n
 }
 
-func (nb Number) HasVariable(name string) *Variable {
-	return nil
-}
-
 func (nb Number) GetType() string {
 	return Int
 }
@@ -216,10 +199,6 @@ func (f *Float) SetParent(n Node) {
 	f.parent = n
 }
 
-func (f Float) HasVariable(name string) *Variable {
-	return nil
-}
-
 func (f Float) GetType() string {
 	return Float64
 }
@@ -240,10 +219,6 @@ func (s Str) Parent() Node {
 
 func (s *Str) SetParent(n Node) {
 	s.parent = n
-}
-
-func (s Str) HasVariable(name string) *Variable {
-	return nil
 }
 
 func (s Str) GetType() string {
@@ -268,13 +243,6 @@ func (m *UnaryMinus) SetParent(n Node) {
 	m.parent = n
 }
 
-func (m UnaryMinus) HasVariable(name string) *Variable {
-	if m.parent != nil {
-		return m.parent.HasVariable(name)
-	}
-	return nil
-}
-
 func (m UnaryMinus) GetType() string {
 	return m.Expr.GetType()
 }
@@ -296,13 +264,6 @@ func (neg Negation) Parent() Node {
 
 func (neg *Negation) SetParent(n Node) {
 	neg.parent = n
-}
-
-func (neg Negation) HasVariable(name string) *Variable {
-	if neg.parent != nil {
-		return neg.parent.HasVariable(name)
-	}
-	return nil
 }
 
 func (neg Negation) GetType() string {
@@ -332,13 +293,6 @@ func (p BinaryOp) Parent() Node {
 
 func (p *BinaryOp) SetParent(n Node) {
 	p.parent = n
-}
-
-func (p BinaryOp) HasVariable(name string) *Variable {
-	if p.parent != nil {
-		return p.parent.HasVariable(name)
-	}
-	return nil
 }
 
 func (p BinaryOp) GetType() string {
@@ -533,7 +487,7 @@ func convertToMatchingType(left, right Expression) {
 }
 
 type Code struct {
-	parent Node
+	parent Block
 
 	Vars       []Variable
 	Statements []Node
@@ -544,7 +498,9 @@ func (c Code) Parent() Node {
 }
 
 func (c *Code) SetParent(n Node) {
-	c.parent = n
+	// TODO: Make sure everybody knows
+	// it can fail.
+	c.parent = n.(Block)
 }
 
 func (c Code) HasVariable(name string) *Variable {
@@ -552,7 +508,7 @@ func (c Code) HasVariable(name string) *Variable {
 	if v != nil {
 		return v
 	}
-	if p := c.Parent(); p != nil {
+	if p := c.parent; p != nil {
 		return p.HasVariable(name)
 	}
 	return nil
@@ -590,8 +546,10 @@ func (c Code) Print() {
 }
 
 func NewCode(parent Node) *Code {
+	// TODO: Be loud, return an error.
+	p := parent.(Block)
 	return &Code{
-		parent:     parent,
+		parent:     p,
 		Vars:       make([]Variable, 0),
 		Statements: make([]Node, 0),
 	}
@@ -615,13 +573,6 @@ func (f FunctionCall) Parent() Node {
 
 func (f *FunctionCall) SetParent(n Node) {
 	f.parent = n
-}
-
-func (f FunctionCall) HasVariable(name string) *Variable {
-	if f.parent != nil {
-		return f.parent.HasVariable(name)
-	}
-	return nil
 }
 
 func (f FunctionCall) GetType() string {

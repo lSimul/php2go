@@ -11,9 +11,8 @@ const (
 )
 
 type Node interface {
-	HasVariable(string) *Variable
 	SetParent(Node)
-	Parent() Node // Might be extra.
+	Parent() Node
 	Print()
 }
 
@@ -58,10 +57,6 @@ func (v Variable) GetType() string {
 }
 
 type Expression interface {
-	// Do I need this?
-	HasVariable(string) *Variable
-	// Uncommented, addStatement did not work because of this.
-
 	SetParent(Node)
 	Parent() Node
 	Print()
