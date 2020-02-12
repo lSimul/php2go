@@ -128,10 +128,18 @@ type For struct {
 	Vars []Variable
 
 	Init Node
-	Cond Expression
+	cond Expression
 	Loop Node
 
 	Block *Code
+}
+
+func (f *For) SetCond(e Expression) error {
+	if e.GetType() != Bool {
+		return errors.New(`Condition must be an expression returning bool.`)
+	}
+	f.cond = e
+	return nil
 }
 
 func (f For) Parent() Node {
@@ -178,12 +186,8 @@ func (f For) Print() {
 		f.Init.Print()
 	}
 	fmt.Print("; ")
-	if f.Cond != nil {
-		if f.Cond.GetType() != Bool {
-			panic(`Condition does not return bool.`)
-		}
-
-		f.Cond.Print()
+	if f.cond != nil {
+		f.cond.Print()
 	}
 	fmt.Print("; ")
 	if f.Loop != nil {

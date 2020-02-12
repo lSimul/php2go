@@ -126,7 +126,10 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 			if f.Cond != nil {
 				n := f.Cond[0]
-				lf.Cond = expression(lf, n)
+				err := lf.SetCond(expression(lf, n))
+				if err != nil {
+					panic(err)
+				}
 			}
 
 			if f.Loop != nil {
@@ -142,7 +145,10 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			w := s.(*stmt.While)
 			lf := lang.ConstructFor(b)
 
-			lf.Cond = expression(lf, w.Cond)
+			err := lf.SetCond(expression(lf, w.Cond))
+			if err != nil {
+				panic(err)
+			}
 
 			createFunction(lf.Block, nodeList(w.Stmt))
 			b.AddStatement(lf)
