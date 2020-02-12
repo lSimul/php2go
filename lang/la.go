@@ -122,6 +122,71 @@ func (c Fallthrough) Print() {
 	fmt.Print("fallthrough")
 }
 
+type Code struct {
+	parent Block
+
+	Vars       []Variable
+	Statements []Node
+}
+
+func (c Code) Parent() Node {
+	return c.parent
+}
+
+func (c *Code) SetParent(n Node) {
+	// TODO: Make sure everybody knows
+	// it can fail.
+	c.parent = n.(Block)
+}
+
+func (c Code) HasVariable(name string) *Variable {
+	v := c.DefinesVariable(name)
+	if v != nil {
+		return v
+	}
+	if p := c.parent; p != nil {
+		return p.HasVariable(name)
+	}
+	return nil
+}
+
+func (c *Code) DefineVariable(v Variable) {
+	c.Vars = append(c.Vars, v)
+}
+
+func (c Code) DefinesVariable(name string) *Variable {
+	for _, v := range c.Vars {
+		if v.Name == name {
+			return &v
+		}
+	}
+	return nil
+}
+
+func (c *Code) AddStatement(n Node) {
+	n.SetParent(c)
+	c.Statements = append(c.Statements, n)
+}
+
+func (c Code) Print() {
+	fmt.Print("{\n")
+	for _, s := range c.Statements {
+		s.Print()
+		fmt.Print("\n")
+	}
+	fmt.Print("}")
+}
+
+func NewCode(parent Node) *Code {
+	// TODO: Be loud, return an error.
+	p := parent.(Block)
+	return &Code{
+		parent:     p,
+		Vars:       make([]Variable, 0),
+		Statements: make([]Node, 0),
+	}
+}
+
 type For struct {
 	parent Block
 
