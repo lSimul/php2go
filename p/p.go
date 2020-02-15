@@ -427,8 +427,9 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 	case *scalar.Encapsed:
 		e := n.(*scalar.Encapsed)
 		f := &lang.FunctionCall{
-			Name: "fmt.Sprintf",
-			Args: make([]lang.Expression, 1),
+			Name:   "fmt.Sprintf",
+			Args:   make([]lang.Expression, 1),
+			Return: lang.String,
 		}
 		s := &lang.Str{
 			Value: "\"",
