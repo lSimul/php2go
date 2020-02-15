@@ -472,6 +472,35 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 					s.Value += "%s"
 				}
 				f.AddArg(v)
+
+			case *expr.ArrayDimFetch:
+				adf := p.(*expr.ArrayDimFetch)
+				vn := identifierName(adf.Variable.(*expr.Variable))
+				v := b.HasVariable(vn)
+				if v == nil || v.GetType() == lang.Void {
+					panic(vn + " is not defined.")
+				}
+
+				fa := &lang.FetchArr{
+					Arr:   v,
+					Index: expression(b, adf.Dim),
+				}
+				fa.Arr.SetParent(fa)
+				fa.Index.SetParent(fa)
+				fa.SetParent(fa)
+
+				// TODO: Type could know this.
+				switch fa.GetType() {
+				case lang.Int:
+					s.Value += "%d"
+
+				case lang.Float64:
+					s.Value += "%g"
+
+				case lang.String:
+					s.Value += "%s"
+				}
+				f.AddArg(fa)
 			}
 		}
 		s.Value += "\""
@@ -518,6 +547,45 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		}
 		str.SetParent(b)
 		return str
+
+	case *expr.ShortArray:
+		a := n.(*expr.ShortArray)
+		items := make([]lang.Expression, 0)
+		for _, i := range a.Items {
+			items = append(items, expression(b, i.(*expr.ArrayItem).Val))
+		}
+		if len(items) == 0 {
+			panic(`Cannot decide type, empty array.`)
+		}
+		typ := items[0].GetType()
+		for _, i := range items {
+			if i.GetType() != typ {
+				panic(`Type is not the same for every element of the array.`)
+			}
+		}
+
+		al := &lang.Array{
+			Values: items,
+			Type:   typ,
+		}
+
+		al.SetParent(b)
+		return al
+
+	case *expr.ArrayDimFetch:
+		adf := n.(*expr.ArrayDimFetch)
+		v, ok := expression(b, adf.Variable).(*lang.Variable)
+		if !ok {
+			panic(`Expected variable to be indexed.`)
+		}
+		fa := &lang.FetchArr{
+			Arr:   v,
+			Index: expression(b, adf.Dim),
+		}
+		fa.Arr.SetParent(fa)
+		fa.Index.SetParent(fa)
+		fa.SetParent(fa)
+		return fa
 
 	case *binary.Plus:
 		p := n.(*binary.Plus)

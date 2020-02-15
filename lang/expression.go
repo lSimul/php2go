@@ -229,6 +229,64 @@ func (s Str) Print() {
 	fmt.Print(s.Value)
 }
 
+type Array struct {
+	parent Node
+
+	Values []Expression
+	Type   string
+}
+
+func (a Array) Parent() Node {
+	return a.parent
+}
+
+func (a *Array) SetParent(n Node) {
+	a.parent = n
+}
+
+func (a Array) GetType() string {
+	return a.Type
+}
+
+func (a Array) Print() {
+	fmt.Printf("[]%s{", a.Type)
+	size := len(a.Values)
+	for i := 0; i < size; i++ {
+		a.Values[i].Print()
+		if i < size-1 {
+			fmt.Print(", ")
+		}
+
+	}
+	fmt.Print("}")
+}
+
+type FetchArr struct {
+	parent Node
+
+	Arr   *Variable
+	Index Expression
+}
+
+func (fa FetchArr) Parent() Node {
+	return fa.parent
+}
+
+func (fa *FetchArr) SetParent(n Node) {
+	fa.parent = n
+}
+
+func (fa FetchArr) GetType() string {
+	return fa.Arr.GetType()
+}
+
+func (fa FetchArr) Print() {
+	fa.Arr.Print()
+	fmt.Print("[")
+	fa.Index.Print()
+	fmt.Print("]")
+}
+
 type UnaryMinus struct {
 	parent Node
 
