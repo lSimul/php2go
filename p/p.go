@@ -236,7 +236,7 @@ func nodeList(n node.Node) []node.Node {
 	}
 }
 
-func constructIf(b lang.Node, i *stmt.If) *lang.If {
+func constructIf(b lang.Block, i *stmt.If) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
 	err := nif.SetCond(expression(nif, i.Cond))
@@ -270,7 +270,7 @@ func constructIf(b lang.Node, i *stmt.If) *lang.If {
 	return nif
 }
 
-func constructElif(b lang.Node, i *stmt.ElseIf) *lang.If {
+func constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
 	err := nif.SetCond(expression(nif, i.Cond))
