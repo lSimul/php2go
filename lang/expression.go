@@ -151,13 +151,25 @@ func (a Assign) Left() *Variable {
 	return a.left
 }
 
-func NewAssign(left *Variable, right Expression) *Assign {
+// TODO: Behaviour is not the same like it is in other New* functions,
+// missing parent. This should probably be unified.
+func NewAssign(left *Variable, right Expression) (*Assign, error) {
+	if left == nil && right == nil {
+		return nil, errors.New("Nothing can be created from nils.")
+	}
+	if left == nil {
+		return nil, errors.New("Missing right side of the assignment.")
+	}
+	if right == nil {
+		return nil, errors.New("Missing right side of the assignment.")
+	}
+
 	return &Assign{
 		left:  left,
 		right: &right,
 
 		FirstDefinition: false,
-	}
+	}, nil
 }
 
 type Number struct {
@@ -432,13 +444,13 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 		return nil, errors.New("Left expression is missing.")
 	}
 	if right == nil {
-		return nil, errors.New("Left expression is missing.")
+		return nil, errors.New("Right expression is missing.")
 	}
 	lt := left.GetType()
 	rt := right.GetType()
 
 	if lt == Void || rt == Void {
-		panic(`Binary op cannot be used with "void"`)
+		return nil, errors.New(`Binary op cannot be used with "void"`)
 	}
 
 	convertToMatchingType(left, right)

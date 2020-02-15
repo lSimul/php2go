@@ -157,8 +157,12 @@ func (c Code) Print() {
 }
 
 func NewCode(parent Node) *Code {
-	// TODO: Be loud, return an error.
-	p := parent.(Block)
+	// TODO: Be loud, return an error
+	// instead of staying silent.
+	var p Block
+	if b, ok := parent.(Block); ok {
+		p = b
+	}
 	return &Code{
 		parent:     p,
 		Vars:       make([]Variable, 0),

@@ -59,6 +59,10 @@ func sanitizeRootStmts(r *node.Root) ([]node.Node, []stmt.Function) {
 }
 
 func funcDef(fc *stmt.Function) *lang.Function {
+	if fc == nil {
+		return nil
+	}
+
 	// IdentifierName method is for this.
 	n := fc.FunctionName.(*node.Identifier).Value
 	if n == "func" {
@@ -262,7 +266,11 @@ func nodeList(n node.Node) []node.Node {
 	if ok {
 		return list.Stmts
 	} else {
-		return []node.Node{n}
+		if n == nil {
+			return []node.Node{}
+		} else {
+			return []node.Node{n}
+		}
 	}
 }
 
@@ -547,6 +555,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		m := &lang.UnaryMinus{
 			Expr: expression(b, n.(*expr.UnaryMinus).Expr),
 		}
+		m.Expr.SetParent(m)
 		m.SetParent(b)
 		return m
 
@@ -801,7 +810,11 @@ func createArrayPush(b lang.Block, v *lang.Variable, vals []lang.Expression) *la
 		f.Args = append(f.Args, val)
 	}
 
-	return lang.NewAssign(v, f)
+	a, err := lang.NewAssign(v, f)
+	if err != nil {
+		panic(err)
+	}
+	return a
 }
 
 func buildAssignment(parent lang.Block, varName string, right lang.Expression) *lang.Assign {
@@ -830,7 +843,10 @@ func buildAssignment(parent lang.Block, varName string, right lang.Expression) *
 	} else {
 		parent.DefineVariable(*av)
 	}
-	as := lang.NewAssign(av, right)
+	as, err := lang.NewAssign(av, right)
+	if err != nil {
+		panic(err)
+	}
 	as.FirstDefinition = fd
 	as.SetParent(parent)
 
