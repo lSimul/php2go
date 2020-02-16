@@ -685,7 +685,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 		n := constructName(fc.Function.(*name.Name))
 		lf := gc.Get(n)
-		if gc == nil {
+		if lf == nil {
 			panic(n + " is not defined")
 		}
 
