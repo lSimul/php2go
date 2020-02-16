@@ -682,8 +682,28 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *expr.FunctionCall:
 		fc := n.(*expr.FunctionCall)
+		al := fc.ArgumentList
 
 		n := constructName(fc.Function.(*name.Name))
+
+		if n == "array_push" {
+			if len(al.Arguments) < 2 {
+				panic(`array_push requires atlast two arguments`)
+			}
+			v, ok := expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.Variable)
+			if !ok {
+				panic(`First argument has to be a variable.`)
+			}
+			vars := []lang.Expression{}
+			for _, v := range al.Arguments[1:] {
+				vars = append(vars, expression(b, v.(*node.Argument).Expr))
+			}
+
+			a := createArrayPush(b, v, vars)
+			a.SetParent(b)
+			return a
+		}
+
 		lf := gc.Get(n)
 		if lf == nil {
 			panic(n + " is not defined")
@@ -695,7 +715,6 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 			Return: gc.Get(n).GetType(),
 		}
 
-		al := fc.ArgumentList
 		err := checkArguments(lf.Args, al.Arguments)
 		if err != nil {
 			panic(err)
@@ -732,6 +751,27 @@ func checkArguments(vars []lang.Variable, call []node.Node) error {
 	}
 
 	return nil
+}
+
+func createArrayPush(b lang.Block, v *lang.Variable, vals []lang.Expression) *lang.Assign {
+	if b.HasVariable(v.Name) == nil {
+		panic(v.Name + " is not defined.")
+	}
+
+	f := &lang.FunctionCall{
+		Name:   "append",
+		Args:   []lang.Expression{v},
+		Return: v.GetType(),
+	}
+	for _, val := range vals {
+		if val.GetType() != f.GetType() {
+			panic(f.GetType() + " expected, " + val.GetType() + " found.")
+		}
+		val.SetParent(f)
+		f.Args = append(f.Args, val)
+	}
+
+	return lang.CreateAssign(v, f)
 }
 
 func buildAssignment(parent lang.Block, varName string, right lang.Expression) *lang.Assign {
