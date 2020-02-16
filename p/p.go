@@ -137,7 +137,7 @@ func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Express
 }
 
 func (p *parser) mainDef() *lang.Function {
-	f := lang.NewFunc("main")
+	f := lang.NewFunc("mainFunc")
 	f.SetParent(p.gc)
 	return f
 }

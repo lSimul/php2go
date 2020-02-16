@@ -16,13 +16,22 @@ type GlobalContext struct {
 }
 
 func NewGlobalContext() *GlobalContext {
-	return &GlobalContext{
+	gc := &GlobalContext{
 		parent: nil,
 		vars:   make([]*Variable, 0),
 		Funcs:  make(map[string]*Function, 0),
 
 		imports: make([]string, 0),
 	}
+
+	v := NewVariable("W", NewTyp("io.Writer", false), false)
+	gc.vars = append(gc.vars, v)
+
+	gc.imports = append(gc.imports,
+		"flag", "io", "log", "net/http", "os",
+	)
+
+	return gc
 }
 
 func (gc *GlobalContext) AddImport(n string) {
@@ -69,18 +78,15 @@ func (gc GlobalContext) Get(name string) *Function {
 
 func (gc *GlobalContext) String() string {
 	s := strings.Builder{}
-	s.WriteString("package main\n\n")
 
 	fn := strings.Builder{}
 	for _, f := range gc.Funcs {
 		fn.WriteString(f.String())
 	}
 
-	if len(gc.imports) == 1 {
-		for _, n := range gc.imports {
-			s.WriteString("import \"" + n + "\"\n")
-		}
-	} else if len(gc.imports) > 0 {
+	s.WriteString("package main\n\n")
+
+	if len(gc.imports) > 0 {
 		s.WriteString("import (\n")
 		for _, n := range gc.imports {
 			s.WriteString("\"" + n + "\"\n")
@@ -91,9 +97,39 @@ func (gc *GlobalContext) String() string {
 	for _, v := range gc.vars {
 		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type()))
 	}
-	if len(gc.vars) > 0 {
-		s.WriteByte('\n')
+
+	s.WriteString(`
+var server = flag.String("S", "", "Run program as a server.")
+
+func main() {
+	flag.Parse()
+
+	if *server != "" {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", mainServer)
+
+		// Validate that server address
+		log.Fatal(http.ListenAndServe(*server, mux))
+	} else {
+		mainLCI()
 	}
+}
+
+func mainServer(w http.ResponseWriter, r *http.Request) {
+	W = w
+	if r.URL.Path == "/" || r.URL.Path == "/index.php" {
+		mainFunc()
+		return
+	}
+	http.FileServer(http.Dir(".")).ServeHTTP(w, r)
+}
+
+func mainLCI() {
+	W = os.Stdout
+	mainFunc()
+}
+
+`)
 
 	s.WriteString(fn.String())
 

@@ -7,7 +7,7 @@ import (
 )
 
 type Function struct {
-	parent Block
+	parent *GlobalContext
 
 	Args          []*Variable
 	VariadicCount bool
@@ -23,8 +23,8 @@ func (f Function) Parent() Node {
 }
 
 func (f *Function) SetParent(n Node) {
-	// TODO: Make sure everybody knows this can fail.
-	f.parent = n.(Block)
+	// TODO: Fail loudly.
+	f.parent = n.(*GlobalContext)
 }
 
 func (f Function) HasVariable(name string, oos bool) *Variable {
