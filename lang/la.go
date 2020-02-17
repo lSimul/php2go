@@ -24,11 +24,13 @@ func NewGlobalContext() *GlobalContext {
 		imports: make([]string, 0),
 	}
 
-	v := NewVariable("W", NewTyp("io.Writer", false), false)
-	gc.vars = append(gc.vars, v)
+	w := NewVariable("W", NewTyp("io.Writer", false), false)
+	_get := NewVariable("_GET", NewTyp("array.String", false), false)
+	gc.vars = append(gc.vars, w, _get)
 
 	gc.imports = append(gc.imports,
 		"flag", "io", "log", "net/http", "os",
+		"github.com/lSimul/php2go/std/array",
 	)
 
 	return gc
@@ -104,6 +106,8 @@ var server = flag.String("S", "", "Run program as a server.")
 func main() {
 	flag.Parse()
 
+	_GET = array.NewString()
+
 	if *server != "" {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", mainServer)
@@ -118,6 +122,10 @@ func main() {
 func mainServer(w http.ResponseWriter, r *http.Request) {
 	W = w
 	if r.URL.Path == "/" || r.URL.Path == "/index.php" {
+		for k, v := range r.URL.Query() {
+			_GET.Edit(array.NewScalar(k), v[len(v)-1])
+		}
+
 		mainFunc()
 		return
 	}

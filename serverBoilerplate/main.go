@@ -7,14 +7,24 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"php2go/std/array"
 )
 
 var W io.Writer
+
+// Intentionally bad name, same name as the
+// PHP version. I will do renaming later on.
+// This is just to make translation now easier,
+// straight match.
+var _GET array.String
 
 var server = flag.String("S", "", "Run program as a server.")
 
 func main() {
 	flag.Parse()
+
+	_GET = array.NewString()
 
 	if *server != "" {
 		mux := http.NewServeMux()
@@ -30,6 +40,9 @@ func main() {
 func mainServer(w http.ResponseWriter, r *http.Request) {
 	W = w
 	if r.URL.Path == "/" || r.URL.Path == "/index.php" {
+		for k, v := range r.URL.Query() {
+			_GET.Edit(array.NewScalar(k), v[len(v)-1])
+		}
 		mainFunc()
 		return
 	}
