@@ -275,6 +275,69 @@ func ConstructFor(parent Block) *For {
 	return f
 }
 
+// TODO: This does not work as it should,
+// that variable assignment is done just by
+// a simple string, I do not care if these
+// values are used later on. This makes sense
+// if I want to use this structure for other
+// languages, too. Range is fairly specific.
+type Foreach struct {
+	parent Block
+
+	Iterated Expression
+
+	Key   *Variable
+	Value Variable
+
+	Block *Code
+}
+
+func (f Foreach) Parent() Node {
+	return f.parent
+}
+
+func (f *Foreach) SetParent(n Node) {
+	// TODO: Make sure everybody knows
+	// it can fail.
+	f.parent = n.(Block)
+}
+
+func (f Foreach) HasVariable(name string) *Variable {
+	v := f.DefinesVariable(name)
+	if v != nil {
+		return v
+	}
+
+	if f.parent != nil {
+		return f.parent.HasVariable(name)
+	}
+	return nil
+}
+
+func (f *Foreach) AddStatement(n Node)       {}
+func (f *Foreach) DefineVariable(v Variable) {}
+
+func (f Foreach) DefinesVariable(name string) *Variable {
+	if f.Key != nil && f.Key.Name == name {
+		return f.Key
+	}
+	if f.Value.Name == name {
+		return &f.Value
+	}
+	return nil
+}
+
+func (f Foreach) Print() {
+	k := "_"
+	if f.Key != nil {
+		k = f.Key.Name
+	}
+	fmt.Printf("for %s, %s := range ", k, f.Value.Name)
+	f.Iterated.Print()
+	fmt.Print(" ")
+	f.Block.Print()
+}
+
 type Switch struct {
 	parent Block
 

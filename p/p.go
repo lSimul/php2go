@@ -176,6 +176,30 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 			b.AddStatement(lf)
 
+		case *stmt.Foreach:
+			f := s.(*stmt.Foreach)
+			lf := &lang.Foreach{}
+			lf.SetParent(b)
+			lf.Iterated = expression(lf, f.Expr)
+			if f.Key != nil {
+				name := identifierName(f.Key.(*expr.Variable))
+				lf.Key = &lang.Variable{
+					Type: lang.Int,
+					Name: name,
+				}
+			}
+
+			name := identifierName(f.Variable.(*expr.Variable))
+			lf.Value = lang.Variable{
+				Type: lf.Iterated.GetType(),
+				Name: name,
+			}
+			lf.Block = lang.NewCode(lf)
+			createFunction(lf.Block, nodeList(f.Stmt))
+
+			lf.SetParent(b)
+			b.AddStatement(lf)
+
 		case *stmt.If:
 			i := constructIf(b, s.(*stmt.If))
 			b.AddStatement(i)
