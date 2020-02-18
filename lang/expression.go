@@ -151,7 +151,7 @@ func (a Assign) Left() *Variable {
 	return a.left
 }
 
-func CreateAssign(left *Variable, right Expression) *Assign {
+func NewAssign(left *Variable, right Expression) *Assign {
 	return &Assign{
 		left:  left,
 		right: &right,
@@ -427,7 +427,7 @@ func (p BinaryOp) Print() {
 	}
 }
 
-func CreateBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
+func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 	if left == nil {
 		return nil, errors.New("Left expression is missing.")
 	}

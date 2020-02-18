@@ -12,7 +12,7 @@ type GlobalContext struct {
 	Funcs map[string]*Function
 }
 
-func CreateGlobalContext() *GlobalContext {
+func NewGlobalContext() *GlobalContext {
 	return &GlobalContext{
 		parent: nil,
 		Vars:   make([]Variable, 0),
@@ -61,7 +61,7 @@ func (h HTML) Print() {
 	fmt.Print("fmt.Print(`" + h.Content + "`)")
 }
 
-func CreateFunc(name string) *Function {
+func NewFunc(name string) *Function {
 	f := &Function{
 		Name: name,
 		Body: Code{

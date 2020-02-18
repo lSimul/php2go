@@ -18,7 +18,7 @@ import (
 var gc *lang.GlobalContext
 
 func Run(r *node.Root) *lang.GlobalContext {
-	gc = lang.CreateGlobalContext()
+	gc = lang.NewGlobalContext()
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
@@ -63,7 +63,7 @@ func funcDef(fc *stmt.Function) *lang.Function {
 	if n == "func" {
 		n = "function"
 	}
-	f := lang.CreateFunc(n)
+	f := lang.NewFunc(n)
 
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
@@ -88,7 +88,7 @@ func funcDef(fc *stmt.Function) *lang.Function {
 }
 
 func mainDef() *lang.Function {
-	return lang.CreateFunc("main")
+	return lang.NewFunc("main")
 }
 
 func createFunction(b lang.Block, stmts []node.Node) {
@@ -613,7 +613,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Plus:
 		p := n.(*binary.Plus)
-		op, err := lang.CreateBinaryOp("+", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.NewBinaryOp("+", expression(b, p.Left), expression(b, p.Right))
 		if err != nil {
 			panic(err)
 		}
@@ -622,7 +622,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Minus:
 		p := n.(*binary.Minus)
-		op, err := lang.CreateBinaryOp("-", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.NewBinaryOp("-", expression(b, p.Left), expression(b, p.Right))
 		if err != nil {
 			panic(err)
 		}
@@ -631,7 +631,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Mul:
 		p := n.(*binary.Mul)
-		op, err := lang.CreateBinaryOp("*", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.NewBinaryOp("*", expression(b, p.Left), expression(b, p.Right))
 		if err != nil {
 			panic(err)
 		}
@@ -640,7 +640,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Smaller:
 		p := n.(*binary.Smaller)
-		op, err := lang.CreateBinaryOp("<", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.NewBinaryOp("<", expression(b, p.Left), expression(b, p.Right))
 		if err != nil {
 			panic(err)
 		}
@@ -649,7 +649,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.SmallerOrEqual:
 		p := n.(*binary.SmallerOrEqual)
-		op, err := lang.CreateBinaryOp("<=", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.NewBinaryOp("<=", expression(b, p.Left), expression(b, p.Right))
 		if err != nil {
 			panic(err)
 		}
@@ -658,7 +658,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.GreaterOrEqual:
 		p := n.(*binary.GreaterOrEqual)
-		op, err := lang.CreateBinaryOp(">=", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.NewBinaryOp(">=", expression(b, p.Left), expression(b, p.Right))
 		if err != nil {
 			panic(err)
 		}
@@ -667,7 +667,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Greater:
 		p := n.(*binary.Greater)
-		op, err := lang.CreateBinaryOp(">", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.NewBinaryOp(">", expression(b, p.Left), expression(b, p.Right))
 		if err != nil {
 			panic(err)
 		}
@@ -676,7 +676,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Identical:
 		p := n.(*binary.Identical)
-		op, err := lang.CreateBinaryOp("==", expression(b, p.Left), expression(b, p.Right))
+		op, err := lang.NewBinaryOp("==", expression(b, p.Left), expression(b, p.Right))
 		if err != nil {
 			panic(err)
 		}
@@ -795,7 +795,7 @@ func createArrayPush(b lang.Block, v *lang.Variable, vals []lang.Expression) *la
 		f.Args = append(f.Args, val)
 	}
 
-	return lang.CreateAssign(v, f)
+	return lang.NewAssign(v, f)
 }
 
 func buildAssignment(parent lang.Block, varName string, right lang.Expression) *lang.Assign {
@@ -824,7 +824,7 @@ func buildAssignment(parent lang.Block, varName string, right lang.Expression) *
 	} else {
 		parent.DefineVariable(*av)
 	}
-	as := lang.CreateAssign(av, right)
+	as := lang.NewAssign(av, right)
 	as.FirstDefinition = fd
 	as.SetParent(parent)
 
