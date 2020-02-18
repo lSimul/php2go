@@ -2,6 +2,7 @@ package p
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/z7zmey/php-parser/node"
@@ -92,18 +93,23 @@ func mainDef() *lang.Function {
 }
 
 func createFunction(b lang.Block, stmts []node.Node) {
-	var n lang.Node
 	for _, s := range stmts {
 		switch s.(type) {
 		case *stmt.Nop:
 			// Alias for <?php ?> and "empty semicolon", nothing to do.
 
 		case *stmt.InlineHtml:
-			n = &lang.HTML{
-				Content: s.(*stmt.InlineHtml).Value,
+			f := &lang.FunctionCall{
+				Name: "fmt.Print",
+				Args: make([]lang.Expression, 0),
 			}
-			n.SetParent(b)
-			b.AddStatement(n)
+			s := &lang.Str{
+				Value: fmt.Sprintf("`%s`", s.(*stmt.InlineHtml).Value),
+			}
+			s.SetParent(f)
+			f.AddArg(s)
+			f.SetParent(b)
+			b.AddStatement(f)
 
 		case *stmt.StmtList:
 			list := lang.NewCode(b)

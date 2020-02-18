@@ -40,27 +40,6 @@ func (gc GlobalContext) Print() {
 	}
 }
 
-// Refactor to something like function call
-// function call fmt.Println or something
-// different what should be in the standard
-// library.
-type HTML struct {
-	parent  Node
-	Content string
-}
-
-func (h HTML) Parent() Node {
-	return h.parent
-}
-
-func (h *HTML) SetParent(n Node) {
-	h.parent = n
-}
-
-func (h HTML) Print() {
-	fmt.Print("fmt.Print(`" + h.Content + "`)")
-}
-
 func NewFunc(name string) *Function {
 	f := &Function{
 		Name: name,
