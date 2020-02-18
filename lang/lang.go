@@ -28,18 +28,19 @@ type Block interface {
 	DefinesVariable(string) *Variable
 }
 
+type Expression interface {
+	SetParent(Node)
+	Parent() Node
+	Print()
+
+	GetType() string
+}
+
 type Variable struct {
 	Type      string
 	Name      string
 	Const     bool
 	Reference bool
-}
-
-func (v *Variable) HasVariable(n string) *Variable {
-	if n == v.Name {
-		return v
-	}
-	return nil
 }
 
 func (v Variable) SetParent(Node) {}
@@ -54,12 +55,4 @@ func (v Variable) Print() {
 
 func (v Variable) GetType() string {
 	return v.Type
-}
-
-type Expression interface {
-	SetParent(Node)
-	Parent() Node
-	Print()
-
-	GetType() string
 }
