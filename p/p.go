@@ -74,12 +74,10 @@ func funcDef(fc *stmt.Function) *lang.Function {
 
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
-		v := lang.Variable{
-			Type:      constructName(p.VariableType.(*name.Name)),
-			Name:      translator.Translate(identifierName(p.Variable.(*expr.Variable))),
-			Const:     false,
-			Reference: p.ByRef,
-		}
+		v := *newVariable(
+			constructName(p.VariableType.(*name.Name)),
+			identifierName(p.Variable.(*expr.Variable)),
+			false, p.ByRef)
 		f.Args = append(f.Args, v)
 	}
 
@@ -195,17 +193,11 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			lf.Iterated = expression(lf, f.Expr)
 			if f.Key != nil {
 				name := identifierName(f.Key.(*expr.Variable))
-				lf.Key = &lang.Variable{
-					Type: lang.Int,
-					Name: translator.Translate(name),
-				}
+				lf.Key = newVariable(name, lang.Int, false, false)
 			}
 
 			name := identifierName(f.Variable.(*expr.Variable))
-			lf.Value = lang.Variable{
-				Type: lf.Iterated.GetType(),
-				Name: translator.Translate(name),
-			}
+			lf.Value = *newVariable(name, lf.Iterated.GetType(), false, false)
 			lf.Block = lang.NewCode(lf)
 			createFunction(lf.Block, nodeList(f.Stmt))
 
@@ -471,12 +463,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		if v == nil {
 			panic("Using undefined variable \"" + name + "\".")
 		}
-		return &lang.Variable{
-			Type:      v.GetType(),
-			Name:      translator.Translate(name),
-			Const:     false,
-			Reference: false,
-		}
+		return newVariable(name, v.GetType(), false, false)
 
 	case *scalar.Encapsed:
 		e := n.(*scalar.Encapsed)
@@ -820,17 +807,11 @@ func createArrayPush(b lang.Block, v *lang.Variable, vals []lang.Expression) *la
 }
 
 func buildAssignment(parent lang.Block, varName string, right lang.Expression) *lang.Assign {
-	varName = translator.Translate(varName)
 	t := right.GetType()
 	if t == lang.Void {
 		panic("Cannot assign \"void\" " + "to \"" + varName + "\".")
 	}
-	av := &lang.Variable{
-		Type:      t,
-		Name:      varName,
-		Const:     false,
-		Reference: false,
-	}
+	av := newVariable(varName, t, false, false)
 
 	fd := true
 	if v := parent.HasVariable(varName); v != nil {
@@ -854,6 +835,16 @@ func buildAssignment(parent lang.Block, varName string, right lang.Expression) *
 	as.SetParent(parent)
 
 	return as
+}
+
+func newVariable(name, typ string, isConst, byReference bool) *lang.Variable {
+	name = translator.Translate(name)
+	return &lang.Variable{
+		Name:      name,
+		Type:      typ,
+		Const:     isConst,
+		Reference: byReference,
+	}
 }
 
 /**
