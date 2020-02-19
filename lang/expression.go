@@ -353,8 +353,9 @@ type BinaryOp struct {
 
 	Operation string
 
-	Right Expression
-	Left  Expression
+	right Expression
+	left  Expression
+	typ   string
 }
 
 func (p BinaryOp) Parent() Node {
@@ -366,16 +367,7 @@ func (p *BinaryOp) SetParent(n Node) {
 }
 
 func (p BinaryOp) GetType() string {
-	if p.Right.GetType() != p.Left.GetType() {
-		panic(`Left operand has different type than the right one.`)
-	}
-
-	op := p.Operation
-	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" {
-		return Bool
-	}
-
-	return p.Right.GetType()
+	return p.typ
 }
 
 // See https://golang.org/ref/spec#Operator_precedence
@@ -431,9 +423,9 @@ func (p BinaryOp) Print() {
 	if p.inBrackets {
 		fmt.Print("(")
 	}
-	p.Left.Print()
+	p.left.Print()
 	fmt.Print(" " + p.Operation + " ")
-	p.Right.Print()
+	p.right.Print()
 	if p.inBrackets {
 		fmt.Print(")")
 	}
@@ -454,11 +446,16 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 	}
 
 	convertToMatchingType(left, right)
+	t := left.GetType()
+	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" {
+		t = Bool
+	}
 	ret := &BinaryOp{
 		inBrackets: false,
 		Operation:  op,
-		Left:       left,
-		Right:      right,
+		left:       left,
+		right:      right,
+		typ:        t,
 	}
 	left.SetParent(ret)
 	right.SetParent(ret)

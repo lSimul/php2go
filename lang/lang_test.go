@@ -159,10 +159,10 @@ func constructors(t *testing.T) {
 		t.Error("Left expression is missing.")
 	}
 	bo, _ := NewBinaryOp("+", v, v)
-	if bo.Left != v {
+	if bo.left != v {
 		t.Error("Wrong left side.")
 	}
-	if bo.Right != v {
+	if bo.right != v {
 		t.Error("Wrong right side.")
 	}
 	if bo.inBrackets {
