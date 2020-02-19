@@ -6,6 +6,8 @@ $d = 0.0;
 $a = 1 + 1;
 func(1, 2, 3, 4);
 
+$for = 1;
+
 function fn(): int {
 	return -1;
 }

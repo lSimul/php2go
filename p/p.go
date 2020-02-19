@@ -17,9 +17,11 @@ import (
 )
 
 var gc *lang.GlobalContext
+var translator NameTranslation
 
 func Run(r *node.Root) *lang.GlobalContext {
 	gc = lang.NewGlobalContext()
+	translator = NewNameTranslator()
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
@@ -74,7 +76,7 @@ func funcDef(fc *stmt.Function) *lang.Function {
 		p := pr.(*node.Parameter)
 		v := lang.Variable{
 			Type:      constructName(p.VariableType.(*name.Name)),
-			Name:      identifierName(p.Variable.(*expr.Variable)),
+			Name:      translator.Translate(identifierName(p.Variable.(*expr.Variable))),
 			Const:     false,
 			Reference: p.ByRef,
 		}
@@ -195,14 +197,14 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				name := identifierName(f.Key.(*expr.Variable))
 				lf.Key = &lang.Variable{
 					Type: lang.Int,
-					Name: name,
+					Name: translator.Translate(name),
 				}
 			}
 
 			name := identifierName(f.Variable.(*expr.Variable))
 			lf.Value = lang.Variable{
 				Type: lf.Iterated.GetType(),
-				Name: name,
+				Name: translator.Translate(name),
 			}
 			lf.Block = lang.NewCode(lf)
 			createFunction(lf.Block, nodeList(f.Stmt))
@@ -471,7 +473,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		}
 		return &lang.Variable{
 			Type:      v.GetType(),
-			Name:      name,
+			Name:      translator.Translate(name),
 			Const:     false,
 			Reference: false,
 		}
@@ -818,6 +820,7 @@ func createArrayPush(b lang.Block, v *lang.Variable, vals []lang.Expression) *la
 }
 
 func buildAssignment(parent lang.Block, varName string, right lang.Expression) *lang.Assign {
+	varName = translator.Translate(varName)
 	t := right.GetType()
 	if t == lang.Void {
 		panic("Cannot assign \"void\" " + "to \"" + varName + "\".")
