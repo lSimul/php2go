@@ -85,3 +85,7 @@ func Plus(e node.Node) *expr.UnaryPlus {
 func Minus(e node.Node) *expr.UnaryMinus {
 	return expr.NewUnaryMinus(e)
 }
+
+func HTML(value string) *stmt.InlineHtml {
+	return stmt.NewInlineHtml(value)
+}

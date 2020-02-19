@@ -19,6 +19,7 @@ func TestP(t *testing.T) {
 	t.Run("basic set", functionDef)
 	t.Run("binary operations", testBinaryOp)
 	t.Run("unary operations", unaryOp)
+	t.Run("statements", testStatements)
 	t.Run("text comparision of the main function", testMain)
 }
 
@@ -254,6 +255,48 @@ func unaryOp(t *testing.T) {
 		if typ := u.GetType(); typ != c.t {
 			t.Errorf("'%s' expected, '%s' found.", c.t, typ)
 		}
+	}
+}
+
+func testStatements(t *testing.T) {
+	t.Helper()
+
+	parser := parser{}
+
+	b := lang.NewCode(nil)
+	html := test.HTML("<html></html>")
+	parser.createFunction(b, []node.Node{html})
+	if len(b.Statements) != 1 {
+		t.Fatal("Wrong amount of statements in the block.")
+	}
+	h, ok := b.Statements[0].(*lang.FunctionCall)
+	if !ok {
+		t.Fatal("That one statement should be function call.")
+	}
+	if h.Parent() != b {
+		t.Error("Parent not set.")
+	}
+	if h.Return != lang.Void {
+		t.Errorf("'void' expected, '%s' found.", h.Return)
+	}
+	if h.Name != "fmt.Print" {
+		t.Errorf("'fmt.Print' expected, '%s' found.", h.Name)
+	}
+	if len(h.Args) != 1 {
+		t.Fatal("'fmt.Print' should have only one argument.")
+	}
+	a, ok := h.Args[0].(*lang.Str)
+	if !ok {
+		t.Fatal("That one argument should be string.")
+	}
+	if a.Parent() != h {
+		t.Error("Parent not set.")
+	}
+	if a.Value != "`<html></html>`" {
+		t.Errorf("'`<html></html>`' expected, '%s' found", a.Value)
+	}
+	if a.GetType() != lang.String {
+		t.Errorf("'string' expected, '%s' found.", a.GetType())
 	}
 }
 
