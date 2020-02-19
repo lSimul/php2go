@@ -617,75 +617,35 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Plus:
 		p := n.(*binary.Plus)
-		op, err := lang.NewBinaryOp("+", expression(b, p.Left), expression(b, p.Right))
-		if err != nil {
-			panic(err)
-		}
-		op.SetParent(b)
-		return op
+		return binaryOp(b, "+", p.Left, p.Right)
 
 	case *binary.Minus:
 		p := n.(*binary.Minus)
-		op, err := lang.NewBinaryOp("-", expression(b, p.Left), expression(b, p.Right))
-		if err != nil {
-			panic(err)
-		}
-		op.SetParent(b)
-		return op
+		return binaryOp(b, "-", p.Left, p.Right)
 
 	case *binary.Mul:
 		p := n.(*binary.Mul)
-		op, err := lang.NewBinaryOp("*", expression(b, p.Left), expression(b, p.Right))
-		if err != nil {
-			panic(err)
-		}
-		op.SetParent(b)
-		return op
+		return binaryOp(b, "*", p.Left, p.Right)
 
 	case *binary.Smaller:
 		p := n.(*binary.Smaller)
-		op, err := lang.NewBinaryOp("<", expression(b, p.Left), expression(b, p.Right))
-		if err != nil {
-			panic(err)
-		}
-		op.SetParent(b)
-		return op
+		return binaryOp(b, "<", p.Left, p.Right)
 
 	case *binary.SmallerOrEqual:
 		p := n.(*binary.SmallerOrEqual)
-		op, err := lang.NewBinaryOp("<=", expression(b, p.Left), expression(b, p.Right))
-		if err != nil {
-			panic(err)
-		}
-		op.SetParent(b)
-		return op
+		return binaryOp(b, "<=", p.Left, p.Right)
 
 	case *binary.GreaterOrEqual:
 		p := n.(*binary.GreaterOrEqual)
-		op, err := lang.NewBinaryOp(">=", expression(b, p.Left), expression(b, p.Right))
-		if err != nil {
-			panic(err)
-		}
-		op.SetParent(b)
-		return op
+		return binaryOp(b, ">=", p.Left, p.Right)
 
 	case *binary.Greater:
 		p := n.(*binary.Greater)
-		op, err := lang.NewBinaryOp(">", expression(b, p.Left), expression(b, p.Right))
-		if err != nil {
-			panic(err)
-		}
-		op.SetParent(b)
-		return op
+		return binaryOp(b, ">", p.Left, p.Right)
 
 	case *binary.Identical:
 		p := n.(*binary.Identical)
-		op, err := lang.NewBinaryOp("==", expression(b, p.Left), expression(b, p.Right))
-		if err != nil {
-			panic(err)
-		}
-		op.SetParent(b)
-		return op
+		return binaryOp(b, "==", p.Left, p.Right)
 
 	case *expr.ConstFetch:
 		cf := n.(*expr.ConstFetch)
@@ -764,6 +724,15 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		return f
 	}
 	return nil
+}
+
+func binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
+	res, err := lang.NewBinaryOp(op, expression(b, left), expression(b, right))
+	if err != nil {
+		panic(err)
+	}
+	res.SetParent(b)
+	return res
 }
 
 func checkArguments(vars []lang.Variable, call []node.Node) error {

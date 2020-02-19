@@ -12,7 +12,7 @@ import (
 func TestP(t *testing.T) {
 	t.Run("helper functions", helpers)
 	t.Run("basic set", functionDef)
-	t.Run("binary operations", binaryOp)
+	t.Run("binary operations", testBinaryOp)
 	t.Run("unary operations", unaryOp)
 }
 
@@ -139,7 +139,7 @@ func functionDef(t *testing.T) {
 	}
 }
 
-func binaryOp(t *testing.T) {
+func testBinaryOp(t *testing.T) {
 	t.Helper()
 
 	left := test.Int("1")
