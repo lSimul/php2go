@@ -17,9 +17,7 @@ type Node interface {
 }
 
 type Block interface {
-	SetParent(Node)
-	Parent() Node
-	Print()
+	Node
 
 	AddStatement(Node)
 	DefineVariable(Variable)
@@ -29,9 +27,7 @@ type Block interface {
 }
 
 type Expression interface {
-	SetParent(Node)
-	Parent() Node
-	Print()
+	Node
 
 	GetType() string
 }
