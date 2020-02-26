@@ -119,20 +119,26 @@ func constructors(t *testing.T) {
 	}
 
 	v := &Variable{
-		Name: "",
-		Type: String,
+		Name:        "",
+		Type:        String,
+		CurrentType: String,
 	}
+	vr := &VarRef{
+		V:   v,
+		typ: String,
+	}
+
 	_, err = NewAssign(v, nil)
 	if err == nil {
 		t.Error("Missing right side.")
 	}
 
-	_, err = NewAssign(nil, v)
+	_, err = NewAssign(nil, vr)
 	if err == nil {
 		t.Error("Missing left side.")
 	}
 
-	a, err = NewAssign(v, v)
+	a, err = NewAssign(v, vr)
 	if a.GetType() != v.GetType() {
 		t.Errorf("'%s' expected, '%s' found.\n", v.GetType(), a.GetType())
 	}
@@ -150,29 +156,34 @@ func constructors(t *testing.T) {
 	if err == nil {
 		t.Error("Left expression is missing.")
 	}
-	_, err = NewBinaryOp("+", v, nil)
+	_, err = NewBinaryOp("+", vr, nil)
 	if err == nil {
 		t.Error("Right expression is missing.")
 	}
-	_, err = NewBinaryOp("+", nil, v)
+	_, err = NewBinaryOp("+", nil, vr)
 	if err == nil {
 		t.Error("Left expression is missing.")
 	}
-	bo, _ := NewBinaryOp("+", v, v)
-	if bo.left != v {
+	bo, _ := NewBinaryOp("+", vr, vr)
+	if bo.left != vr {
 		t.Error("Wrong left side.")
 	}
-	if bo.right != v {
+	if bo.right != vr {
 		t.Error("Wrong right side.")
 	}
 	if bo.inBrackets {
 		t.Error("No brackets needed.")
 	}
 
-	void := &Variable{
-		Type: Void,
+	void := &VarRef{
+		V: &Variable{
+			Type:        Void,
+			CurrentType: Void,
+		},
+		typ: Void,
 	}
-	_, err = NewBinaryOp("", void, v)
+
+	_, err = NewBinaryOp("", void, vr)
 	if err == nil {
 		t.Error("Binary op cannot be used with 'void'")
 	}
@@ -180,7 +191,7 @@ func constructors(t *testing.T) {
 	if err == nil {
 		t.Error("Binary op cannot be used with 'void'")
 	}
-	_, err = NewBinaryOp("", v, void)
+	_, err = NewBinaryOp("", vr, void)
 	if err == nil {
 		t.Error("Binary op cannot be used with 'void'")
 	}

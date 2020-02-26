@@ -555,7 +555,7 @@ func (i If) Print() {
 type Inc struct {
 	parent Node
 
-	Var *Variable
+	Var *VarRef
 }
 
 func (i Inc) Parent() Node {
@@ -568,19 +568,16 @@ func (i *Inc) SetParent(n Node) {
 
 func (i Inc) Print() {
 	if i.Var.Reference {
-		fmt.Print("(*")
-		i.Var.Print()
-		fmt.Print(")")
-	} else {
-		i.Var.Print()
+		fmt.Print("*")
 	}
+	i.Var.Print()
 	fmt.Print("++")
 }
 
 type Dec struct {
 	parent Node
 
-	Var *Variable
+	Var *VarRef
 }
 
 func (d Dec) Parent() Node {
@@ -592,6 +589,9 @@ func (d *Dec) SetParent(n Node) {
 }
 
 func (d Dec) Print() {
+	if d.Var.Reference {
+		fmt.Print("*")
+	}
 	d.Var.Print()
 	fmt.Print("--")
 }

@@ -75,9 +75,9 @@ func funcDef(fc *stmt.Function) *lang.Function {
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
 		v := newVariable(
-			constructName(p.VariableType.(*name.Name)),
 			identifierName(p.Variable.(*expr.Variable)),
-			false, p.ByRef)
+			constructName(p.VariableType.(*name.Name)),
+			false)
 		f.Args = append(f.Args, v)
 	}
 
@@ -193,11 +193,11 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			lf.Iterated = expression(lf, f.Expr)
 			if f.Key != nil {
 				name := identifierName(f.Key.(*expr.Variable))
-				lf.Key = newVariable(name, lang.Int, false, false)
+				lf.Key = newVariable(name, lang.Int, false)
 			}
 
 			name := identifierName(f.Variable.(*expr.Variable))
-			lf.Value = *newVariable(name, lf.Iterated.GetType(), false, false)
+			lf.Value = *newVariable(name, lf.Iterated.GetType(), false)
 			lf.Block = lang.NewCode(lf)
 			createFunction(lf.Block, nodeList(f.Stmt))
 
@@ -417,7 +417,7 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 		la, ok := r.(*lang.Assign)
 		if ok {
 			b.AddStatement(la)
-			r = la.Left()
+			r = lang.NewVarRef(la.Left(), la.GetType())
 		}
 
 		n := identifierName(a.Variable.(*expr.Variable))
@@ -429,11 +429,13 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 func statement(b lang.Block, n node.Node) lang.Node {
 	switch n.(type) {
 	case *expr.PostInc:
-		v, isVar := expression(b, n.(*expr.PostInc).Variable).(*lang.Variable)
+		v, isVar := expression(b, n.(*expr.PostInc).Variable).(*lang.VarRef)
 		if !isVar {
 			panic(`"++" requires variable.`)
 		}
-		v = b.HasVariable(v.Name)
+		if b.HasVariable(v.V.Name) == nil {
+			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
+		}
 		i := &lang.Inc{
 			Var: v,
 		}
@@ -441,7 +443,7 @@ func statement(b lang.Block, n node.Node) lang.Node {
 		return i
 
 	case *expr.PostDec:
-		v, ok := expression(b, n.(*expr.PostDec).Variable).(*lang.Variable)
+		v, ok := expression(b, n.(*expr.PostDec).Variable).(*lang.VarRef)
 		if !ok {
 			panic(`"--" requires variable.`)
 		}
@@ -463,7 +465,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		if v == nil {
 			panic("Using undefined variable \"" + name + "\".")
 		}
-		return newVariable(name, v.GetType(), false, false)
+		return lang.NewVarRef(v, v.GetType())
 
 	case *scalar.Encapsed:
 		e := n.(*scalar.Encapsed)
@@ -498,7 +500,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 				case lang.String:
 					s.Value += "%s"
 				}
-				f.AddArg(v)
+				f.AddArg(lang.NewVarRef(v, v.GetType()))
 
 			case *expr.ArrayDimFetch:
 				adf := p.(*expr.ArrayDimFetch)
@@ -509,7 +511,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 				}
 
 				fa := &lang.FetchArr{
-					Arr:   v,
+					Arr:   lang.NewVarRef(v, v.GetType()),
 					Index: expression(b, adf.Dim),
 				}
 				fa.Arr.SetParent(fa)
@@ -602,7 +604,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *expr.ArrayDimFetch:
 		adf := n.(*expr.ArrayDimFetch)
-		v, ok := expression(b, adf.Variable).(*lang.Variable)
+		v, ok := expression(b, adf.Variable).(*lang.VarRef)
 		if !ok {
 			panic(`Expected variable to be indexed.`)
 		}
@@ -678,7 +680,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 			if len(al.Arguments) < 2 {
 				panic(`array_push requires atlast two arguments`)
 			}
-			v, ok := expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.Variable)
+			v, ok := expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.VarRef)
 			if !ok {
 				panic(`First argument has to be a variable.`)
 			}
@@ -707,18 +709,12 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		if err != nil {
 			panic(err)
 		}
-		for i, a := range al.Arguments {
-			var arg lang.Expression
-			if lf.Args[i].Reference {
-				v := expression(b, a.(*node.Argument).Expr).(*lang.Variable)
-				v.Reference = true
-				arg = v
-			} else {
-				// TODO: Do not ignore information in Argument,
-				// it has interesting information like if it is
-				// send by reference and others.
-				arg = expression(b, a.(*node.Argument).Expr)
-			}
+		// TODO: Check for passing by reference.
+		for _, a := range al.Arguments {
+			// TODO: Do not ignore information in Argument,
+			// it has interesting information like if it is
+			// send by reference and others.
+			arg := expression(b, a.(*node.Argument).Expr)
 			f.AddArg(arg)
 		}
 		return f
@@ -739,20 +735,14 @@ func checkArguments(vars []*lang.Variable, call []node.Node) error {
 	if len(vars) != len(call) {
 		return errors.New("wrong argument count")
 	}
-	for i := 0; i < len(vars); i++ {
-		_, isVar := call[i].(*node.Argument).Expr.(*expr.Variable)
-		// This is something even PHP linter is aware of.
-		if vars[i].Reference && !isVar {
-			return errors.New("only variable can be passed by reference")
-		}
-	}
-
+	// TODO: Check if arguments are passed by reference, make sure
+	// that is done only with variables.
 	return nil
 }
 
-func createArrayPush(b lang.Block, v *lang.Variable, vals []lang.Expression) *lang.Assign {
-	if b.HasVariable(v.Name) == nil {
-		panic(v.Name + " is not defined.")
+func createArrayPush(b lang.Block, v *lang.VarRef, vals []lang.Expression) *lang.Assign {
+	if b.HasVariable(v.V.Name) == nil {
+		panic(v.V.Name + " is not defined.")
 	}
 
 	f := &lang.FunctionCall{
@@ -768,25 +758,25 @@ func createArrayPush(b lang.Block, v *lang.Variable, vals []lang.Expression) *la
 		f.Args = append(f.Args, val)
 	}
 
-	a, err := lang.NewAssign(v, f)
+	a, err := lang.NewAssign(v.V, f)
 	if err != nil {
 		panic(err)
 	}
 	return a
 }
 
-func buildAssignment(parent lang.Block, varName string, right lang.Expression) *lang.Assign {
+func buildAssignment(parent lang.Block, name string, right lang.Expression) *lang.Assign {
 	t := right.GetType()
 	if t == lang.Void {
-		panic("Cannot assign \"void\" " + "to \"" + varName + "\".")
+		panic("Cannot assign \"void\" " + "to \"" + name + "\".")
 	}
-	av := newVariable(varName, t, false, false)
+	av := newVariable(name, t, false)
 
 	fd := true
-	if v := parent.HasVariable(varName); v != nil {
+	if v := parent.HasVariable(av.Name); v != nil {
 		fd = false
 		if v.GetType() != t {
-			if parent.DefinesVariable(varName) == nil {
+			if parent.DefinesVariable(av.Name) == nil {
 				fd = true
 				parent.DefineVariable(av)
 			} else {
@@ -806,13 +796,14 @@ func buildAssignment(parent lang.Block, varName string, right lang.Expression) *
 	return as
 }
 
-func newVariable(name, typ string, isConst, byReference bool) *lang.Variable {
+func newVariable(name, typ string, isConst bool) *lang.Variable {
 	name = translator.Translate(name)
 	return &lang.Variable{
-		Name:      name,
-		Type:      typ,
-		Const:     isConst,
-		Reference: byReference,
+		Name:  name,
+		Type:  typ,
+		Const: isConst,
+
+		CurrentType: typ,
 	}
 }
 

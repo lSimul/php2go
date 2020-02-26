@@ -45,9 +45,6 @@ func (f Function) Print() {
 	for i := 0; i < len(f.Args); i++ {
 		a := f.Args[i]
 		fmt.Print(a.Name + " ")
-		if a.Reference {
-			fmt.Print("*")
-		}
 		fmt.Print(a.GetType())
 		if i < len(f.Args)-1 {
 			fmt.Print(", ")
@@ -68,6 +65,38 @@ func (f *Function) AddStatement(n Node) {
 
 func (f Function) GetType() string {
 	return f.Return
+}
+
+type VarRef struct {
+	parent Node
+	V      *Variable
+
+	Reference bool
+
+	typ string
+}
+
+func (v VarRef) Parent() Node {
+	return v.parent
+}
+
+func (v *VarRef) SetParent(n Node) {
+	v.parent = n
+}
+
+func (v VarRef) Print() {
+	v.V.Print()
+}
+
+func (v VarRef) GetType() string {
+	return v.typ
+}
+
+func NewVarRef(v *Variable, t string) *VarRef {
+	return &VarRef{
+		V:   v,
+		typ: t,
+	}
 }
 
 type Const struct {
@@ -119,6 +148,10 @@ func (r Return) Print() {
 type Assign struct {
 	parent Node
 
+	// Variable sticks here, VarRef
+	// is used mainly for type casting,
+	// assignment does not have this
+	// issue.
 	left  *Variable
 	right *Expression
 
@@ -138,7 +171,7 @@ func (a Assign) GetType() string {
 }
 
 func (a Assign) Print() {
-	fmt.Print(a.left.Name)
+	a.left.Print()
 	if a.FirstDefinition {
 		fmt.Print(" := ")
 	} else {
@@ -276,7 +309,7 @@ func (a Array) Print() {
 type FetchArr struct {
 	parent Node
 
-	Arr   *Variable
+	Arr   *VarRef
 	Index Expression
 }
 
@@ -581,7 +614,7 @@ func (f FunctionCall) Print() {
 	fmt.Print(f.Name)
 	fmt.Print("(")
 	for i := 0; i < len(f.Args); i++ {
-		if v, isVar := f.Args[i].(*Variable); isVar {
+		if v, isVar := f.Args[i].(*VarRef); isVar {
 			if v.Reference {
 				fmt.Print("&")
 			}

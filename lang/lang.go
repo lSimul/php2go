@@ -33,16 +33,11 @@ type Expression interface {
 }
 
 type Variable struct {
-	Type      string
-	Name      string
-	Const     bool
-	Reference bool
-}
+	Type  string
+	Name  string
+	Const bool
 
-func (v Variable) SetParent(Node) {}
-
-func (v Variable) Parent() Node {
-	return nil
+	CurrentType string
 }
 
 func (v Variable) Print() {
@@ -50,5 +45,5 @@ func (v Variable) Print() {
 }
 
 func (v Variable) GetType() string {
-	return v.Type
+	return v.CurrentType
 }
