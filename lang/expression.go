@@ -28,6 +28,11 @@ func (f Function) HasVariable(name string) *Variable {
 }
 
 func (f *Function) DefineVariable(v *Variable) {
+	for _, vr := range f.Args {
+		if vr.Name == v.Name {
+			panic("'" + v.Name + "' redeclaration.")
+		}
+	}
 	f.Args = append(f.Args, v)
 }
 
@@ -86,6 +91,9 @@ func (v *VarRef) SetParent(n Node) {
 
 func (v VarRef) Print() {
 	v.V.Print()
+	if v.V.Type == Anything {
+		fmt.Printf(".(%s)", v.typ)
+	}
 }
 
 func (v VarRef) GetType() string {
@@ -96,6 +104,32 @@ func NewVarRef(v *Variable, t string) *VarRef {
 	return &VarRef{
 		V:   v,
 		typ: t,
+	}
+}
+
+type VarDef struct {
+	parent Node
+	V      *Variable
+
+	typ string
+}
+
+func (v VarDef) Parent() Node {
+	return v.parent
+}
+
+func (v *VarDef) SetParent(n Node) {
+	v.parent = n
+}
+
+func (v VarDef) Print() {
+	fmt.Printf("var %s %s", v.V.Name, v.V.Type)
+}
+
+func newVarDef(b Block, v *Variable) *VarDef {
+	return &VarDef{
+		parent: b,
+		V:      v,
 	}
 }
 
@@ -196,7 +230,6 @@ func NewAssign(left *Variable, right Expression) (*Assign, error) {
 	if right == nil {
 		return nil, errors.New("Missing right side of the assignment.")
 	}
-
 	return &Assign{
 		left:  left,
 		right: &right,

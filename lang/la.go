@@ -130,6 +130,30 @@ func (c Code) HasVariable(name string) *Variable {
 }
 
 func (c *Code) DefineVariable(v *Variable) {
+	// TODO: Definition should be small, this does a lot of things.
+	for _, vr := range c.Vars {
+		if vr != v {
+			continue
+		}
+		if vr.Type == Anything {
+			return
+		}
+		vr.Type = Anything
+
+		switch vr.FirstDefinition.(type) {
+		case *VarDef:
+
+		case *Assign:
+			vr.FirstDefinition.(*Assign).FirstDefinition = false
+			vd := newVarDef(c, vr)
+			vr.FirstDefinition = vd
+			c.Statements = append([]Node{vd}, c.Statements...)
+			return
+
+		default:
+			panic(`Wrong assignment.`)
+		}
+	}
 	c.Vars = append(c.Vars, v)
 }
 
@@ -212,6 +236,18 @@ func (f For) HasVariable(name string) *Variable {
 }
 
 func (f *For) DefineVariable(v *Variable) {
+	for _, vr := range f.Vars {
+		if vr.Name != v.Name || vr.Type == v.Type {
+			continue
+		}
+		vr.Type = Anything
+		a, ok := vr.FirstDefinition.(*Assign)
+		if !ok {
+			panic(`For cycle cannot move to VarDef.`)
+		}
+		a.FirstDefinition = false
+		return
+	}
 	f.Vars = append(f.Vars, v)
 }
 
@@ -411,6 +447,30 @@ func (c *Case) AddStatement(n Node) {
 }
 
 func (c *Case) DefineVariable(v *Variable) {
+	// TODO: Definition should be small, this does a lot of things.
+	for _, vr := range c.Vars {
+		if vr != v {
+			continue
+		}
+		if vr.Type == Anything {
+			return
+		}
+		vr.Type = Anything
+
+		switch vr.FirstDefinition.(type) {
+		case *VarDef:
+
+		case *Assign:
+			vr.FirstDefinition.(*Assign).FirstDefinition = false
+			vd := newVarDef(c, vr)
+			vr.FirstDefinition = vd
+			c.Statements = append([]Node{vd}, c.Statements...)
+			return
+
+		default:
+			panic(`Wrong assignment.`)
+		}
+	}
 	c.Vars = append(c.Vars, v)
 }
 
@@ -467,6 +527,30 @@ func (d *Default) AddStatement(n Node) {
 }
 
 func (d *Default) DefineVariable(v *Variable) {
+	// TODO: Definition should be small, this does a lot of things.
+	for _, vr := range d.Vars {
+		if vr != v {
+			continue
+		}
+		if vr.Type == Anything {
+			return
+		}
+		vr.Type = Anything
+
+		switch vr.FirstDefinition.(type) {
+		case *VarDef:
+
+		case *Assign:
+			vr.FirstDefinition.(*Assign).FirstDefinition = false
+			vd := newVarDef(d, vr)
+			vr.FirstDefinition = vd
+			d.Statements = append([]Node{vd}, d.Statements...)
+			return
+
+		default:
+			panic(`Wrong assignment.`)
+		}
+	}
 	d.Vars = append(d.Vars, v)
 }
 
@@ -521,6 +605,18 @@ func (i If) HasVariable(name string) *Variable {
 }
 
 func (i *If) DefineVariable(v *Variable) {
+	for _, vr := range i.Vars {
+		if vr.Name != v.Name || vr.Type == v.Type {
+			continue
+		}
+		vr.Type = Anything
+		a, ok := vr.FirstDefinition.(*Assign)
+		if !ok {
+			panic(`For cycle cannot move to VarDef.`)
+		}
+		a.FirstDefinition = false
+		return
+	}
 	i.Vars = append(i.Vars, v)
 }
 

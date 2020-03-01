@@ -771,28 +771,31 @@ func buildAssignment(parent lang.Block, name string, right lang.Expression) *lan
 		panic("Cannot assign \"void\" " + "to \"" + name + "\".")
 	}
 
-	tn := translator.Translate(name)
-	fd := true
-	v := parent.HasVariable(tn)
+	v := parent.HasVariable(translator.Translate(name))
+	fd := false
 	if v == nil {
 		v = newVariable(name, t, false)
 		parent.DefineVariable(v)
-	} else if v.GetType() != t {
-		if parent.DefinesVariable(tn) == nil {
-			v = newVariable(name, t, false)
-			parent.DefineVariable(v)
+		fd = true
+	} else if v.CurrentType != t {
+		if v.FirstDefinition.Parent() == parent {
+			v.CurrentType = t
 		} else {
-			panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + t + "\" given.")
+			v = newVariable(name, t, false)
+			fd = true
 		}
-	} else {
-		fd = false
+		parent.DefineVariable(v)
 	}
+
 	as, err := lang.NewAssign(v, right)
 	if err != nil {
 		panic(err)
 	}
 
 	as.FirstDefinition = fd
+	if fd {
+		v.FirstDefinition = as
+	}
 	as.SetParent(parent)
 
 	return as

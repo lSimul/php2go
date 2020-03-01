@@ -3,11 +3,12 @@ package lang
 import "fmt"
 
 const (
-	Void    = ""
-	Int     = "int"
-	String  = "string"
-	Float64 = "float64"
-	Bool    = "bool"
+	Void     = ""
+	Int      = "int"
+	String   = "string"
+	Float64  = "float64"
+	Bool     = "bool"
+	Anything = "interface{}"
 )
 
 type Node interface {
@@ -36,6 +37,8 @@ type Variable struct {
 	Type  string
 	Name  string
 	Const bool
+
+	FirstDefinition Node
 
 	CurrentType string
 }
