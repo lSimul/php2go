@@ -20,7 +20,7 @@ type Block interface {
 	Node
 
 	AddStatement(Node)
-	DefineVariable(Variable)
+	DefineVariable(*Variable)
 
 	HasVariable(string) *Variable
 	DefinesVariable(string) *Variable

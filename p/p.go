@@ -74,7 +74,7 @@ func funcDef(fc *stmt.Function) *lang.Function {
 
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
-		v := *newVariable(
+		v := newVariable(
 			constructName(p.VariableType.(*name.Name)),
 			identifierName(p.Variable.(*expr.Variable)),
 			false, p.ByRef)
@@ -170,7 +170,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			createFunction(lf.Block, nodeList(w.Stmt))
 
 			i := &lang.If{
-				Vars: make([]lang.Variable, 0),
+				Vars: make([]*lang.Variable, 0),
 			}
 			i.True = lang.NewCode(i)
 			i.SetParent(lf)
@@ -321,7 +321,7 @@ func constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 		case *stmt.Case:
 			c := c.(*stmt.Case)
 			lc := &lang.Case{
-				Vars:       make([]lang.Variable, 0),
+				Vars:       make([]*lang.Variable, 0),
 				Statements: make([]lang.Node, 0),
 			}
 			lc.SetParent(s)
@@ -342,7 +342,7 @@ func constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 		case *stmt.Default:
 			c := c.(*stmt.Default)
 			d := &lang.Default{
-				Vars:       make([]lang.Variable, 0),
+				Vars:       make([]*lang.Variable, 0),
 				Statements: make([]lang.Node, 0),
 			}
 			d.SetParent(s)
@@ -735,7 +735,7 @@ func binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
 	return res
 }
 
-func checkArguments(vars []lang.Variable, call []node.Node) error {
+func checkArguments(vars []*lang.Variable, call []node.Node) error {
 	if len(vars) != len(call) {
 		return errors.New("wrong argument count")
 	}
@@ -788,13 +788,13 @@ func buildAssignment(parent lang.Block, varName string, right lang.Expression) *
 		if v.GetType() != t {
 			if parent.DefinesVariable(varName) == nil {
 				fd = true
-				parent.DefineVariable(*av)
+				parent.DefineVariable(av)
 			} else {
 				panic("Invalid assignment, \"" + v.GetType() + "\" expected, \"" + t + "\" given.")
 			}
 		}
 	} else {
-		parent.DefineVariable(*av)
+		parent.DefineVariable(av)
 	}
 	as, err := lang.NewAssign(av, right)
 	if err != nil {

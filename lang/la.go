@@ -44,7 +44,7 @@ func NewFunc(name string) *Function {
 	f := &Function{
 		Name: name,
 		Body: Code{
-			Vars:       make([]Variable, 0),
+			Vars:       make([]*Variable, 0),
 			Statements: make([]Node, 0),
 		},
 		Return: Void,
@@ -104,7 +104,7 @@ func (c Fallthrough) Print() {
 type Code struct {
 	parent Block
 
-	Vars       []Variable
+	Vars       []*Variable
 	Statements []Node
 }
 
@@ -129,14 +129,14 @@ func (c Code) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (c *Code) DefineVariable(v Variable) {
+func (c *Code) DefineVariable(v *Variable) {
 	c.Vars = append(c.Vars, v)
 }
 
 func (c Code) DefinesVariable(name string) *Variable {
 	for _, v := range c.Vars {
 		if v.Name == name {
-			return &v
+			return v
 		}
 	}
 	return nil
@@ -165,7 +165,7 @@ func NewCode(parent Node) *Code {
 	}
 	return &Code{
 		parent:     p,
-		Vars:       make([]Variable, 0),
+		Vars:       make([]*Variable, 0),
 		Statements: make([]Node, 0),
 	}
 }
@@ -173,7 +173,7 @@ func NewCode(parent Node) *Code {
 type For struct {
 	parent Block
 
-	Vars []Variable
+	Vars []*Variable
 
 	Init Node
 	cond Expression
@@ -211,14 +211,14 @@ func (f For) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (f *For) DefineVariable(v Variable) {
+func (f *For) DefineVariable(v *Variable) {
 	f.Vars = append(f.Vars, v)
 }
 
 func (f For) DefinesVariable(name string) *Variable {
 	for _, v := range f.Vars {
 		if v.Name == name {
-			return &v
+			return v
 		}
 	}
 	return nil
@@ -248,9 +248,9 @@ func (f For) Print() {
 func ConstructFor(parent Block) *For {
 	f := &For{
 		parent: parent,
-		Vars:   make([]Variable, 0),
+		Vars:   make([]*Variable, 0),
 		Block: &Code{
-			Vars:       make([]Variable, 0),
+			Vars:       make([]*Variable, 0),
 			Statements: make([]Node, 0),
 		},
 	}
@@ -297,8 +297,8 @@ func (f Foreach) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (f *Foreach) AddStatement(n Node)       {}
-func (f *Foreach) DefineVariable(v Variable) {}
+func (f *Foreach) AddStatement(n Node)        {}
+func (f *Foreach) DefineVariable(v *Variable) {}
 
 func (f Foreach) DefinesVariable(name string) *Variable {
 	if f.Key != nil && f.Key.Name == name {
@@ -347,8 +347,8 @@ func (sw Switch) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (sw *Switch) AddStatement(n Node)       {}
-func (sw *Switch) DefineVariable(v Variable) {}
+func (sw *Switch) AddStatement(n Node)        {}
+func (sw *Switch) DefineVariable(v *Variable) {}
 
 func (sw Switch) DefinesVariable(name string) *Variable {
 	return nil
@@ -368,7 +368,7 @@ type Case struct {
 	parent *Switch
 
 	Statements []Node
-	Vars       []Variable
+	Vars       []*Variable
 	Condition  Expression
 }
 
@@ -410,14 +410,14 @@ func (c *Case) AddStatement(n Node) {
 	c.Statements = append(c.Statements, n)
 }
 
-func (c *Case) DefineVariable(v Variable) {
+func (c *Case) DefineVariable(v *Variable) {
 	c.Vars = append(c.Vars, v)
 }
 
 func (c Case) DefinesVariable(name string) *Variable {
 	for _, v := range c.Vars {
 		if v.Name == name {
-			return &v
+			return v
 		}
 	}
 	return nil
@@ -426,7 +426,7 @@ func (c Case) DefinesVariable(name string) *Variable {
 type Default struct {
 	parent *Switch
 
-	Vars       []Variable
+	Vars       []*Variable
 	Statements []Node
 }
 
@@ -466,14 +466,14 @@ func (d *Default) AddStatement(n Node) {
 	d.Statements = append(d.Statements, n)
 }
 
-func (d *Default) DefineVariable(v Variable) {
+func (d *Default) DefineVariable(v *Variable) {
 	d.Vars = append(d.Vars, v)
 }
 
 func (d Default) DefinesVariable(name string) *Variable {
 	for _, v := range d.Vars {
 		if v.Name == name {
-			return &v
+			return v
 		}
 	}
 	return nil
@@ -482,7 +482,7 @@ func (d Default) DefinesVariable(name string) *Variable {
 type If struct {
 	parent Block
 
-	Vars []Variable
+	Vars []*Variable
 
 	Init Expression
 	cond Expression
@@ -520,14 +520,14 @@ func (i If) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (i *If) DefineVariable(v Variable) {
+func (i *If) DefineVariable(v *Variable) {
 	i.Vars = append(i.Vars, v)
 }
 
 func (i If) DefinesVariable(name string) *Variable {
 	for _, v := range i.Vars {
 		if v.Name == name {
-			return &v
+			return v
 		}
 	}
 	return nil

@@ -8,7 +8,7 @@ import (
 type Function struct {
 	parent Node
 
-	Args []Variable
+	Args []*Variable
 	Body Code
 
 	Name   string
@@ -27,14 +27,14 @@ func (f Function) HasVariable(name string) *Variable {
 	return f.DefinesVariable(name)
 }
 
-func (f *Function) DefineVariable(v Variable) {
+func (f *Function) DefineVariable(v *Variable) {
 	f.Args = append(f.Args, v)
 }
 
 func (f Function) DefinesVariable(name string) *Variable {
 	for _, a := range f.Args {
 		if a.Name == name {
-			return &a
+			return a
 		}
 	}
 	return nil
