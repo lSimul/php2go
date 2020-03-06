@@ -651,7 +651,7 @@ func (i If) Print() {
 type Inc struct {
 	parent Node
 
-	Var *VarRef
+	v *VarRef
 }
 
 func (i Inc) Parent() Node {
@@ -663,17 +663,34 @@ func (i *Inc) SetParent(n Node) {
 }
 
 func (i Inc) Print() {
-	if i.Var.Reference {
-		fmt.Print("*")
+	if i.v.V.Type == Anything {
+		if i.v.typ == String {
+			panic(`Unable to use Inc with 'string'.`)
+		}
+		i.v.V.Print()
+		fmt.Print(" = ")
+		i.v.Print()
+		fmt.Print(" + 1")
+	} else {
+		if i.v.Reference {
+			fmt.Print("*")
+		}
+		i.v.Print()
+		fmt.Print("++")
 	}
-	i.Var.Print()
-	fmt.Print("++")
+}
+
+func NewInc(parent Node, v *VarRef) *Inc {
+	return &Inc{
+		parent: parent,
+		v:      v,
+	}
 }
 
 type Dec struct {
 	parent Node
 
-	Var *VarRef
+	v *VarRef
 }
 
 func (d Dec) Parent() Node {
@@ -684,10 +701,27 @@ func (d *Dec) SetParent(n Node) {
 	d.parent = n
 }
 
-func (d Dec) Print() {
-	if d.Var.Reference {
-		fmt.Print("*")
+func (i Dec) Print() {
+	if i.v.V.Type == Anything {
+		if i.v.typ == String {
+			panic(`Unable to use Dec with 'string'.`)
+		}
+		i.v.V.Print()
+		fmt.Print(" = ")
+		i.v.Print()
+		fmt.Print(" - 1")
+	} else {
+		if i.v.Reference {
+			fmt.Print("*")
+		}
+		i.v.Print()
+		fmt.Print("--")
 	}
-	d.Var.Print()
-	fmt.Print("--")
+}
+
+func NewDec(parent Node, v *VarRef) *Dec {
+	return &Dec{
+		parent: parent,
+		v:      v,
+	}
 }

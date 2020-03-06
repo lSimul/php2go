@@ -436,11 +436,7 @@ func statement(b lang.Block, n node.Node) lang.Node {
 		if b.HasVariable(v.V.Name) == nil {
 			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
 		}
-		i := &lang.Inc{
-			Var: v,
-		}
-		i.SetParent(b)
-		return i
+		return lang.NewInc(b, v)
 
 	case *expr.PostDec:
 		v, ok := expression(b, n.(*expr.PostDec).Variable).(*lang.VarRef)
@@ -448,11 +444,7 @@ func statement(b lang.Block, n node.Node) lang.Node {
 			panic(`"--" requires variable.`)
 		}
 
-		i := &lang.Dec{
-			Var: v,
-		}
-		i.SetParent(b)
-		return i
+		return lang.NewDec(b, v)
 	}
 	return nil
 }
