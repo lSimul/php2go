@@ -136,7 +136,16 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 			if f.Cond != nil {
 				n := f.Cond[0]
-				err := lf.SetCond(expression(lf, n))
+				e := expression(lf, n)
+				if e.GetType() != lang.Bool {
+					e = &lang.FunctionCall{
+						Name:   "std.Truthy",
+						Args:   []lang.Expression{e},
+						Return: lang.Bool,
+					}
+					e.SetParent(lf)
+				}
+				err := lf.SetCond(e)
 				if err != nil {
 					panic(err)
 				}
@@ -155,7 +164,17 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			w := s.(*stmt.While)
 			lf := lang.ConstructFor(b)
 
-			err := lf.SetCond(expression(lf, w.Cond))
+			e := expression(lf, w.Cond)
+			if e.GetType() != lang.Bool {
+				e = &lang.FunctionCall{
+					Name:   "std.Truthy",
+					Args:   []lang.Expression{e},
+					Return: lang.Bool,
+				}
+				e.SetParent(lf)
+			}
+
+			err := lf.SetCond(e)
 			if err != nil {
 				panic(err)
 			}
@@ -174,6 +193,8 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			}
 			i.True = lang.NewCode(i)
 			i.SetParent(lf)
+			// TODO: Negation should work only with
+			// boolean values.
 			c := expression(i, w.Cond)
 			neg := &lang.Negation{
 				Right: c,
@@ -271,7 +292,16 @@ func nodeList(n node.Node) []node.Node {
 func constructIf(b lang.Block, i *stmt.If) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	err := nif.SetCond(expression(nif, i.Cond))
+	expr := expression(nif, i.Cond)
+	if expr.GetType() != lang.Bool {
+		expr = &lang.FunctionCall{
+			Name:   "std.Truthy",
+			Args:   []lang.Expression{expr},
+			Return: lang.Bool,
+		}
+		expr.SetParent(nif)
+	}
+	err := nif.SetCond(expr)
 	if err != nil {
 		panic(err)
 	}
@@ -305,7 +335,16 @@ func constructIf(b lang.Block, i *stmt.If) *lang.If {
 func constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	err := nif.SetCond(expression(nif, i.Cond))
+	e := expression(nif, i.Cond)
+	if e.GetType() != lang.Bool {
+		e = &lang.FunctionCall{
+			Name:   "std.Truthy",
+			Args:   []lang.Expression{e},
+			Return: lang.Bool,
+		}
+		e.SetParent(nif)
+	}
+	err := nif.SetCond(e)
 	if err != nil {
 		panic(err)
 	}
