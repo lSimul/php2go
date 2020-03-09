@@ -613,7 +613,11 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		a := n.(*expr.ShortArray)
 		items := make([]lang.Expression, 0)
 		for _, i := range a.Items {
-			items = append(items, expression(b, i.(*expr.ArrayItem).Val))
+			v := i.(*expr.ArrayItem).Val
+			if v == nil {
+				continue
+			}
+			items = append(items, expression(b, v))
 		}
 		if len(items) == 0 {
 			panic(`Cannot decide type, empty array.`)
