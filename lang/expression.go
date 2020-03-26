@@ -439,41 +439,13 @@ func (p BinaryOp) GetType() string {
 // See https://golang.org/ref/spec#Operator_precedence
 func (p BinaryOp) OperatorPrecedence() int {
 	switch p.Operation {
-	case "*":
-		fallthrough
-	case "/":
-		fallthrough
-	case "%":
-		fallthrough
-	case "<<":
-		fallthrough
-	case ">>":
-		fallthrough
-	case "&":
-		fallthrough
-	case "&^":
+	case "*", "/", "%", "<<", ">>", "&", "&^":
 		return 5
 
-	case "+":
-		fallthrough
-	case "-":
-		fallthrough
-	case "|":
-		fallthrough
-	case "^":
+	case "+", "-", "|", "^":
 		return 4
 
-	case "==":
-		fallthrough
-	case "!=":
-		fallthrough
-	case "<":
-		fallthrough
-	case "<=":
-		fallthrough
-	case ">":
-		fallthrough
-	case ">=":
+	case "==", "!=", "<", "<=", ">", ">=":
 		return 3
 
 	case "&&":
