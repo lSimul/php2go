@@ -3,6 +3,7 @@ package lang
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Function struct {
@@ -45,23 +46,25 @@ func (f Function) DefinesVariable(name string) *Variable {
 	return nil
 }
 
-func (f Function) Print() {
-	fmt.Print("func " + f.Name + "(")
+func (f Function) String() string {
+	s := strings.Builder{}
+	s.WriteString("func " + f.Name + "(")
 	for i := 0; i < len(f.Args); i++ {
 		a := f.Args[i]
-		fmt.Print(a.Name + " ")
-		fmt.Print(a.GetType())
+		s.WriteString(a.Name + " ")
+		s.WriteString(a.GetType())
 		if i < len(f.Args)-1 {
-			fmt.Print(", ")
+			s.WriteString(", ")
 		}
 	}
-	fmt.Print(") ")
+	s.WriteString(") ")
 
 	if f.Return != Void {
-		fmt.Print(f.Return + " ")
+		s.WriteString(f.Return + " ")
 	}
-	f.Body.Print()
-	fmt.Print("\n")
+	s.WriteString(f.Body.String())
+	s.WriteString("\n")
+	return s.String()
 }
 
 func (f *Function) AddStatement(n Node) {
@@ -89,11 +92,13 @@ func (v *VarRef) SetParent(n Node) {
 	v.parent = n
 }
 
-func (v VarRef) Print() {
-	v.V.Print()
+func (v VarRef) String() string {
+	s := strings.Builder{}
+	s.WriteString(v.V.String())
 	if v.V.Type == Anything {
-		fmt.Printf(".(%s)", v.typ)
+		s.WriteString(fmt.Sprintf(".(%s)", v.typ))
 	}
+	return s.String()
 }
 
 func (v VarRef) GetType() string {
@@ -122,8 +127,8 @@ func (v *VarDef) SetParent(n Node) {
 	v.parent = n
 }
 
-func (v VarDef) Print() {
-	fmt.Printf("var %s %s", v.V.Name, v.V.Type)
+func (v VarDef) String() string {
+	return fmt.Sprintf("var %s %s", v.V.Name, v.V.Type)
 }
 
 func newVarDef(b Block, v *Variable) *VarDef {
@@ -152,8 +157,8 @@ func (c Const) GetType() string {
 	return Bool
 }
 
-func (c Const) Print() {
-	fmt.Print(c.Value)
+func (c Const) String() string {
+	return c.Value
 }
 
 type Return struct {
@@ -174,9 +179,11 @@ func (r Return) GetType() string {
 	return r.Expression.GetType()
 }
 
-func (r Return) Print() {
-	fmt.Print("return ")
-	r.Expression.Print()
+func (r Return) String() string {
+	s := strings.Builder{}
+	s.WriteString("return ")
+	s.WriteString(r.Expression.String())
+	return s.String()
 }
 
 type Assign struct {
@@ -204,14 +211,16 @@ func (a Assign) GetType() string {
 	return a.left.Type
 }
 
-func (a Assign) Print() {
-	a.left.Print()
+func (a Assign) String() string {
+	s := strings.Builder{}
+	s.WriteString(a.left.String())
 	if a.FirstDefinition {
-		fmt.Print(" := ")
+		s.WriteString(" := ")
 	} else {
-		fmt.Print(" = ")
+		s.WriteString(" = ")
 	}
-	(*a.right).Print()
+	s.WriteString((*a.right).String())
+	return s.String()
 }
 
 func (a Assign) Left() *Variable {
@@ -256,8 +265,8 @@ func (nb Number) GetType() string {
 	return Int
 }
 
-func (nb Number) Print() {
-	fmt.Print(nb.Value)
+func (nb Number) String() string {
+	return nb.Value
 }
 
 // Float and Number can be merged, only Type is different.
@@ -281,8 +290,8 @@ func (f Float) GetType() string {
 	return Float64
 }
 
-func (f Float) Print() {
-	fmt.Print(f.Value)
+func (f Float) String() string {
+	return f.Value
 }
 
 type Str struct {
@@ -303,8 +312,8 @@ func (s Str) GetType() string {
 	return String
 }
 
-func (s Str) Print() {
-	fmt.Print(s.Value)
+func (s Str) String() string {
+	return s.Value
 }
 
 type Array struct {
@@ -326,17 +335,19 @@ func (a Array) GetType() string {
 	return a.Type
 }
 
-func (a Array) Print() {
-	fmt.Printf("[]%s{", a.Type)
+func (a Array) String() string {
+	s := strings.Builder{}
+	s.WriteString(fmt.Sprintf("[]%s{", a.Type))
 	size := len(a.Values)
 	for i := 0; i < size; i++ {
-		a.Values[i].Print()
+		s.WriteString(a.Values[i].String())
 		if i < size-1 {
-			fmt.Print(", ")
+			s.WriteString(", ")
 		}
 
 	}
-	fmt.Print("}")
+	s.WriteString("}")
+	return s.String()
 }
 
 type FetchArr struct {
@@ -358,11 +369,13 @@ func (fa FetchArr) GetType() string {
 	return fa.Arr.GetType()
 }
 
-func (fa FetchArr) Print() {
-	fa.Arr.Print()
-	fmt.Print("[")
-	fa.Index.Print()
-	fmt.Print("]")
+func (fa FetchArr) String() string {
+	s := strings.Builder{}
+	s.WriteString(fa.Arr.String())
+	s.WriteString("[")
+	s.WriteString(fa.Index.String())
+	s.WriteString("]")
+	return s.String()
 }
 
 type UnaryMinus struct {
@@ -383,9 +396,11 @@ func (m UnaryMinus) GetType() string {
 	return m.Expr.GetType()
 }
 
-func (m UnaryMinus) Print() {
-	fmt.Print("-")
-	m.Expr.Print()
+func (m UnaryMinus) String() string {
+	s := strings.Builder{}
+	s.WriteString("-")
+	s.WriteString(m.Expr.String())
+	return s.String()
 }
 
 type Negation struct {
@@ -406,10 +421,12 @@ func (neg Negation) GetType() string {
 	return Bool
 }
 
-func (neg Negation) Print() {
-	fmt.Print("!(")
-	neg.Right.Print()
-	fmt.Print(")")
+func (neg Negation) String() string {
+	s := strings.Builder{}
+	s.WriteString("!(")
+	s.WriteString(neg.Right.String())
+	s.WriteString(")")
+	return s.String()
 }
 
 type BinaryOp struct {
@@ -457,16 +474,18 @@ func (p BinaryOp) OperatorPrecedence() int {
 	panic(`Unknown type "` + p.Operation + `"`)
 }
 
-func (p BinaryOp) Print() {
+func (p BinaryOp) String() string {
+	s := strings.Builder{}
 	if p.inBrackets {
-		fmt.Print("(")
+		s.WriteString("(")
 	}
-	p.left.Print()
-	fmt.Print(" " + p.Operation + " ")
-	p.right.Print()
+	s.WriteString(p.left.String())
+	s.WriteString(" " + p.Operation + " ")
+	s.WriteString(p.right.String())
 	if p.inBrackets {
-		fmt.Print(")")
+		s.WriteString(")")
 	}
+	return s.String()
 }
 
 func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
@@ -615,20 +634,22 @@ func (f FunctionCall) GetType() string {
 	return f.Return
 }
 
-func (f FunctionCall) Print() {
-	fmt.Print(f.Name)
-	fmt.Print("(")
+func (f FunctionCall) String() string {
+	s := strings.Builder{}
+	s.WriteString(f.Name)
+	s.WriteString("(")
 	for i := 0; i < len(f.Args); i++ {
 		if v, isVar := f.Args[i].(*VarRef); isVar {
 			if v.Reference {
-				fmt.Print("&")
+				s.WriteString("&")
 			}
 		}
 
-		f.Args[i].Print()
+		s.WriteString(f.Args[i].String())
 		if i < len(f.Args)-1 {
-			fmt.Print(", ")
+			s.WriteString(", ")
 		}
 	}
-	fmt.Print(")")
+	s.WriteString(")")
+	return s.String()
 }

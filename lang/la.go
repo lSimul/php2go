@@ -3,6 +3,7 @@ package lang
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type GlobalContext struct {
@@ -28,16 +29,17 @@ func (gc GlobalContext) Get(name string) *Function {
 	return gc.Funcs[name]
 }
 
-func (gc GlobalContext) Print() {
-	fmt.Println("package main")
-	fmt.Println()
-	fmt.Println("import \"fmt\"")
-	fmt.Println("import \"php2go/std\"")
-	fmt.Println()
+func (gc GlobalContext) String() string {
+	s := strings.Builder{}
+
+	s.WriteString("package main\n\n")
+	s.WriteString("import \"fmt\"\n")
+	s.WriteString("import \"php2go/std\"\n\n")
 
 	for _, f := range gc.Funcs {
-		f.Print()
+		s.WriteString(f.String())
 	}
+	return s.String()
 }
 
 func NewFunc(name string) *Function {
@@ -65,8 +67,8 @@ func (b *Break) SetParent(n Node) {
 	b.parent = n
 }
 
-func (b Break) Print() {
-	fmt.Print("break")
+func (b Break) String() string {
+	return "break"
 }
 
 type Continue struct {
@@ -81,8 +83,8 @@ func (c *Continue) SetParent(n Node) {
 	c.parent = n
 }
 
-func (c Continue) Print() {
-	fmt.Print("continue")
+func (c Continue) String() string {
+	return "continue"
 }
 
 type Fallthrough struct {
@@ -97,8 +99,8 @@ func (c *Fallthrough) SetParent(n Node) {
 	c.parent = n
 }
 
-func (c Fallthrough) Print() {
-	fmt.Print("fallthrough")
+func (c Fallthrough) String() string {
+	return "fallthrough"
 }
 
 type Code struct {
@@ -171,13 +173,15 @@ func (c *Code) AddStatement(n Node) {
 	c.Statements = append(c.Statements, n)
 }
 
-func (c Code) Print() {
-	fmt.Print("{\n")
-	for _, s := range c.Statements {
-		s.Print()
-		fmt.Print("\n")
+func (c Code) String() string {
+	s := strings.Builder{}
+	s.WriteString("{\n")
+	for _, st := range c.Statements {
+		s.WriteString(st.String())
+		s.WriteString("\n")
 	}
-	fmt.Print("}")
+	s.WriteString("}")
+	return s.String()
 }
 
 func NewCode(parent Node) *Code {
@@ -264,21 +268,23 @@ func (f *For) AddStatement(n Node) {
 	f.Block.AddStatement(n)
 }
 
-func (f For) Print() {
-	fmt.Print("for ")
+func (f For) String() string {
+	s := strings.Builder{}
+	s.WriteString("for ")
 	if f.Init != nil {
-		f.Init.Print()
+		s.WriteString(f.Init.String())
 	}
-	fmt.Print("; ")
+	s.WriteString("; ")
 	if f.cond != nil {
-		f.cond.Print()
+		s.WriteString(f.cond.String())
 	}
-	fmt.Print("; ")
+	s.WriteString("; ")
 	if f.Loop != nil {
-		f.Loop.Print()
+		s.WriteString(f.Loop.String())
 	}
-	fmt.Print(" ")
-	f.Block.Print()
+	s.WriteString(" ")
+	s.WriteString(f.Block.String())
+	return s.String()
 }
 
 func ConstructFor(parent Block) *For {
@@ -346,15 +352,17 @@ func (f Foreach) DefinesVariable(name string) *Variable {
 	return nil
 }
 
-func (f Foreach) Print() {
+func (f Foreach) String() string {
 	k := "_"
 	if f.Key != nil {
 		k = f.Key.Name
 	}
-	fmt.Printf("for %s, %s := range ", k, f.Value.Name)
-	f.Iterated.Print()
-	fmt.Print(" ")
-	f.Block.Print()
+	s := strings.Builder{}
+	s.WriteString(fmt.Sprintf("for %s, %s := range ", k, f.Value.Name))
+	s.WriteString(f.Iterated.String())
+	s.WriteString(" ")
+	s.WriteString(f.Block.String())
+	return s.String()
 }
 
 type Switch struct {
@@ -390,14 +398,16 @@ func (sw Switch) DefinesVariable(name string) *Variable {
 	return nil
 }
 
-func (sw Switch) Print() {
-	fmt.Print("switch ")
-	sw.Condition.Print()
-	fmt.Print(" {\n")
+func (sw Switch) String() string {
+	s := strings.Builder{}
+	s.WriteString("switch ")
+	s.WriteString(sw.Condition.String())
+	s.WriteString(" {\n")
 	for _, c := range sw.Cases {
-		c.Print()
+		s.WriteString(c.String())
 	}
-	fmt.Print("}")
+	s.WriteByte('}')
+	return s.String()
 }
 
 type Case struct {
@@ -431,15 +441,17 @@ func (c Case) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (c Case) Print() {
-	fmt.Print("case ")
-	c.Condition.Print()
-	fmt.Print(":\n")
+func (c Case) String() string {
+	s := strings.Builder{}
+	s.WriteString("case ")
+	s.WriteString(c.Condition.String())
+	s.WriteString(":\n")
 	for _, e := range c.Statements {
-		e.Print()
-		fmt.Print("\n")
+		s.WriteString(e.String())
+		s.WriteByte('\n')
 	}
-	fmt.Print("\n")
+	s.WriteByte('\n')
+	return s.String()
 }
 
 func (c *Case) AddStatement(n Node) {
@@ -513,13 +525,15 @@ func (d Default) HasVariable(name string) *Variable {
 	return nil
 }
 
-func (d Default) Print() {
-	fmt.Print("default:\n")
+func (d Default) String() string {
+	s := strings.Builder{}
+	s.WriteString("default:\n")
 	for _, e := range d.Statements {
-		e.Print()
-		fmt.Print("\n")
+		s.WriteString(e.String())
+		s.WriteByte('\n')
 	}
-	fmt.Print("\n")
+	s.WriteByte('\n')
+	return s.String()
 }
 
 func (d *Default) AddStatement(n Node) {
@@ -631,21 +645,23 @@ func (i If) DefinesVariable(name string) *Variable {
 
 func (i *If) AddStatement(n Node) {}
 
-func (i If) Print() {
-	fmt.Print("if ")
+func (i If) String() string {
+	s := strings.Builder{}
+	s.WriteString("if ")
 	if i.Init != nil {
-		i.Init.Print()
-		fmt.Print("; ")
+		s.WriteString(i.Init.String())
+		s.WriteString("; ")
 	}
 	if i.cond != nil {
-		i.cond.Print()
+		s.WriteString(i.cond.String())
 	}
-	fmt.Print(" ")
-	i.True.Print()
+	s.WriteByte(' ')
+	s.WriteString(i.True.String())
 	if i.False != nil {
-		fmt.Print(" else ")
-		i.False.Print()
+		s.WriteString(" else ")
+		s.WriteString(i.False.String())
 	}
+	return s.String()
 }
 
 type Inc struct {
@@ -662,22 +678,24 @@ func (i *Inc) SetParent(n Node) {
 	i.parent = n
 }
 
-func (i Inc) Print() {
+func (i Inc) String() string {
+	s := strings.Builder{}
 	if i.v.V.Type == Anything {
 		if i.v.typ == String {
 			panic(`Unable to use Inc with 'string'.`)
 		}
-		i.v.V.Print()
-		fmt.Print(" = ")
-		i.v.Print()
-		fmt.Print(" + 1")
+		s.WriteString(i.v.V.String())
+		s.WriteString(" = ")
+		s.WriteString(i.v.String())
+		s.WriteString(" + 1")
 	} else {
 		if i.v.Reference {
-			fmt.Print("*")
+			s.WriteByte('*')
 		}
-		i.v.Print()
-		fmt.Print("++")
+		s.WriteString(i.v.String())
+		s.WriteString("++")
 	}
+	return s.String()
 }
 
 func NewInc(parent Node, v *VarRef) *Inc {
@@ -701,22 +719,24 @@ func (d *Dec) SetParent(n Node) {
 	d.parent = n
 }
 
-func (i Dec) Print() {
+func (i Dec) String() string {
+	s := strings.Builder{}
 	if i.v.V.Type == Anything {
 		if i.v.typ == String {
 			panic(`Unable to use Dec with 'string'.`)
 		}
-		i.v.V.Print()
-		fmt.Print(" = ")
-		i.v.Print()
-		fmt.Print(" - 1")
+		s.WriteString(i.v.V.String())
+		s.WriteString(" = ")
+		s.WriteString(i.v.String())
+		s.WriteString(" - 1")
 	} else {
 		if i.v.Reference {
-			fmt.Print("*")
+			s.WriteByte('*')
 		}
-		i.v.Print()
-		fmt.Print("--")
+		s.WriteString(i.v.String())
+		s.WriteString("--")
 	}
+	return s.String()
 }
 
 func NewDec(parent Node, v *VarRef) *Dec {

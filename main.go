@@ -35,7 +35,7 @@ func main() {
 
 	print(rootNode)
 	gc := p.Run(rootNode.(*node.Root))
-	gc.Print()
+	fmt.Print(gc)
 }
 
 func print(n node.Node) {

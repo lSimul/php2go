@@ -12,9 +12,10 @@ const (
 )
 
 type Node interface {
+	fmt.Stringer
+
 	SetParent(Node)
 	Parent() Node
-	Print()
 }
 
 type Block interface {
@@ -43,8 +44,8 @@ type Variable struct {
 	CurrentType string
 }
 
-func (v Variable) Print() {
-	fmt.Print(v.Name)
+func (v Variable) String() string {
+	return v.Name
 }
 
 func (v Variable) GetType() string {
