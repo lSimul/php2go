@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"php2go/p"
 
@@ -17,13 +17,12 @@ func main() {
 		return
 	}
 	name := os.Args[1]
-	file, err := os.Open(name)
+	src, err := ioutil.ReadFile(name)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	src := bufio.NewReader(file)
 	parser := php7.NewParser(src, name)
 	parser.Parse()
 
