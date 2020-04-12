@@ -1,12 +1,14 @@
 package p
 
 import (
+	"strings"
 	"testing"
 
 	"php2go/lang"
 	"php2go/p/test"
 
 	"github.com/z7zmey/php-parser/node"
+	"github.com/z7zmey/php-parser/php7"
 )
 
 func TestP(t *testing.T) {
@@ -14,6 +16,7 @@ func TestP(t *testing.T) {
 	t.Run("basic set", functionDef)
 	t.Run("binary operations", testBinaryOp)
 	t.Run("unary operations", unaryOp)
+	t.Run("text comparision of the main function", testMain)
 }
 
 func helpers(t *testing.T) {
@@ -251,4 +254,104 @@ func unaryOp(t *testing.T) {
 			t.Errorf("'%s' expected, '%s' found.", c.t, typ)
 		}
 	}
+}
+
+// TODO: Improve life cycle of the p.Run, it cannot
+// be started again, issue with undefined variables.
+func testMain(tt *testing.T) {
+	tt.Helper()
+
+	tests := []struct {
+		source   []byte
+		expected string
+	}{
+		// Sandbox
+		{
+			source: []byte(`<?php
+			$a = 1 + 2;
+			`),
+			expected: `func main() {
+a := 1 + 2
+}
+`,
+		},
+		// examples/4.php
+		{
+			source: []byte(`<?php
+
+			$b = 2 + 3 + 4 * 2;
+
+			echo $b * $b;
+		`),
+			expected: `func main() {
+b := 2 + 3 + 4 * 2
+fmt.Print(b * b)
+}
+`,
+		},
+		// examples/5.php
+		{
+			source: []byte(`<?php
+			{
+				{
+					$c = "0";
+					// Added to compile it in Go. This var is not used.
+					echo $c;
+				}
+				$c = 1;
+
+				echo $c;
+			}
+			`),
+			expected: `func main() {
+{
+{
+c := "0"
+fmt.Print(c)
+}
+c := 1
+fmt.Print(c)
+}
+}
+`,
+		},
+		// examples/7.php
+		{
+			source: []byte(`<?php
+			$d = 0;
+			{
+				$d = "1";
+				echo $d;
+			}
+			echo $d;
+			$d = 2;
+			echo $d;
+			`),
+			expected: `func main() {
+d := 0
+{
+d := "1"
+fmt.Print(d)
+}
+fmt.Print(d)
+d = 2
+fmt.Print(d)
+}
+`,
+		},
+	}
+
+	for _, t := range tests {
+		out := parse(t.source)
+		main := out.Funcs["main"].String()
+		if (strings.Compare(main, t.expected)) != 0 {
+			tt.Errorf("Expected:\n%s\n Found:\n%s\n", t.expected, main)
+		}
+	}
+}
+
+func parse(source []byte) *lang.GlobalContext {
+	parser := php7.NewParser(source, "")
+	parser.Parse()
+	return Run(parser.GetRootNode().(*node.Root))
 }
