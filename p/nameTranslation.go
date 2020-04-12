@@ -61,7 +61,7 @@ func (t NameTranslator) resolveConflict(name string, try int) string {
 	return n
 }
 
-func NewNameTranslator() *NameTranslator {
+func NewNameTranslator() NameTranslation {
 	return &NameTranslator{
 		names: make(map[string]string),
 		used:  keywords,
