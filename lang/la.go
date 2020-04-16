@@ -34,7 +34,7 @@ func (gc GlobalContext) String() string {
 
 	s.WriteString("package main\n\n")
 	s.WriteString("import \"fmt\"\n")
-	s.WriteString("import \"php2go/std\"\n\n")
+	s.WriteString("import _ \"php2go/std\"\n\n")
 
 	for _, f := range gc.Funcs {
 		s.WriteString(f.String())
