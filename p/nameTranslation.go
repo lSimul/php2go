@@ -34,12 +34,12 @@ type NameTranslation interface {
 	Translate(string) string
 }
 
-type NameTranslator struct {
+type nameTranslator struct {
 	names map[string]string
 	used  map[string]bool
 }
 
-func (t *NameTranslator) Translate(name string) string {
+func (t *nameTranslator) Translate(name string) string {
 	if name, defined := t.names[name]; defined {
 		return name
 	}
@@ -53,7 +53,7 @@ func (t *NameTranslator) Translate(name string) string {
 	return new
 }
 
-func (t NameTranslator) resolveConflict(name string, try int) string {
+func (t nameTranslator) resolveConflict(name string, try int) string {
 	n := fmt.Sprintf("%s%d", name, try)
 	if _, used := t.used[n]; used {
 		t.resolveConflict(name, try+1)
@@ -66,7 +66,19 @@ func NewNameTranslator() NameTranslation {
 	for k, v := range keywords {
 		used[k] = v
 	}
-	return &NameTranslator{
+	return &nameTranslator{
+		names: make(map[string]string),
+		used:  used,
+	}
+}
+
+func NewFunctionTranslator() NameTranslation {
+	used := make(map[string]bool)
+	for k, v := range keywords {
+		used[k] = v
+	}
+	used["main"] = true
+	return &nameTranslator{
 		names: make(map[string]string),
 		used:  used,
 	}

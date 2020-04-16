@@ -25,13 +25,16 @@ func TestP(t *testing.T) {
 func helpers(t *testing.T) {
 	t.Helper()
 
+	translator = NewNameTranslator()
+	functionTranslator = NewFunctionTranslator()
+
 	functions := []struct {
 		source   *name.Name
 		expected string
 	}{
 		{test.Name("f"), "f"},
 		{test.Name("function"), "function"},
-		{test.Name("func"), "function"},
+		{test.Name("func"), "func1"},
 	}
 	for _, f := range functions {
 		if name := constructName(f.source); name != f.expected {
@@ -69,6 +72,9 @@ func helpers(t *testing.T) {
 func functionDef(t *testing.T) {
 	t.Helper()
 
+	translator = NewNameTranslator()
+	functionTranslator = NewFunctionTranslator()
+
 	// This tests which name and return type will
 	// be used. lang.NewFunc(string) is tested
 	// elsewhere.
@@ -84,7 +90,7 @@ func functionDef(t *testing.T) {
 	}{
 		{test.Func("f"), "f", lang.Void},
 		{test.Func("function"), "function", lang.Void},
-		{test.Func("func"), "function", lang.Void},
+		{test.Func("func"), "func1", lang.Void},
 	}
 
 	for _, f := range funcDefs {

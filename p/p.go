@@ -17,11 +17,12 @@ import (
 )
 
 var gc *lang.GlobalContext
-var translator NameTranslation
+var translator, functionTranslator NameTranslation
 
 func Run(r *node.Root) *lang.GlobalContext {
 	gc = lang.NewGlobalContext()
 	translator = NewNameTranslator()
+	functionTranslator = NewFunctionTranslator()
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
@@ -65,11 +66,8 @@ func funcDef(fc *stmt.Function) *lang.Function {
 		return nil
 	}
 
-	// IdentifierName method is for this.
-	n := fc.FunctionName.(*node.Identifier).Value
-	if n == "func" {
-		n = "function"
-	}
+	// TODO: IdentifierName method is for this. (is it still relevant?)
+	n := functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value)
 	f := lang.NewFunc(n)
 
 	for _, pr := range fc.Params {
@@ -863,13 +861,9 @@ func identifierName(v *expr.Variable) string {
 }
 
 func constructName(nm *name.Name) string {
-	res := ""
+	s := ""
 	for _, n := range nm.Parts {
-		res += n.(*name.NamePart).Value
+		s += n.(*name.NamePart).Value
 	}
-	switch res {
-	case "func":
-		res = "function"
-	}
-	return res
+	return functionTranslator.Translate(s)
 }
