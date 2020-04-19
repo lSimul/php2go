@@ -7,7 +7,7 @@ import (
 )
 
 type Function struct {
-	parent Node
+	parent Block
 
 	Args []*Variable
 	Body Code
@@ -21,11 +21,19 @@ func (f Function) Parent() Node {
 }
 
 func (f *Function) SetParent(n Node) {
-	f.parent = n
+	// TODO: Make sure everybody knows this can fail.
+	f.parent = n.(Block)
 }
 
 func (f Function) HasVariable(name string) *Variable {
-	return f.DefinesVariable(name)
+	v := f.DefinesVariable(name)
+	if v != nil {
+		return v
+	}
+	if p := f.parent; p != nil {
+		return p.HasVariable(name)
+	}
+	return nil
 }
 
 func (f *Function) DefineVariable(v *Variable) {

@@ -1,6 +1,14 @@
 package p
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
+
+const (
+	Public  = 1
+	Private = 2
+)
 
 var keywords = map[string]bool{
 	"break":       true,
@@ -31,7 +39,7 @@ var keywords = map[string]bool{
 }
 
 type NameTranslation interface {
-	Translate(string) string
+	Translate(string, int) string
 }
 
 type nameTranslator struct {
@@ -39,7 +47,18 @@ type nameTranslator struct {
 	used  map[string]bool
 }
 
-func (t *nameTranslator) Translate(name string) string {
+func (t *nameTranslator) Translate(name string, visibility int) string {
+	switch visibility {
+	case Public:
+		b := []byte(name)
+		b[0] = bytes.ToUpper(b)[0]
+		name = string(b)
+	case Private:
+		b := []byte(name)
+		b[0] = bytes.ToLower(b)[0]
+		name = string(b)
+	}
+
 	if name, defined := t.names[name]; defined {
 		return name
 	}

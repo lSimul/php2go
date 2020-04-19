@@ -18,6 +18,7 @@ import (
 
 var gc *lang.GlobalContext
 var translator, functionTranslator NameTranslation
+var useGlobalContext = false
 
 func Run(r *node.Root) *lang.GlobalContext {
 	gc = lang.NewGlobalContext()
@@ -37,7 +38,9 @@ func Run(r *node.Root) *lang.GlobalContext {
 
 	main := mainDef()
 	gc.Add(main)
+	useGlobalContext = true
 	createFunction(&main.Body, ms)
+	useGlobalContext = false
 	return gc
 }
 
@@ -67,8 +70,10 @@ func funcDef(fc *stmt.Function) *lang.Function {
 	}
 
 	// TODO: IdentifierName method is for this. (is it still relevant?)
-	n := functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value)
+	// TODO: Make sure visibility is set as it should be.
+	n := functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value, Private)
 	f := lang.NewFunc(n)
+	f.SetParent(gc)
 
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
@@ -91,7 +96,9 @@ func funcDef(fc *stmt.Function) *lang.Function {
 }
 
 func mainDef() *lang.Function {
-	return lang.NewFunc("main")
+	f := lang.NewFunc("main")
+	f.SetParent(gc)
+	return f
 }
 
 func createFunction(b lang.Block, stmts []node.Node) {
@@ -804,18 +811,34 @@ func buildAssignment(parent lang.Block, name string, right lang.Expression) *lan
 		panic("Cannot assign \"void\" " + "to \"" + name + "\".")
 	}
 
-	v := parent.HasVariable(translator.Translate(name))
+	if useGlobalContext {
+		name = translator.Translate(name, Public)
+	} else {
+		name = translator.Translate(name, Private)
+	}
+
+	v := parent.HasVariable(name)
 	fd := false
 	if v == nil {
 		v = newVariable(name, t, false)
-		parent.DefineVariable(v)
+		if useGlobalContext {
+			gc.DefineVariable(v)
+		} else {
+			parent.DefineVariable(v)
+		}
 		fd = true
 	} else if v.CurrentType != t {
-		if v.FirstDefinition.Parent() == parent {
+		if useGlobalContext {
+			// TODO: This is something I solve in the define variable.
+			v.Type = lang.Anything
 			v.CurrentType = t
 		} else {
-			v = newVariable(name, t, false)
-			fd = true
+			if v.FirstDefinition.Parent() == parent {
+				v.CurrentType = t
+			} else {
+				v = newVariable(name, t, false)
+				fd = true
+			}
 		}
 		parent.DefineVariable(v)
 	}
@@ -825,17 +848,24 @@ func buildAssignment(parent lang.Block, name string, right lang.Expression) *lan
 		panic(err)
 	}
 
-	as.FirstDefinition = fd
+	if useGlobalContext && fd {
+		v.FirstDefinition = gc
+		fd = false
+	}
 	if fd {
 		v.FirstDefinition = as
 	}
+
+	as.FirstDefinition = fd
 	as.SetParent(parent)
 
 	return as
 }
 
 func newVariable(name, typ string, isConst bool) *lang.Variable {
-	name = translator.Translate(name)
+	// TODO: This fixed "Public" does not look right.
+	// It should probably require already unique name.
+	name = translator.Translate(name, Public)
 	return &lang.Variable{
 		Name:  name,
 		Type:  typ,
@@ -853,7 +883,12 @@ func newVariable(name, typ string, isConst bool) *lang.Variable {
 func identifierName(v *expr.Variable) string {
 	switch v.VarName.(type) {
 	case *node.Identifier:
-		return v.VarName.(*node.Identifier).Value
+		n := v.VarName.(*node.Identifier).Value
+		if useGlobalContext {
+			return translator.Translate(n, Public)
+		} else {
+			return translator.Translate(n, Private)
+		}
 
 	default:
 		panic(`Variable name is not defined as a simple string.`)
@@ -865,5 +900,8 @@ func constructName(nm *name.Name) string {
 	for _, n := range nm.Parts {
 		s += n.(*name.NamePart).Value
 	}
-	return functionTranslator.Translate(s)
+	if useGlobalContext {
+		return functionTranslator.Translate(s, Public)
+	}
+	return functionTranslator.Translate(s, Private)
 }

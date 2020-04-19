@@ -8,10 +8,10 @@ func TestLang(t *testing.T) {
 
 func constructors(t *testing.T) {
 	gc := NewGlobalContext()
-	if gc.Vars == nil {
+	if gc.vars == nil {
 		t.Error("Context does not have initialized Vars.")
 	}
-	if len(gc.Vars) != 0 {
+	if len(gc.vars) != 0 {
 		t.Error("Context has some extra vars.")
 	}
 

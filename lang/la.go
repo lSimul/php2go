@@ -9,16 +9,44 @@ import (
 type GlobalContext struct {
 	parent Node
 
-	Vars  []Variable
+	vars  []*Variable
 	Funcs map[string]*Function
 }
 
 func NewGlobalContext() *GlobalContext {
 	return &GlobalContext{
 		parent: nil,
-		Vars:   make([]Variable, 0),
+		vars:   make([]*Variable, 0),
 		Funcs:  make(map[string]*Function, 0),
 	}
+}
+
+func (gc GlobalContext) SetParent(n Node) {}
+func (gc GlobalContext) Parent() Node     { return nil }
+
+func (gc GlobalContext) AddStatement(n Node) { panic(`not implemented`) }
+
+func (gc *GlobalContext) DefineVariable(v *Variable) {
+	for _, vr := range gc.vars {
+		if vr.Name == v.Name {
+			vr.Type = Anything
+			return
+		}
+	}
+	gc.vars = append(gc.vars, v)
+}
+
+func (gc GlobalContext) HasVariable(name string) *Variable {
+	return gc.DefinesVariable(name)
+}
+
+func (gc GlobalContext) DefinesVariable(name string) *Variable {
+	for _, v := range gc.vars {
+		if v.Name == name {
+			return v
+		}
+	}
+	return nil
 }
 
 func (gc *GlobalContext) Add(f *Function) {
@@ -35,6 +63,10 @@ func (gc GlobalContext) String() string {
 	s.WriteString("package main\n\n")
 	s.WriteString("import \"fmt\"\n")
 	s.WriteString("import _ \"php2go/std\"\n\n")
+
+	for _, v := range gc.vars {
+		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type))
+	}
 
 	for _, f := range gc.Funcs {
 		s.WriteString(f.String())

@@ -27,6 +27,7 @@ func helpers(t *testing.T) {
 
 	translator = NewNameTranslator()
 	functionTranslator = NewFunctionTranslator()
+	useGlobalContext = false
 
 	functions := []struct {
 		source   *name.Name
@@ -47,7 +48,7 @@ func helpers(t *testing.T) {
 		expected string
 	}{
 		{test.Variable("f"), "f"},
-		{test.Variable("func"), "func"},
+		{test.Variable("func"), "func1"},
 		{test.Variable("function"), "function"},
 	}
 	for _, v := range variables {
@@ -74,6 +75,7 @@ func functionDef(t *testing.T) {
 
 	translator = NewNameTranslator()
 	functionTranslator = NewFunctionTranslator()
+	useGlobalContext = false
 
 	// This tests which name and return type will
 	// be used. lang.NewFunc(string) is tested
@@ -111,7 +113,11 @@ func functionDef(t *testing.T) {
 		t.Errorf("'%s' expected, '%s' found.\n", lang.Void, f.Return)
 	}
 
-	placeholderFunction := test.Func("")
+	// It used to be empty string, but because
+	// funcDef translates the function name,
+	// it had to be changed to something
+	// meaningful.
+	placeholderFunction := test.Func("placeholderFunction")
 	returnTypes := []struct {
 		typ      *name.Name
 		expected string
@@ -249,6 +255,10 @@ func unaryOp(t *testing.T) {
 func testMain(tt *testing.T) {
 	tt.Helper()
 
+	translator = NewNameTranslator()
+	functionTranslator = NewFunctionTranslator()
+	useGlobalContext = false
+
 	tests := []struct {
 		source   []byte
 		expected string
@@ -259,7 +269,7 @@ func testMain(tt *testing.T) {
 			$a = 1 + 2;
 			`),
 			expected: `func main() {
-a := 1 + 2
+A = 1 + 2
 }
 `,
 		},
@@ -272,12 +282,14 @@ a := 1 + 2
 			echo $b * $b;
 		`),
 			expected: `func main() {
-b := 2 + 3 + 4 * 2
-fmt.Print(b * b)
+B = 2 + 3 + 4 * 2
+fmt.Print(B * B)
 }
 `,
 		},
 		// examples/5.php
+		// TODO: Get rid of these type casts, define variable only on the lowest level,
+		// then check if it is necessary.
 		{
 			source: []byte(`<?php
 			{
@@ -294,11 +306,11 @@ fmt.Print(b * b)
 			expected: `func main() {
 {
 {
-c := "0"
-fmt.Print(c)
+C = "0"
+fmt.Print(C.(string))
 }
-c := 1
-fmt.Print(c)
+C = 1
+fmt.Print(C.(int))
 }
 }
 `,
@@ -316,14 +328,14 @@ fmt.Print(c)
 			echo $d;
 			`),
 			expected: `func main() {
-d := 0
+D = 0
 {
-d := "1"
-fmt.Print(d)
+D = "1"
+fmt.Print(D.(string))
 }
-fmt.Print(d)
-d = 2
-fmt.Print(d)
+fmt.Print(D.(string))
+D = 2
+fmt.Print(D.(int))
 }
 `,
 		},
