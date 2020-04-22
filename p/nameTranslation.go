@@ -62,8 +62,12 @@ func (t NameTranslator) resolveConflict(name string, try int) string {
 }
 
 func NewNameTranslator() NameTranslation {
+	used := make(map[string]bool)
+	for k, v := range keywords {
+		used[k] = v
+	}
 	return &NameTranslator{
 		names: make(map[string]string),
-		used:  keywords,
+		used:  used,
 	}
 }
