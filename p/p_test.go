@@ -8,6 +8,9 @@ import (
 	"php2go/p/test"
 
 	"github.com/z7zmey/php-parser/node"
+	"github.com/z7zmey/php-parser/node/expr"
+	"github.com/z7zmey/php-parser/node/name"
+	"github.com/z7zmey/php-parser/node/stmt"
 	"github.com/z7zmey/php-parser/php7"
 )
 
@@ -22,35 +25,32 @@ func TestP(t *testing.T) {
 func helpers(t *testing.T) {
 	t.Helper()
 
-	nname := test.Name("f")
-	if res := constructName(nname); res != "f" {
-		t.Errorf("'%s' expected, '%s' found.\n", "f", res)
+	functions := []struct {
+		source   *name.Name
+		expected string
+	}{
+		{test.Name("f"), "f"},
+		{test.Name("function"), "function"},
+		{test.Name("func"), "function"},
+	}
+	for _, f := range functions {
+		if name := constructName(f.source); name != f.expected {
+			t.Errorf("'%s' expected, '%s' found.\n", f.expected, name)
+		}
 	}
 
-	nname = test.Name("function")
-	if res := constructName(nname); res != "function" {
-		t.Errorf("'%s' expected, '%s' found.\n", "function", res)
+	variables := []struct {
+		source   *expr.Variable
+		expected string
+	}{
+		{test.Variable("f"), "f"},
+		{test.Variable("func"), "func"},
+		{test.Variable("function"), "function"},
 	}
-
-	nname = test.Name("func")
-	if res := constructName(nname); res != "function" {
-		t.Errorf("'%s' expected, '%s' found.\n", "function", res)
-	}
-
-	name := "f"
-	res := identifierName(test.Variable(name))
-	if res != name {
-		t.Errorf("'%s' expected, '%s' found.\n", name, res)
-	}
-	name = "func"
-	res = identifierName(test.Variable(name))
-	if res != name {
-		t.Errorf("'%s' expected, '%s' found.\n", name, res)
-	}
-	name = "function"
-	res = identifierName(test.Variable(name))
-	if res != name {
-		t.Errorf("'%s' expected, '%s' found.\n", name, res)
+	for _, v := range variables {
+		if name := identifierName(v.source); name != v.expected {
+			t.Errorf("'%s' expected, '%s' found.\n", v.expected, name)
+		}
 	}
 
 	nop := test.Nop()
@@ -77,68 +77,50 @@ func functionDef(t *testing.T) {
 		t.Error("From nil nothing can be created.")
 	}
 
-	name := "f"
-	nf := test.Func(name)
-	f = funcDef(nf)
-	if f.Name != name {
-		t.Error("Wrong name.")
-	}
-	if f.Return != lang.Void {
-		t.Error("Wrong return type.")
-	}
-
-	name = "function"
-	nf = test.Func(name)
-	f = funcDef(nf)
-	if f.Name != name {
-		t.Error("Wrong name.")
-	}
-	if f.Return != lang.Void {
-		t.Error("Wrong return type.")
+	funcDefs := []struct {
+		f    *stmt.Function
+		name string
+		ret  string
+	}{
+		{test.Func("f"), "f", lang.Void},
+		{test.Func("function"), "function", lang.Void},
+		{test.Func("func"), "function", lang.Void},
 	}
 
-	name = "func"
-	nf = test.Func(name)
-	f = funcDef(nf)
-	if f.Name != "function" {
-		t.Error("Wrong name.")
-	}
-	if f.Return != lang.Void {
-		t.Error("Wrong return type.")
+	for _, f := range funcDefs {
+		def := funcDef(f.f)
+		if def.Name != f.name {
+			t.Errorf("'%s' expected, '%s' found.\n", f.name, def.Name)
+		}
+		if def.Return != f.ret {
+			t.Errorf("'%s' expected, '%s' found.\n", f.name, def.Return)
+		}
 	}
 
 	f = mainDef()
 	if f.Name != "main" {
-		t.Error("Wrong name.")
+		t.Errorf("'%s' expected, '%s' found.\n", "main", f.Name)
 	}
 	if f.Return != lang.Void {
-		t.Error("Wrong return type.")
+		t.Errorf("'%s' expected, '%s' found.\n", lang.Void, f.Return)
 	}
 
-	nf = test.Func("")
-
-	nf.ReturnType = test.Name("void")
-	f = funcDef(nf)
-	if f.Return != lang.Void {
-		t.Error("Wrong return type.")
+	placeholderFunction := test.Func("")
+	returnTypes := []struct {
+		typ      *name.Name
+		expected string
+	}{
+		{test.Name("void"), lang.Void},
+		{test.Name("int"), lang.Int},
+		{test.Name("string"), lang.String},
 	}
+	for _, rt := range returnTypes {
+		placeholderFunction.ReturnType = rt.typ
+		f := funcDef(placeholderFunction)
+		if f.Return != rt.expected {
+			t.Errorf("'%s' expected, '%s' found.\n", rt.expected, f.Return)
 
-	nf.ReturnType = test.Name("void")
-	f = funcDef(nf)
-	if f.Return != lang.Void {
-		t.Error("Wrong return type.")
-	}
-
-	nf.ReturnType = test.Name("int")
-	f = funcDef(nf)
-	if f.Return != lang.Int {
-		t.Error("Wrong return type.")
-	}
-
-	nf.ReturnType = test.Name("string")
-	f = funcDef(nf)
-	if f.Return != lang.String {
-		t.Error("Wrong return type.")
+		}
 	}
 }
 
