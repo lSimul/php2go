@@ -737,14 +737,25 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 				if !ok {
 					panic(`First argument has to be a variable.`)
 				}
+				typ := ArrayItem(v.GetType())
+
 				vars := []lang.Expression{}
-				for _, v := range al.Arguments[1:] {
-					vars = append(vars, expression(b, v.(*node.Argument).Expr))
+				for _, arg := range al.Arguments[1:] {
+					v := expression(b, arg.(*node.Argument).Expr)
+					if v.GetType() != typ {
+						panic(`Cannot push this type.`)
+					}
+					vars = append(vars, v)
 				}
 
-				a := createArrayPush(b, v, vars)
-				a.SetParent(b)
-				return a
+				fc := &lang.FunctionCall{
+					Name:   v.V.Name + ".Push",
+					Args:   vars,
+					Return: lang.Int,
+				}
+
+				fc.SetParent(b)
+				return fc
 			}
 		}
 
@@ -794,31 +805,6 @@ func checkArguments(vars []*lang.Variable, call []node.Node) error {
 	// TODO: Check if arguments are passed by reference, make sure
 	// that is done only with variables.
 	return nil
-}
-
-func createArrayPush(b lang.Block, v *lang.VarRef, vals []lang.Expression) *lang.Assign {
-	if b.HasVariable(v.V.Name) == nil {
-		panic(v.V.Name + " is not defined.")
-	}
-
-	f := &lang.FunctionCall{
-		Name:   "append",
-		Args:   []lang.Expression{v},
-		Return: v.GetType(),
-	}
-	for _, val := range vals {
-		if val.GetType() != f.GetType() {
-			panic(f.GetType() + " expected, " + val.GetType() + " found.")
-		}
-		val.SetParent(f)
-		f.Args = append(f.Args, val)
-	}
-
-	a, err := lang.NewAssign(v.V, f)
-	if err != nil {
-		panic(err)
-	}
-	return a
 }
 
 func buildAssignment(parent lang.Block, name string, right lang.Expression) *lang.Assign {
