@@ -2,25 +2,25 @@
 
 package array
 
-var _ Array = (*Int)(nil)
+var _ Array = (*String)(nil)
 
-type Int struct {
+type String struct {
 	associative map[Scalar]int
-	order       []int
+	order       []string
 	lastIndex   int
 }
 
-func NewInt(vals ...int) Int {
-	a := Int{
+func NewString(vals ...string) String {
+	a := String{
 		associative: make(map[Scalar]int),
-		order:       make([]int, 0),
+		order:       make([]string, 0),
 		lastIndex:   0,
 	}
 	a.Add(vals...)
 	return a
 }
 
-func (a *Int) Add(vals ...int) *Int {
+func (a *String) Add(vals ...string) *String {
 	for _, v := range vals {
 		k := NewScalar(a.lastIndex)
 		a.add(k, v)
@@ -29,12 +29,12 @@ func (a *Int) Add(vals ...int) *Int {
 	return a
 }
 
-func (a *Int) Push(vals ...int) int {
+func (a *String) Push(vals ...string) int {
 	a.Add(vals...)
 	return len(a.order)
 }
 
-func (a *Int) Edit(k Scalar, v int) *Int {
+func (a *String) Edit(k Scalar, v string) *String {
 	if i, ok := a.associative[k]; ok {
 		a.order[i] = v
 	} else if i, ok := k.IntValue(); ok && i > a.lastIndex {
@@ -46,28 +46,28 @@ func (a *Int) Edit(k Scalar, v int) *Int {
 	return a
 }
 
-func (a *Int) add(k Scalar, v int) {
+func (a *String) add(k Scalar, v string) {
 	a.order = append(a.order, v)
 	a.associative[k] = len(a.order) - 1
 }
 
-func (a Int) At(k Scalar) int {
+func (a String) At(k Scalar) string {
 	if v, ok := a.associative[k]; ok {
 		return a.order[v]
 	}
 	panic("undefined index " + k)
 }
 
-func (a Int) Iter() []int {
+func (a String) Iter() []string {
 	return a.order
 }
 
-func (a Int) Isset(k Scalar) bool {
+func (a String) Isset(k Scalar) bool {
 	_, ok := a.associative[k]
 	return ok
 }
 
-func (a *Int) Unset(k Scalar) {
+func (a *String) Unset(k Scalar) {
 	i, ok := a.associative[k]
 	if !ok {
 		return
