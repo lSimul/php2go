@@ -471,24 +471,42 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 }
 
 func statement(b lang.Block, n node.Node) lang.Node {
-	switch n.(type) {
-	case *expr.PostInc:
-		v, isVar := expression(b, n.(*expr.PostInc).Variable).(*lang.VarRef)
-		if !isVar {
+	var v *lang.VarRef
+	var ok bool
+
+	inc := func() lang.Node {
+		if !ok {
 			panic(`"++" requires variable.`)
 		}
 		if b.HasVariable(v.V.Name) == nil {
 			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
 		}
 		return lang.NewInc(b, v)
-
-	case *expr.PostDec:
-		v, ok := expression(b, n.(*expr.PostDec).Variable).(*lang.VarRef)
+	}
+	dec := func() lang.Node {
 		if !ok {
 			panic(`"--" requires variable.`)
 		}
-
+		if b.HasVariable(v.V.Name) == nil {
+			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
+		}
 		return lang.NewDec(b, v)
+	}
+
+	switch n.(type) {
+	case *expr.PreInc:
+		v, ok = expression(b, n.(*expr.PreInc).Variable).(*lang.VarRef)
+		return inc()
+	case *expr.PostInc:
+		v, ok = expression(b, n.(*expr.PostInc).Variable).(*lang.VarRef)
+		return inc()
+
+	case *expr.PreDec:
+		v, ok = expression(b, n.(*expr.PreDec).Variable).(*lang.VarRef)
+		return dec()
+	case *expr.PostDec:
+		v, ok = expression(b, n.(*expr.PostDec).Variable).(*lang.VarRef)
+		return dec()
 	}
 	return nil
 }
