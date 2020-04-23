@@ -464,8 +464,52 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 			r = lang.NewVarRef(la.Left(), la.GetType())
 		}
 
-		n := identifierName(a.Variable.(*expr.Variable))
-		return buildAssignment(b, n, r)
+		switch a.Variable.(type) {
+		case (*expr.Variable):
+			v := a.Variable.(*expr.Variable)
+			n := identifierName(v)
+			return buildAssignment(b, n, r)
+
+		case (*expr.ArrayDimFetch):
+			adf := a.Variable.(*expr.ArrayDimFetch)
+			vn := identifierName(adf.Variable.(*expr.Variable))
+			v := b.HasVariable(vn)
+			if v == nil || v.GetType() == lang.Void {
+				panic(vn + " is not defined.")
+			}
+
+			if l, r := ArrayItem(v.GetType()), r.GetType(); l != r {
+				panic(fmt.Sprintf("Array editing: '%s' expected, '%s' given.", l, r))
+			}
+
+			var fc *lang.FunctionCall
+			if adf.Dim == nil {
+				fc = &lang.FunctionCall{
+					Name:   fmt.Sprintf("%s.Add", v),
+					Args:   []lang.Expression{r},
+					Return: v.GetType(),
+				}
+				fc.SetParent(b)
+			} else {
+				scalar := &lang.FunctionCall{
+					Name:   "array.NewScalar",
+					Args:   []lang.Expression{expression(b, adf.Dim)},
+					Return: lang.String,
+				}
+				fc = &lang.FunctionCall{
+					Name:   fmt.Sprintf("%s.Edit", v),
+					Args:   []lang.Expression{scalar, r},
+					Return: v.GetType(),
+				}
+				scalar.SetParent(fc)
+				fc.SetParent(b)
+			}
+			return fc
+
+		default:
+			panic(fmt.Sprintf("Unexpected left side: %v", a))
+		}
+
 	}
 	panic(`ComplexExpression: something else uncatched.`)
 }
