@@ -62,7 +62,8 @@ func (gc GlobalContext) String() string {
 
 	s.WriteString("package main\n\n")
 	s.WriteString("import \"fmt\"\n")
-	s.WriteString("import _ \"php2go/std\"\n\n")
+	s.WriteString("import _ \"php2go/std\"\n")
+	s.WriteString("import _ \"php2go/std/array\"\n\n")
 
 	for _, v := range gc.vars {
 		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type))

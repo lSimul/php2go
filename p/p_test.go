@@ -38,7 +38,7 @@ func helpers(t *testing.T) {
 		{test.Name("func"), "func1"},
 	}
 	for _, f := range functions {
-		if name := constructName(f.source); name != f.expected {
+		if name := constructName(f.source, true); name != f.expected {
 			t.Errorf("'%s' expected, '%s' found.\n", f.expected, name)
 		}
 	}

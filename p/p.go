@@ -79,13 +79,13 @@ func funcDef(fc *stmt.Function) *lang.Function {
 		p := pr.(*node.Parameter)
 		v := newVariable(
 			identifierName(p.Variable.(*expr.Variable)),
-			constructName(p.VariableType.(*name.Name)),
+			constructName(p.VariableType.(*name.Name), true),
 			false)
 		f.Args = append(f.Args, v)
 	}
 
 	if fc.ReturnType != nil {
-		n := constructName(fc.ReturnType.(*name.Name))
+		n := constructName(fc.ReturnType.(*name.Name), true)
 		if n == "void" {
 			n = lang.Void
 		}
@@ -546,16 +546,22 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 					panic(vn + " is not defined.")
 				}
 
-				fa := &lang.FetchArr{
-					Arr:   lang.NewVarRef(v, v.GetType()),
-					Index: expression(b, adf.Dim),
+				scalar := &lang.FunctionCall{
+					Name:   "array.NewScalar",
+					Args:   []lang.Expression{expression(b, adf.Dim)},
+					Return: lang.String,
 				}
-				fa.Arr.SetParent(fa)
-				fa.Index.SetParent(fa)
-				fa.SetParent(fa)
+				fc := &lang.FunctionCall{
+					Name:   fmt.Sprintf("%s.At", v),
+					Args:   []lang.Expression{scalar},
+					Return: ArrayItem(v.GetType()),
+				}
+				fmt.Println(fc.Return)
+				scalar.SetParent(fc)
+				fc.SetParent(b)
 
 				// TODO: Type could know this.
-				switch fa.GetType() {
+				switch fc.GetType() {
 				case lang.Int:
 					s.Value += "%d"
 
@@ -565,7 +571,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 				case lang.String:
 					s.Value += "%s"
 				}
-				f.AddArg(fa)
+				f.AddArg(fc)
 			}
 		}
 		s.Value += "\""
@@ -634,13 +640,14 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 			}
 		}
 
-		al := &lang.Array{
-			Values: items,
-			Type:   typ,
+		fc := &lang.FunctionCall{
+			Name:   "array.New" + FirstUpper(typ),
+			Args:   items,
+			Return: ArrayType(typ),
 		}
 
-		al.SetParent(b)
-		return al
+		fc.SetParent(b)
+		return fc
 
 	case *expr.ArrayDimFetch:
 		adf := n.(*expr.ArrayDimFetch)
@@ -648,14 +655,20 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		if !ok {
 			panic(`Expected variable to be indexed.`)
 		}
-		fa := &lang.FetchArr{
-			Arr:   v,
-			Index: expression(b, adf.Dim),
+
+		scalar := &lang.FunctionCall{
+			Name:   "array.NewScalar",
+			Args:   []lang.Expression{expression(b, adf.Dim)},
+			Return: lang.String,
 		}
-		fa.Arr.SetParent(fa)
-		fa.Index.SetParent(fa)
-		fa.SetParent(fa)
-		return fa
+		fc := &lang.FunctionCall{
+			Name:   fmt.Sprintf("%s.At", v),
+			Args:   []lang.Expression{scalar},
+			Return: ArrayItem(v.GetType()),
+		}
+		scalar.SetParent(fc)
+		fc.SetParent(b)
+		return fc
 
 	case *binary.Plus:
 		p := n.(*binary.Plus)
@@ -692,7 +705,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 	case *expr.ConstFetch:
 		cf := n.(*expr.ConstFetch)
 		c := &lang.Const{
-			Value: constructName(cf.Constant.(*name.Name)),
+			Value: constructName(cf.Constant.(*name.Name), true),
 		}
 		c.SetParent(b)
 		return c
@@ -714,26 +727,29 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		fc := n.(*expr.FunctionCall)
 		al := fc.ArgumentList
 
-		n := constructName(fc.Function.(*name.Name))
+		n := constructName(fc.Function.(*name.Name), false)
+		if ok := PHPFunctions[n]; ok {
+			if n == "array_push" {
+				if len(al.Arguments) < 2 {
+					panic(`array_push requires atlast two arguments`)
+				}
+				v, ok := expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.VarRef)
+				if !ok {
+					panic(`First argument has to be a variable.`)
+				}
+				vars := []lang.Expression{}
+				for _, v := range al.Arguments[1:] {
+					vars = append(vars, expression(b, v.(*node.Argument).Expr))
+				}
 
-		if n == "array_push" {
-			if len(al.Arguments) < 2 {
-				panic(`array_push requires atlast two arguments`)
+				a := createArrayPush(b, v, vars)
+				a.SetParent(b)
+				return a
 			}
-			v, ok := expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.VarRef)
-			if !ok {
-				panic(`First argument has to be a variable.`)
-			}
-			vars := []lang.Expression{}
-			for _, v := range al.Arguments[1:] {
-				vars = append(vars, expression(b, v.(*node.Argument).Expr))
-			}
-
-			a := createArrayPush(b, v, vars)
-			a.SetParent(b)
-			return a
 		}
 
+		// TODO: Remove this ugly temporary solution, translating has to be smarter.
+		n = constructName(fc.Function.(*name.Name), false)
 		lf := gc.Get(n)
 		if lf == nil {
 			panic(n + " is not defined")
@@ -895,10 +911,13 @@ func identifierName(v *expr.Variable) string {
 	}
 }
 
-func constructName(nm *name.Name) string {
+func constructName(nm *name.Name, translate bool) string {
 	s := ""
 	for _, n := range nm.Parts {
 		s += n.(*name.NamePart).Value
+	}
+	if !translate {
+		return s
 	}
 	if useGlobalContext {
 		return functionTranslator.Translate(s, Public)

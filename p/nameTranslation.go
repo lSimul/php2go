@@ -3,6 +3,7 @@ package p
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 const (
@@ -36,6 +37,27 @@ var keywords = map[string]bool{
 	"switch":      true,
 	"type":        true,
 	"var":         true,
+}
+
+func ArrayType(s string) string {
+	return "array." + FirstUpper(s)
+}
+
+func ArrayItem(s string) string {
+	s = strings.TrimLeft(s, "array.")
+	return FirstLower(s)
+}
+
+func FirstUpper(s string) string {
+	b := []byte(s)
+	b[0] = bytes.ToUpper(b)[0]
+	return string(b)
+}
+
+func FirstLower(s string) string {
+	b := []byte(s)
+	b[0] = bytes.ToLower(b)[0]
+	return string(b)
 }
 
 type NameTranslation interface {
