@@ -48,6 +48,10 @@ func ArrayItem(s string) string {
 	return FirstLower(s)
 }
 
+func IsArray(s string) bool {
+	return strings.HasPrefix(s, "array.")
+}
+
 func FirstUpper(s string) string {
 	b := []byte(s)
 	b[0] = bytes.ToUpper(b)[0]

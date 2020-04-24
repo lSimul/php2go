@@ -216,15 +216,74 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			f := s.(*stmt.Foreach)
 			lf := &lang.Foreach{}
 			lf.SetParent(b)
-			lf.Iterated = expression(lf, f.Expr)
-			if f.Key != nil {
-				name := identifierName(f.Key.(*expr.Variable))
-				lf.Key = newVariable(name, lang.Int, false)
+			lf.Block = lang.NewCode(lf)
+
+			iterated := expression(lf, f.Expr)
+			if !IsArray(iterated.GetType()) {
+				panic(`Only arrays can be iterated.`)
 			}
 
-			name := identifierName(f.Variable.(*expr.Variable))
-			lf.Value = *newVariable(name, lf.Iterated.GetType(), false)
-			lf.Block = lang.NewCode(lf)
+			var fnName string
+			switch iterated.(type) {
+			case *lang.VarRef:
+				fnName = iterated.(*lang.VarRef).V.Name
+			case *lang.FunctionCall:
+				fnName = iterated.(*lang.FunctionCall).String()
+
+			default:
+				panic(`Uncatched type of iterated.`)
+			}
+
+			var it *lang.FunctionCall
+			// Easy chain, without array.Pair
+			if f.Key == nil {
+				it = &lang.FunctionCall{
+					Name: fnName + ".Iter",
+					// TODO: Set up return type.
+				}
+				name := identifierName(f.Variable.(*expr.Variable))
+				lf.Value = *newVariable(name, ArrayItem(iterated.GetType()), false)
+			} else {
+				name := identifierName(f.Key.(*expr.Variable))
+				// TODO: Define type scalar which is being
+				// formated as string.
+				k := newVariable(name, lang.String, false)
+				n := identifierName(f.Variable.(*expr.Variable))
+				v := newVariable(n, ArrayItem(iterated.GetType()), false)
+
+				it = &lang.FunctionCall{
+					Name: fnName + ".KeyIter",
+					// TODO: Set up return type.
+				}
+
+				// TODO: This is not lang.Void
+				lf.Value = *newVariable("pair", lang.Void, false)
+
+				// TODO: I do not have this part of code under control.
+				// Accessing struct elements is out of my reach right now.
+				if k != nil {
+					pairK := newVariable(lf.Value.Name+".K", lang.String, true)
+					s, err := lang.NewAssign(k, lang.NewVarRef(pairK, pairK.GetType()))
+					if err != nil {
+						panic(err)
+					}
+					s.FirstDefinition = true
+					lf.Block.AddStatement(s)
+					lf.Block.DefineVariable(k)
+				}
+
+				pairV := newVariable(lf.Value.Name+".V", ArrayItem(iterated.GetType()), true)
+				s, err := lang.NewAssign(v, lang.NewVarRef(pairV, pairV.GetType()))
+				if err != nil {
+					panic(err)
+				}
+				s.FirstDefinition = true
+				lf.Block.AddStatement(s)
+				lf.Block.DefineVariable(v)
+			}
+			it.SetParent(lf)
+			lf.Iterated = it
+
 			createFunction(lf.Block, nodeList(f.Stmt))
 
 			lf.SetParent(b)
