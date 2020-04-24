@@ -62,6 +62,23 @@ func (a Int) Iter() []int {
 	return a.order
 }
 
+type IntPair struct {
+	K Scalar
+	V int
+}
+
+func (a Int) KeyIter() []IntPair {
+	res := make([]IntPair, 0, len(a.order))
+	for i, v := range a.order {
+		res = append(res, IntPair{V: v})
+		res[i].V = v
+	}
+	for k, v := range a.associative {
+		res[v].K = k
+	}
+	return res
+}
+
 func (a Int) Isset(k Scalar) bool {
 	_, ok := a.associative[k]
 	return ok

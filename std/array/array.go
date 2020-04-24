@@ -105,6 +105,27 @@ func (a %s) Iter() []%s {
 `, arrName, typ))
 
 	writer.WriteString(fmt.Sprintf(`
+type %sPair struct {
+	K Scalar
+	V %s
+}
+`, arrName, typ))
+
+	writer.WriteString(fmt.Sprintf(`
+func (a %s) KeyIter() []%sPair  {
+	res := make([]%sPair, 0, len(a.order))
+	for i, v := range a.order {
+		res = append(res, %sPair{V: v})
+		res[i].V = v
+	}
+	for k, v := range a.associative {
+		res[v].K = k
+	}
+	return res
+}
+`, arrName, arrName, arrName, arrName))
+
+	writer.WriteString(fmt.Sprintf(`
 func (a %s) Isset(k Scalar) bool {
 	_, ok := a.associative[k]
 	return ok
