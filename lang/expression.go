@@ -242,7 +242,7 @@ func NewAssign(left *Variable, right Expression) (*Assign, error) {
 		return nil, errors.New("Nothing can be created from nils.")
 	}
 	if left == nil {
-		return nil, errors.New("Missing right side of the assignment.")
+		return nil, errors.New("Missing left side of the assignment.")
 	}
 	if right == nil {
 		return nil, errors.New("Missing right side of the assignment.")
