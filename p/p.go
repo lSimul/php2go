@@ -16,32 +16,41 @@ import (
 	"php2go/lang"
 )
 
-var gc *lang.GlobalContext
-var translator, functionTranslator NameTranslation
-var useGlobalContext = false
+type parser struct {
+	translator         NameTranslation
+	functionTranslator NameTranslation
 
-func Run(r *node.Root) *lang.GlobalContext {
-	gc = lang.NewGlobalContext()
-	translator = NewNameTranslator()
-	functionTranslator = NewFunctionTranslator()
+	gc               *lang.GlobalContext
+	useGlobalContext bool
+}
+
+func NewParser(v, f NameTranslation) *parser {
+	return &parser{
+		translator:         v,
+		functionTranslator: f,
+	}
+}
+
+func (p *parser) Run(r *node.Root) *lang.GlobalContext {
+	p.gc = lang.NewGlobalContext()
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
-		f := funcDef(&s)
-		gc.Add(f)
+		f := p.funcDef(&s)
+		p.gc.Add(f)
 	}
 	for _, s := range fs {
-		f := funcDef(&s)
-		createFunction(&f.Body, s.Stmts)
-		gc.Add(f)
+		f := p.funcDef(&s)
+		p.createFunction(&f.Body, s.Stmts)
+		p.gc.Add(f)
 	}
 
-	main := mainDef()
-	gc.Add(main)
-	useGlobalContext = true
-	createFunction(&main.Body, ms)
-	useGlobalContext = false
-	return gc
+	main := p.mainDef()
+	p.gc.Add(main)
+	p.useGlobalContext = true
+	p.createFunction(&main.Body, ms)
+	p.useGlobalContext = false
+	return p.gc
 }
 
 // SanitizeRootStmts splits statements based on their type,
@@ -64,28 +73,28 @@ func sanitizeRootStmts(r *node.Root) ([]node.Node, []stmt.Function) {
 	return main, functions
 }
 
-func funcDef(fc *stmt.Function) *lang.Function {
+func (parser *parser) funcDef(fc *stmt.Function) *lang.Function {
 	if fc == nil {
 		return nil
 	}
 
 	// TODO: IdentifierName method is for this. (is it still relevant?)
 	// TODO: Make sure visibility is set as it should be.
-	n := functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value, Private)
+	n := parser.functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value, Private)
 	f := lang.NewFunc(n)
-	f.SetParent(gc)
+	f.SetParent(parser.gc)
 
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
-		v := newVariable(
-			identifierName(p.Variable.(*expr.Variable)),
-			constructName(p.VariableType.(*name.Name), true),
+		v := parser.newVariable(
+			parser.identifierName(p.Variable.(*expr.Variable)),
+			parser.constructName(p.VariableType.(*name.Name), true),
 			false)
 		f.Args = append(f.Args, v)
 	}
 
 	if fc.ReturnType != nil {
-		n := constructName(fc.ReturnType.(*name.Name), true)
+		n := parser.constructName(fc.ReturnType.(*name.Name), true)
 		if n == "void" {
 			n = lang.Void
 		}
@@ -95,13 +104,13 @@ func funcDef(fc *stmt.Function) *lang.Function {
 	return f
 }
 
-func mainDef() *lang.Function {
+func (p *parser) mainDef() *lang.Function {
 	f := lang.NewFunc("main")
-	f.SetParent(gc)
+	f.SetParent(p.gc)
 	return f
 }
 
-func createFunction(b lang.Block, stmts []node.Node) {
+func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 	for _, s := range stmts {
 		switch s.(type) {
 		case *stmt.Nop:
@@ -123,10 +132,10 @@ func createFunction(b lang.Block, stmts []node.Node) {
 		case *stmt.StmtList:
 			list := lang.NewCode(b)
 			b.AddStatement(list)
-			createFunction(list, s.(*stmt.StmtList).Stmts)
+			parser.createFunction(list, s.(*stmt.StmtList).Stmts)
 
 		case *stmt.Expression:
-			ex := makeExpression(b, s.(*stmt.Expression))
+			ex := parser.makeExpression(b, s.(*stmt.Expression))
 			b.AddStatement(ex)
 
 		case *stmt.For:
@@ -135,13 +144,13 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 			if f.Init != nil {
 				n := f.Init[0]
-				ex := simpleExpression(lf, n)
+				ex := parser.simpleExpression(lf, n)
 				lf.Init = ex
 			}
 
 			if f.Cond != nil {
 				n := f.Cond[0]
-				e := expression(lf, n)
+				e := parser.expression(lf, n)
 				if e.GetType() != lang.Bool {
 					e = &lang.FunctionCall{
 						Name:   "std.Truthy",
@@ -158,18 +167,18 @@ func createFunction(b lang.Block, stmts []node.Node) {
 
 			if f.Loop != nil {
 				n := f.Loop[0]
-				ex := simpleExpression(lf, n)
+				ex := parser.simpleExpression(lf, n)
 				lf.Loop = ex
 			}
 
-			createFunction(lf.Block, nodeList(f.Stmt))
+			parser.createFunction(lf.Block, nodeList(f.Stmt))
 			b.AddStatement(lf)
 
 		case *stmt.While:
 			w := s.(*stmt.While)
 			lf := lang.ConstructFor(b)
 
-			e := expression(lf, w.Cond)
+			e := parser.expression(lf, w.Cond)
 			if e.GetType() != lang.Bool {
 				e = &lang.FunctionCall{
 					Name:   "std.Truthy",
@@ -184,14 +193,14 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				panic(err)
 			}
 
-			createFunction(lf.Block, nodeList(w.Stmt))
+			parser.createFunction(lf.Block, nodeList(w.Stmt))
 			b.AddStatement(lf)
 
 		case *stmt.Do:
 			w := s.(*stmt.Do)
 			lf := lang.ConstructFor(b)
 
-			createFunction(lf.Block, nodeList(w.Stmt))
+			parser.createFunction(lf.Block, nodeList(w.Stmt))
 
 			i := &lang.If{
 				Vars: make([]*lang.Variable, 0),
@@ -200,7 +209,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			i.SetParent(lf)
 			// TODO: Negation should work only with
 			// boolean values.
-			c := expression(i, w.Cond)
+			c := parser.expression(i, w.Cond)
 			neg := &lang.Negation{
 				Right: c,
 			}
@@ -218,7 +227,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			lf.SetParent(b)
 			lf.Block = lang.NewCode(lf)
 
-			iterated := expression(lf, f.Expr)
+			iterated := parser.expression(lf, f.Expr)
 			if !IsArray(iterated.GetType()) {
 				panic(`Only arrays can be iterated.`)
 			}
@@ -241,15 +250,15 @@ func createFunction(b lang.Block, stmts []node.Node) {
 					Name: fnName + ".Iter",
 					// TODO: Set up return type.
 				}
-				name := identifierName(f.Variable.(*expr.Variable))
-				lf.Value = *newVariable(name, ArrayItem(iterated.GetType()), false)
+				name := parser.identifierName(f.Variable.(*expr.Variable))
+				lf.Value = *parser.newVariable(name, ArrayItem(iterated.GetType()), false)
 			} else {
-				name := identifierName(f.Key.(*expr.Variable))
+				name := parser.identifierName(f.Key.(*expr.Variable))
 				// TODO: Define type scalar which is being
 				// formated as string.
-				k := newVariable(name, lang.String, false)
-				n := identifierName(f.Variable.(*expr.Variable))
-				v := newVariable(n, ArrayItem(iterated.GetType()), false)
+				k := parser.newVariable(name, lang.String, false)
+				n := parser.identifierName(f.Variable.(*expr.Variable))
+				v := parser.newVariable(n, ArrayItem(iterated.GetType()), false)
 
 				it = &lang.FunctionCall{
 					Name: fnName + ".KeyIter",
@@ -257,12 +266,12 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				}
 
 				// TODO: This is not lang.Void
-				lf.Value = *newVariable("pair", lang.Void, false)
+				lf.Value = *parser.newVariable("pair", lang.Void, false)
 
 				// TODO: I do not have this part of code under control.
 				// Accessing struct elements is out of my reach right now.
 				if k != nil {
-					pairK := newVariable(lf.Value.Name+".K", lang.String, true)
+					pairK := parser.newVariable(lf.Value.Name+".K", lang.String, true)
 					s, err := lang.NewAssign(k, lang.NewVarRef(pairK, pairK.GetType()))
 					if err != nil {
 						panic(err)
@@ -272,7 +281,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 					lf.Block.DefineVariable(k)
 				}
 
-				pairV := newVariable(lf.Value.Name+".V", ArrayItem(iterated.GetType()), true)
+				pairV := parser.newVariable(lf.Value.Name+".V", ArrayItem(iterated.GetType()), true)
 				s, err := lang.NewAssign(v, lang.NewVarRef(pairV, pairV.GetType()))
 				if err != nil {
 					panic(err)
@@ -284,13 +293,13 @@ func createFunction(b lang.Block, stmts []node.Node) {
 			it.SetParent(lf)
 			lf.Iterated = it
 
-			createFunction(lf.Block, nodeList(f.Stmt))
+			parser.createFunction(lf.Block, nodeList(f.Stmt))
 
 			lf.SetParent(b)
 			b.AddStatement(lf)
 
 		case *stmt.If:
-			i := constructIf(b, s.(*stmt.If))
+			i := parser.constructIf(b, s.(*stmt.If))
 			b.AddStatement(i)
 
 		case *stmt.Switch:
@@ -299,13 +308,13 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				Cases: make([]lang.Node, 0),
 			}
 			sw.SetParent(b)
-			sw.Condition = expression(sw, s.Cond)
-			constructSwitch(sw, s.CaseList)
+			sw.Condition = parser.expression(sw, s.Cond)
+			parser.constructSwitch(sw, s.CaseList)
 			b.AddStatement(sw)
 
 		case *stmt.Return:
 			r := &lang.Return{
-				Expression: expression(b, s.(*stmt.Return).Expr),
+				Expression: parser.expression(b, s.(*stmt.Return).Expr),
 			}
 			b.AddStatement(r)
 
@@ -320,7 +329,7 @@ func createFunction(b lang.Block, stmts []node.Node) {
 				// TODO: Do not ignore information in Argument,
 				// it has interesting information like if it is
 				// send by reference and others.
-				f.AddArg(expression(b, e))
+				f.AddArg(parser.expression(b, e))
 			}
 			b.AddStatement(f)
 
@@ -353,10 +362,10 @@ func nodeList(n node.Node) []node.Node {
 	}
 }
 
-func constructIf(b lang.Block, i *stmt.If) *lang.If {
+func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	expr := expression(nif, i.Cond)
+	expr := p.expression(nif, i.Cond)
 	if expr.GetType() != lang.Bool {
 		expr = &lang.FunctionCall{
 			Name:   "std.Truthy",
@@ -371,11 +380,11 @@ func constructIf(b lang.Block, i *stmt.If) *lang.If {
 	}
 
 	nif.True = lang.NewCode(nif)
-	createFunction(nif.True, nodeList(i.Stmt))
+	p.createFunction(nif.True, nodeList(i.Stmt))
 
 	lif := nif
 	for _, ei := range i.ElseIf {
-		lif.False = constructElif(b, ei.(*stmt.ElseIf))
+		lif.False = p.constructElif(b, ei.(*stmt.ElseIf))
 		lif = lif.False.(*lang.If)
 	}
 
@@ -386,20 +395,20 @@ func constructIf(b lang.Block, i *stmt.If) *lang.If {
 	e := i.Else.(*stmt.Else).Stmt
 	switch e.(type) {
 	case *stmt.If:
-		lif.False = constructIf(lif, e.(*stmt.If))
+		lif.False = p.constructIf(lif, e.(*stmt.If))
 
 	default:
 		c := lang.NewCode(lif)
-		createFunction(c, nodeList(e))
+		p.createFunction(c, nodeList(e))
 		lif.False = c
 	}
 	return nif
 }
 
-func constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
+func (p *parser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	e := expression(nif, i.Cond)
+	e := p.expression(nif, i.Cond)
 	if e.GetType() != lang.Bool {
 		e = &lang.FunctionCall{
 			Name:   "std.Truthy",
@@ -414,11 +423,11 @@ func constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	}
 
 	nif.True = lang.NewCode(nif)
-	createFunction(nif.True, nodeList(i.Stmt))
+	p.createFunction(nif.True, nodeList(i.Stmt))
 	return nif
 }
 
-func constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
+func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 	for _, c := range cl.Cases {
 		switch c.(type) {
 		case *stmt.Case:
@@ -429,8 +438,8 @@ func constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 			}
 			lc.SetParent(s)
 			s.Cases = append(s.Cases, lc)
-			lc.Condition = expression(lc, c.Cond)
-			createFunction(lc, c.Stmts)
+			lc.Condition = parser.expression(lc, c.Cond)
+			parser.createFunction(lc, c.Stmts)
 			if len(lc.Statements) > 0 {
 				_, ok := lc.Statements[len(lc.Statements)-1].(*lang.Break)
 				if ok {
@@ -450,7 +459,7 @@ func constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 			}
 			d.SetParent(s)
 			s.Cases = append(s.Cases, d)
-			createFunction(d, c.Stmts)
+			parser.createFunction(d, c.Stmts)
 
 			if len(d.Statements) > 0 {
 				_, ok := d.Statements[len(d.Statements)-1].(*lang.Break)
@@ -466,21 +475,21 @@ func constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 	}
 }
 
-func makeExpression(b lang.Block, e *stmt.Expression) lang.Node {
-	s := statement(b, e.Expr)
+func (p *parser) makeExpression(b lang.Block, e *stmt.Expression) lang.Node {
+	s := p.statement(b, e.Expr)
 	if s != nil {
 		return s
 	}
-	return complexExpression(b, e.Expr)
+	return p.complexExpression(b, e.Expr)
 }
 
-func simpleExpression(b lang.Block, n node.Node) lang.Node {
-	s := statement(b, n)
+func (p *parser) simpleExpression(b lang.Block, n node.Node) lang.Node {
+	s := p.statement(b, n)
 	if s != nil {
 		return s
 	}
 
-	e := expression(b, n)
+	e := p.expression(b, n)
 	if e != nil {
 		return e
 	}
@@ -489,19 +498,19 @@ func simpleExpression(b lang.Block, n node.Node) lang.Node {
 	case *assign.Assign:
 		a := n.(*assign.Assign)
 
-		r := expression(b, a.Expression)
+		r := p.expression(b, a.Expression)
 		if r == nil {
 			panic(`Missing right side for assignment.`)
 		}
 
-		n := identifierName(a.Variable.(*expr.Variable))
-		return buildAssignment(b, n, r)
+		n := p.identifierName(a.Variable.(*expr.Variable))
+		return p.buildAssignment(b, n, r)
 	}
 	panic(`SimpleExpression: something else uncatched.`)
 }
 
-func complexExpression(b lang.Block, n node.Node) lang.Expression {
-	e := expression(b, n)
+func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expression {
+	e := parser.expression(b, n)
 	if e != nil {
 		return e
 	}
@@ -512,7 +521,7 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 	case *assign.Assign:
 		a := n.(*assign.Assign)
 
-		r := complexExpression(b, a.Expression)
+		r := parser.complexExpression(b, a.Expression)
 		if r == nil {
 			panic(`Missing right side for assignment.`)
 		}
@@ -526,12 +535,12 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 		switch a.Variable.(type) {
 		case (*expr.Variable):
 			v := a.Variable.(*expr.Variable)
-			n := identifierName(v)
-			return buildAssignment(b, n, r)
+			n := parser.identifierName(v)
+			return parser.buildAssignment(b, n, r)
 
 		case (*expr.ArrayDimFetch):
 			adf := a.Variable.(*expr.ArrayDimFetch)
-			vn := identifierName(adf.Variable.(*expr.Variable))
+			vn := parser.identifierName(adf.Variable.(*expr.Variable))
 			v := b.HasVariable(vn)
 			if v == nil || v.GetType() == lang.Void {
 				panic(vn + " is not defined.")
@@ -552,7 +561,7 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 			} else {
 				scalar := &lang.FunctionCall{
 					Name:   "array.NewScalar",
-					Args:   []lang.Expression{expression(b, adf.Dim)},
+					Args:   []lang.Expression{parser.expression(b, adf.Dim)},
 					Return: lang.String,
 				}
 				fc = &lang.FunctionCall{
@@ -573,7 +582,7 @@ func complexExpression(b lang.Block, n node.Node) lang.Expression {
 	panic(`ComplexExpression: something else uncatched.`)
 }
 
-func statement(b lang.Block, n node.Node) lang.Node {
+func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 	var v *lang.VarRef
 	var ok bool
 
@@ -598,26 +607,26 @@ func statement(b lang.Block, n node.Node) lang.Node {
 
 	switch n.(type) {
 	case *expr.PreInc:
-		v, ok = expression(b, n.(*expr.PreInc).Variable).(*lang.VarRef)
+		v, ok = parser.expression(b, n.(*expr.PreInc).Variable).(*lang.VarRef)
 		return inc()
 	case *expr.PostInc:
-		v, ok = expression(b, n.(*expr.PostInc).Variable).(*lang.VarRef)
+		v, ok = parser.expression(b, n.(*expr.PostInc).Variable).(*lang.VarRef)
 		return inc()
 
 	case *expr.PreDec:
-		v, ok = expression(b, n.(*expr.PreDec).Variable).(*lang.VarRef)
+		v, ok = parser.expression(b, n.(*expr.PreDec).Variable).(*lang.VarRef)
 		return dec()
 	case *expr.PostDec:
-		v, ok = expression(b, n.(*expr.PostDec).Variable).(*lang.VarRef)
+		v, ok = parser.expression(b, n.(*expr.PostDec).Variable).(*lang.VarRef)
 		return dec()
 	}
 	return nil
 }
 
-func expression(b lang.Block, n node.Node) lang.Expression {
+func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 	switch n.(type) {
 	case *expr.Variable:
-		name := identifierName(n.(*expr.Variable))
+		name := parser.identifierName(n.(*expr.Variable))
 		v := b.HasVariable(name)
 		if v == nil {
 			panic("Using undefined variable \"" + name + "\".")
@@ -641,7 +650,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 				s.Value += p.(*scalar.EncapsedStringPart).Value
 
 			case *expr.Variable:
-				vn := identifierName(p.(*expr.Variable))
+				vn := parser.identifierName(p.(*expr.Variable))
 				v := b.HasVariable(vn)
 				if v == nil || v.GetType() == lang.Void {
 					panic(vn + " is not defined.")
@@ -661,7 +670,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 			case *expr.ArrayDimFetch:
 				adf := p.(*expr.ArrayDimFetch)
-				vn := identifierName(adf.Variable.(*expr.Variable))
+				vn := parser.identifierName(adf.Variable.(*expr.Variable))
 				v := b.HasVariable(vn)
 				if v == nil || v.GetType() == lang.Void {
 					panic(vn + " is not defined.")
@@ -669,7 +678,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 				scalar := &lang.FunctionCall{
 					Name:   "array.NewScalar",
-					Args:   []lang.Expression{expression(b, adf.Dim)},
+					Args:   []lang.Expression{parser.expression(b, adf.Dim)},
 					Return: lang.String,
 				}
 				fc := &lang.FunctionCall{
@@ -701,13 +710,13 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		return f
 
 	case *expr.UnaryPlus:
-		e := expression(b, n.(*expr.UnaryPlus).Expr)
+		e := parser.expression(b, n.(*expr.UnaryPlus).Expr)
 		e.SetParent(b)
 		return e
 
 	case *expr.UnaryMinus:
 		m := &lang.UnaryMinus{
-			Expr: expression(b, n.(*expr.UnaryMinus).Expr),
+			Expr: parser.expression(b, n.(*expr.UnaryMinus).Expr),
 		}
 		m.Expr.SetParent(m)
 		m.SetParent(b)
@@ -749,7 +758,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 			if v == nil {
 				continue
 			}
-			items = append(items, expression(b, v))
+			items = append(items, parser.expression(b, v))
 		}
 		if len(items) == 0 {
 			panic(`Cannot decide type, empty array.`)
@@ -772,14 +781,14 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *expr.ArrayDimFetch:
 		adf := n.(*expr.ArrayDimFetch)
-		v, ok := expression(b, adf.Variable).(*lang.VarRef)
+		v, ok := parser.expression(b, adf.Variable).(*lang.VarRef)
 		if !ok {
 			panic(`Expected variable to be indexed.`)
 		}
 
 		scalar := &lang.FunctionCall{
 			Name:   "array.NewScalar",
-			Args:   []lang.Expression{expression(b, adf.Dim)},
+			Args:   []lang.Expression{parser.expression(b, adf.Dim)},
 			Return: lang.String,
 		}
 		fc := &lang.FunctionCall{
@@ -793,40 +802,40 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Plus:
 		p := n.(*binary.Plus)
-		return binaryOp(b, "+", p.Left, p.Right)
+		return parser.binaryOp(b, "+", p.Left, p.Right)
 
 	case *binary.Minus:
 		p := n.(*binary.Minus)
-		return binaryOp(b, "-", p.Left, p.Right)
+		return parser.binaryOp(b, "-", p.Left, p.Right)
 
 	case *binary.Mul:
 		p := n.(*binary.Mul)
-		return binaryOp(b, "*", p.Left, p.Right)
+		return parser.binaryOp(b, "*", p.Left, p.Right)
 
 	case *binary.Smaller:
 		p := n.(*binary.Smaller)
-		return binaryOp(b, "<", p.Left, p.Right)
+		return parser.binaryOp(b, "<", p.Left, p.Right)
 
 	case *binary.SmallerOrEqual:
 		p := n.(*binary.SmallerOrEqual)
-		return binaryOp(b, "<=", p.Left, p.Right)
+		return parser.binaryOp(b, "<=", p.Left, p.Right)
 
 	case *binary.GreaterOrEqual:
 		p := n.(*binary.GreaterOrEqual)
-		return binaryOp(b, ">=", p.Left, p.Right)
+		return parser.binaryOp(b, ">=", p.Left, p.Right)
 
 	case *binary.Greater:
 		p := n.(*binary.Greater)
-		return binaryOp(b, ">", p.Left, p.Right)
+		return parser.binaryOp(b, ">", p.Left, p.Right)
 
 	case *binary.Identical:
 		p := n.(*binary.Identical)
-		return binaryOp(b, "==", p.Left, p.Right)
+		return parser.binaryOp(b, "==", p.Left, p.Right)
 
 	case *expr.ConstFetch:
 		cf := n.(*expr.ConstFetch)
 		c := &lang.Const{
-			Value: constructName(cf.Constant.(*name.Name), true),
+			Value: parser.constructName(cf.Constant.(*name.Name), true),
 		}
 		c.SetParent(b)
 		return c
@@ -840,21 +849,21 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 			Args:   make([]lang.Expression, 0),
 			Return: lang.String,
 		}
-		f.AddArg(expression(b, c.Left))
-		f.AddArg(expression(b, c.Right))
+		f.AddArg(parser.expression(b, c.Left))
+		f.AddArg(parser.expression(b, c.Right))
 		return f
 
 	case *expr.FunctionCall:
 		fc := n.(*expr.FunctionCall)
 		al := fc.ArgumentList
 
-		n := constructName(fc.Function.(*name.Name), false)
+		n := parser.constructName(fc.Function.(*name.Name), false)
 		if ok := PHPFunctions[n]; ok {
 			if n == "array_push" {
 				if len(al.Arguments) < 2 {
 					panic(`array_push requires atlast two arguments`)
 				}
-				v, ok := expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.VarRef)
+				v, ok := parser.expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.VarRef)
 				if !ok {
 					panic(`First argument has to be a variable.`)
 				}
@@ -862,7 +871,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 
 				vars := []lang.Expression{}
 				for _, arg := range al.Arguments[1:] {
-					v := expression(b, arg.(*node.Argument).Expr)
+					v := parser.expression(b, arg.(*node.Argument).Expr)
 					if v.GetType() != typ {
 						panic(`Cannot push this type.`)
 					}
@@ -881,8 +890,8 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		}
 
 		// TODO: Remove this ugly temporary solution, translating has to be smarter.
-		n = constructName(fc.Function.(*name.Name), false)
-		lf := gc.Get(n)
+		n = parser.constructName(fc.Function.(*name.Name), false)
+		lf := parser.gc.Get(n)
 		if lf == nil {
 			panic(n + " is not defined")
 		}
@@ -890,7 +899,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 		f := &lang.FunctionCall{
 			Name:   n,
 			Args:   make([]lang.Expression, 0),
-			Return: gc.Get(n).GetType(),
+			Return: parser.gc.Get(n).GetType(),
 		}
 
 		err := checkArguments(lf.Args, al.Arguments)
@@ -902,7 +911,7 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 			// TODO: Do not ignore information in Argument,
 			// it has interesting information like if it is
 			// send by reference and others.
-			arg := expression(b, a.(*node.Argument).Expr)
+			arg := parser.expression(b, a.(*node.Argument).Expr)
 			f.AddArg(arg)
 		}
 		return f
@@ -910,8 +919,8 @@ func expression(b lang.Block, n node.Node) lang.Expression {
 	return nil
 }
 
-func binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
-	res, err := lang.NewBinaryOp(op, expression(b, left), expression(b, right))
+func (p *parser) binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
+	res, err := lang.NewBinaryOp(op, p.expression(b, left), p.expression(b, right))
 	if err != nil {
 		panic(err)
 	}
@@ -928,30 +937,30 @@ func checkArguments(vars []*lang.Variable, call []node.Node) error {
 	return nil
 }
 
-func buildAssignment(parent lang.Block, name string, right lang.Expression) *lang.Assign {
+func (parser *parser) buildAssignment(parent lang.Block, name string, right lang.Expression) *lang.Assign {
 	t := right.GetType()
 	if t == lang.Void {
 		panic("Cannot assign \"void\" " + "to \"" + name + "\".")
 	}
 
-	if useGlobalContext {
-		name = translator.Translate(name, Public)
+	if parser.useGlobalContext {
+		name = parser.translator.Translate(name, Public)
 	} else {
-		name = translator.Translate(name, Private)
+		name = parser.translator.Translate(name, Private)
 	}
 
 	v := parent.HasVariable(name)
 	fd := false
 	if v == nil {
-		v = newVariable(name, t, false)
-		if useGlobalContext {
-			gc.DefineVariable(v)
+		v = parser.newVariable(name, t, false)
+		if parser.useGlobalContext {
+			parser.gc.DefineVariable(v)
 		} else {
 			parent.DefineVariable(v)
 		}
 		fd = true
 	} else if v.CurrentType != t {
-		if useGlobalContext {
+		if parser.useGlobalContext {
 			// TODO: This is something I solve in the define variable.
 			v.Type = lang.Anything
 			v.CurrentType = t
@@ -959,7 +968,7 @@ func buildAssignment(parent lang.Block, name string, right lang.Expression) *lan
 			if v.FirstDefinition.Parent() == parent {
 				v.CurrentType = t
 			} else {
-				v = newVariable(name, t, false)
+				v = parser.newVariable(name, t, false)
 				fd = true
 			}
 		}
@@ -971,8 +980,8 @@ func buildAssignment(parent lang.Block, name string, right lang.Expression) *lan
 		panic(err)
 	}
 
-	if useGlobalContext && fd {
-		v.FirstDefinition = gc
+	if parser.useGlobalContext && fd {
+		v.FirstDefinition = parser.gc
 		fd = false
 	}
 	if fd {
@@ -985,10 +994,10 @@ func buildAssignment(parent lang.Block, name string, right lang.Expression) *lan
 	return as
 }
 
-func newVariable(name, typ string, isConst bool) *lang.Variable {
+func (p *parser) newVariable(name, typ string, isConst bool) *lang.Variable {
 	// TODO: This fixed "Public" does not look right.
 	// It should probably require already unique name.
-	name = translator.Translate(name, Public)
+	name = p.translator.Translate(name, Public)
 	return &lang.Variable{
 		Name:  name,
 		Type:  typ,
@@ -1003,14 +1012,14 @@ func newVariable(name, typ string, isConst bool) *lang.Variable {
  * identifier name to be just simple right now
  * defined string, no variable etc.
  */
-func identifierName(v *expr.Variable) string {
+func (p *parser) identifierName(v *expr.Variable) string {
 	switch v.VarName.(type) {
 	case *node.Identifier:
 		n := v.VarName.(*node.Identifier).Value
-		if useGlobalContext {
-			return translator.Translate(n, Public)
+		if p.useGlobalContext {
+			return p.translator.Translate(n, Public)
 		} else {
-			return translator.Translate(n, Private)
+			return p.translator.Translate(n, Private)
 		}
 
 	default:
@@ -1018,7 +1027,7 @@ func identifierName(v *expr.Variable) string {
 	}
 }
 
-func constructName(nm *name.Name, translate bool) string {
+func (p *parser) constructName(nm *name.Name, translate bool) string {
 	s := ""
 	for _, n := range nm.Parts {
 		s += n.(*name.NamePart).Value
@@ -1026,8 +1035,8 @@ func constructName(nm *name.Name, translate bool) string {
 	if !translate {
 		return s
 	}
-	if useGlobalContext {
-		return functionTranslator.Translate(s, Public)
+	if p.useGlobalContext {
+		return p.functionTranslator.Translate(s, Public)
 	}
-	return functionTranslator.Translate(s, Private)
+	return p.functionTranslator.Translate(s, Private)
 }

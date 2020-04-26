@@ -39,8 +39,8 @@ func TestResult(t *testing.T) {
 	}
 	defer ref.Close()
 
-	res := parse([]byte(s))
-	t.Log(res)
+	p := NewParser(NewNameTranslator(), NewFunctionTranslator())
+	res := p.Run(parsePHP([]byte(s)))
 	ref.WriteString(res.String())
 
 	fileName := strings.TrimPrefix(ref.Name(), root+"/")

@@ -33,6 +33,8 @@ func main() {
 	rootNode := parser.GetRootNode()
 
 	print(rootNode)
+
+	p := p.NewParser(p.NewNameTranslator(), p.NewFunctionTranslator())
 	gc := p.Run(rootNode.(*node.Root))
 	fmt.Print(gc)
 }
