@@ -313,9 +313,8 @@ func testMain(tt *testing.T) {
 			$a = 1 + 2;
 			`),
 			expected: `func main() {
-A = 1 + 2
-}
-`,
+				A = 1 + 2
+			}`,
 		},
 		// examples/4.php
 		{
@@ -326,10 +325,9 @@ A = 1 + 2
 			echo $a * $a;
 		`),
 			expected: `func main() {
-A = 2 + 3 + 4 * 2
-fmt.Print(A * A)
-}
-`,
+				A = 2 + 3 + 4 * 2
+				fmt.Print(A * A)
+			}`,
 		},
 		// examples/5.php
 		// TODO: Get rid of these type casts, define variable only on the lowest level,
@@ -348,16 +346,15 @@ fmt.Print(A * A)
 			}
 			`),
 			expected: `func main() {
-{
-{
-A = "0"
-fmt.Print(A.(string))
-}
-A = 1
-fmt.Print(A.(int))
-}
-}
-`,
+				{
+					{
+						A = "0"
+						fmt.Print(A.(string))
+					}
+					A = 1
+					fmt.Print(A.(int))
+				}
+			}`,
 		},
 		// examples/7.php
 		{
@@ -372,16 +369,15 @@ fmt.Print(A.(int))
 			echo $a;
 			`),
 			expected: `func main() {
-A = 0
-{
-A = "1"
-fmt.Print(A.(string))
-}
-fmt.Print(A.(string))
-A = 2
-fmt.Print(A.(int))
-}
-`,
+				A = 0
+				{
+					A = "1"
+					fmt.Print(A.(string))
+				}
+				fmt.Print(A.(string))
+				A = 2
+				fmt.Print(A.(int))
+			}`,
 		},
 	}
 
@@ -394,9 +390,7 @@ fmt.Print(A.(int))
 
 		out := parser.Run(parsePHP(t.source))
 		main := out.Funcs["main"].String()
-		if (strings.Compare(main, t.expected)) != 0 {
-			tt.Errorf("Expected:\n%s\n Found:\n%s\n", t.expected, main)
-		}
+		compare(tt, t.expected, main)
 	}
 }
 
@@ -404,4 +398,48 @@ func parsePHP(source []byte) *node.Root {
 	parser := php7.NewParser(source, "")
 	parser.Parse()
 	return parser.GetRootNode().(*node.Root)
+}
+
+func compare(t *testing.T, ref, out string) {
+	r := strings.Split(ref, "\n")
+	o := strings.Split(out, "\n")
+	i, j := 0, 0
+	for i < len(r) && j < len(o) {
+		c := true
+		s1 := strings.TrimLeft(r[i], "\t")
+		if s1 == "" {
+			i++
+			c = false
+		}
+		s2 := strings.TrimLeft(o[j], "\t")
+		if s2 == "" {
+			j++
+			c = false
+		}
+		if !c {
+			continue
+		}
+		if s1 != s2 {
+			t.Errorf("Line %d:\nExpected:\n%s\nFound:\n%s\n", i, s1, s2)
+		}
+		i++
+		j++
+	}
+
+	for i < len(r) {
+		s := strings.TrimLeft(r[i], "\t")
+		if s != "" {
+			t.Errorf("Whole string was not parsed")
+			return
+		}
+		i++
+	}
+	for j < len(o) {
+		s := strings.TrimLeft(o[j], "\t")
+		if s != "" {
+			t.Errorf("Whole string was not parsed")
+			return
+		}
+		j++
+	}
 }
