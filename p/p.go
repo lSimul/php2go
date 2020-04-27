@@ -344,7 +344,15 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			b.AddStatement(c)
 
 		default:
-			panic(`Unexpected statement.`)
+			// parser.statemtn contains also "my" statements
+			// like {inc,dec}rements, so the structure is not
+			// 1:1 with the stuff which come from the parser.
+			n := parser.statement(b, s)
+			if n == nil {
+				panic(`Unexpected statement`)
+			}
+			n.SetParent(b)
+			b.AddStatement(n)
 		}
 	}
 }
@@ -366,6 +374,9 @@ func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
 	expr := p.expression(nif, i.Cond)
+	if expr == nil {
+		panic(`constructIf: missing expression`)
+	}
 	if expr.GetType() != lang.Bool {
 		expr = &lang.FunctionCall{
 			Name:   "std.Truthy",
@@ -583,6 +594,40 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 }
 
 func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
+	// Inpisration from parser.expression, *expr.ArrayDimFetch.
+	switch n.(type) {
+	case *stmt.Unset:
+		first := true
+		var ret lang.Node
+		unsets := n.(*stmt.Unset)
+		for _, v := range unsets.Vars {
+			adf, ok := v.(*expr.ArrayDimFetch)
+			if !ok {
+				panic(`Only arrays are accepted for unset.`)
+			}
+			vn := parser.identifierName(adf.Variable.(*expr.Variable))
+			v := b.HasVariable(vn)
+			if v == nil || v.GetType() == lang.Void {
+				panic(vn + " is not defined.")
+			}
+			scalar := &lang.FunctionCall{
+				Name:   "array.NewScalar",
+				Args:   []lang.Expression{parser.expression(b, adf.Dim)},
+				Return: lang.String,
+			}
+			fc := &lang.FunctionCall{
+				Name: fmt.Sprintf("%s.Unset", v),
+				Args: []lang.Expression{scalar},
+			}
+			if first {
+				ret = fc
+			} else {
+				b.AddStatement(fc)
+			}
+		}
+		return ret
+	}
+
 	var v *lang.VarRef
 	var ok bool
 
@@ -686,7 +731,6 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					Args:   []lang.Expression{scalar},
 					Return: ArrayItem(v.GetType()),
 				}
-				fmt.Println(fc.Return)
 				scalar.SetParent(fc)
 				fc.SetParent(b)
 
@@ -708,6 +752,33 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		f.Args[0] = s
 		f.SetParent(b)
 		return f
+
+	case *expr.Isset:
+		issets := n.(*expr.Isset)
+		if len(issets.Variables) != 1 {
+			panic(`Isset can have only one argument, for now.`)
+		}
+		adf, ok := issets.Variables[0].(*expr.ArrayDimFetch)
+		if !ok {
+			panic(`Only arrays are accepted for isset.`)
+		}
+		vn := parser.identifierName(adf.Variable.(*expr.Variable))
+		v := b.HasVariable(vn)
+		if v == nil || v.GetType() == lang.Void {
+			panic(vn + " is not defined.")
+		}
+		scalar := &lang.FunctionCall{
+			Name:   "array.NewScalar",
+			Args:   []lang.Expression{parser.expression(b, adf.Dim)},
+			Return: lang.String,
+		}
+		fc := &lang.FunctionCall{
+			Name: fmt.Sprintf("%s.Isset", v),
+			Args: []lang.Expression{scalar},
+		}
+
+		fc.SetParent(b)
+		return fc
 
 	case *expr.UnaryPlus:
 		e := parser.expression(b, n.(*expr.UnaryPlus).Expr)
