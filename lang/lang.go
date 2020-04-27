@@ -31,11 +31,11 @@ type Block interface {
 type Expression interface {
 	Node
 
-	GetType() string
+	Type() string
 }
 
 type Variable struct {
-	Type  string
+	typ   string
 	Name  string
 	Const bool
 
@@ -48,6 +48,16 @@ func (v Variable) String() string {
 	return v.Name
 }
 
-func (v Variable) GetType() string {
+func (v Variable) Type() string {
 	return v.CurrentType
+}
+
+func NewVariable(name, typ string, isConst bool) *Variable {
+	return &Variable{
+		Name:  name,
+		typ:   typ,
+		Const: isConst,
+
+		CurrentType: typ,
+	}
 }

@@ -29,7 +29,7 @@ func (gc GlobalContext) AddStatement(n Node) { panic(`not implemented`) }
 func (gc *GlobalContext) DefineVariable(v *Variable) {
 	for _, vr := range gc.vars {
 		if vr.Name == v.Name {
-			vr.Type = Anything
+			vr.typ = Anything
 			return
 		}
 	}
@@ -66,7 +66,7 @@ func (gc GlobalContext) String() string {
 	s.WriteString("import _ \"php2go/std/array\"\n\n")
 
 	for _, v := range gc.vars {
-		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type))
+		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type()))
 	}
 
 	for _, f := range gc.Funcs {
@@ -170,10 +170,10 @@ func (c *Code) DefineVariable(v *Variable) {
 		if vr != v {
 			continue
 		}
-		if vr.Type == Anything {
+		if vr.typ == Anything {
 			return
 		}
-		vr.Type = Anything
+		vr.typ = Anything
 
 		switch vr.FirstDefinition.(type) {
 		case *VarDef:
@@ -244,7 +244,7 @@ type For struct {
 }
 
 func (f *For) SetCond(e Expression) error {
-	if e.GetType() != Bool {
+	if e.Type() != Bool {
 		return errors.New(`Condition must be an expression returning bool.`)
 	}
 	f.cond = e
@@ -274,10 +274,10 @@ func (f For) HasVariable(name string) *Variable {
 
 func (f *For) DefineVariable(v *Variable) {
 	for _, vr := range f.Vars {
-		if vr.Name != v.Name || vr.Type == v.Type {
+		if vr.Name != v.Name || vr.typ == v.typ {
 			continue
 		}
-		vr.Type = Anything
+		vr.typ = Anything
 		a, ok := vr.FirstDefinition.(*Assign)
 		if !ok {
 			panic(`For cycle cannot move to VarDef.`)
@@ -497,10 +497,10 @@ func (c *Case) DefineVariable(v *Variable) {
 		if vr != v {
 			continue
 		}
-		if vr.Type == Anything {
+		if vr.Type() == Anything {
 			return
 		}
-		vr.Type = Anything
+		vr.typ = Anything
 
 		switch vr.FirstDefinition.(type) {
 		case *VarDef:
@@ -579,10 +579,10 @@ func (d *Default) DefineVariable(v *Variable) {
 		if vr != v {
 			continue
 		}
-		if vr.Type == Anything {
+		if vr.Type() == Anything {
 			return
 		}
-		vr.Type = Anything
+		vr.typ = Anything
 
 		switch vr.FirstDefinition.(type) {
 		case *VarDef:
@@ -623,7 +623,7 @@ type If struct {
 }
 
 func (i *If) SetCond(e Expression) error {
-	if e.GetType() != Bool {
+	if e.Type() != Bool {
 		return errors.New(`Condition must be an expression returning bool.`)
 	}
 	i.cond = e
@@ -653,10 +653,10 @@ func (i If) HasVariable(name string) *Variable {
 
 func (i *If) DefineVariable(v *Variable) {
 	for _, vr := range i.Vars {
-		if vr.Name != v.Name || vr.Type == v.Type {
+		if vr.Name != v.Name || vr.Type() == v.typ {
 			continue
 		}
-		vr.Type = Anything
+		vr.typ = Anything
 		a, ok := vr.FirstDefinition.(*Assign)
 		if !ok {
 			panic(`For cycle cannot move to VarDef.`)
@@ -713,7 +713,7 @@ func (i *Inc) SetParent(n Node) {
 
 func (i Inc) String() string {
 	s := strings.Builder{}
-	if i.v.V.Type == Anything {
+	if i.v.V.Type() == Anything {
 		if i.v.typ == String {
 			panic(`Unable to use Inc with 'string'.`)
 		}
@@ -754,7 +754,7 @@ func (d *Dec) SetParent(n Node) {
 
 func (i Dec) String() string {
 	s := strings.Builder{}
-	if i.v.V.Type == Anything {
+	if i.v.V.Type() == Anything {
 		if i.v.typ == String {
 			panic(`Unable to use Dec with 'string'.`)
 		}

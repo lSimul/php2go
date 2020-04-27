@@ -170,8 +170,8 @@ func testBinaryOp(t *testing.T) {
 		if op.Operation != c.op {
 			t.Errorf("'%s' expected, '%s' found.", c.op, op.Operation)
 		}
-		if op.GetType() != c.ret {
-			t.Errorf("'%s' expected, '%s' found.", c.ret, op.GetType())
+		if op.Type() != c.ret {
+			t.Errorf("'%s' expected, '%s' found.", c.ret, op.Type())
 		}
 	}
 }
@@ -193,7 +193,7 @@ func unaryOp(t *testing.T) {
 		if _, ok := e.(*lang.Str); !ok {
 			t.Error("lang.Str expected.")
 		}
-		if typ := e.GetType(); typ != lang.String {
+		if typ := e.Type(); typ != lang.String {
 			t.Errorf("'string' expected, '%s' found.", typ)
 		}
 	}
@@ -209,7 +209,7 @@ func unaryOp(t *testing.T) {
 		if _, ok := e.(*lang.Number); !ok {
 			t.Error("lang.Number expected.")
 		}
-		if typ := e.GetType(); typ != lang.Int {
+		if typ := e.Type(); typ != lang.Int {
 			t.Errorf("'int' expected, '%s' found.", typ)
 		}
 	}
@@ -225,7 +225,7 @@ func unaryOp(t *testing.T) {
 		if _, ok := e.(*lang.Float); !ok {
 			t.Error("lang.Float expected.")
 		}
-		if typ := e.GetType(); typ != lang.Float64 {
+		if typ := e.Type(); typ != lang.Float64 {
 			t.Errorf("'float' expected, '%s' found.", typ)
 		}
 	}
@@ -252,7 +252,7 @@ func unaryOp(t *testing.T) {
 		if u.Expr.Parent() != u {
 			t.Error("Parent not set.")
 		}
-		if typ := u.GetType(); typ != c.t {
+		if typ := u.Type(); typ != c.t {
 			t.Errorf("'%s' expected, '%s' found.", c.t, typ)
 		}
 	}
@@ -295,8 +295,8 @@ func testStatements(t *testing.T) {
 	if a.Value != "`<html></html>`" {
 		t.Errorf("'`<html></html>`' expected, '%s' found", a.Value)
 	}
-	if a.GetType() != lang.String {
-		t.Errorf("'string' expected, '%s' found.", a.GetType())
+	if a.Type() != lang.String {
+		t.Errorf("'string' expected, '%s' found.", a.Type())
 	}
 }
 
