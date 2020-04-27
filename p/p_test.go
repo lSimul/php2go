@@ -300,8 +300,6 @@ func testStatements(t *testing.T) {
 	}
 }
 
-// TODO: Improve life cycle of the p.Run, it cannot
-// be started again, issue with undefined variables.
 func testMain(tt *testing.T) {
 	tt.Helper()
 
@@ -323,13 +321,13 @@ A = 1 + 2
 		{
 			source: []byte(`<?php
 
-			$b = 2 + 3 + 4 * 2;
+			$a = 2 + 3 + 4 * 2;
 
-			echo $b * $b;
+			echo $a * $a;
 		`),
 			expected: `func main() {
-B = 2 + 3 + 4 * 2
-fmt.Print(B * B)
+A = 2 + 3 + 4 * 2
+fmt.Print(A * A)
 }
 `,
 		},
@@ -340,23 +338,23 @@ fmt.Print(B * B)
 			source: []byte(`<?php
 			{
 				{
-					$c = "0";
+					$a = "0";
 					// Added to compile it in Go. This var is not used.
-					echo $c;
+					echo $a;
 				}
-				$c = 1;
+				$a = 1;
 
-				echo $c;
+				echo $a;
 			}
 			`),
 			expected: `func main() {
 {
 {
-C = "0"
-fmt.Print(C.(string))
+A = "0"
+fmt.Print(A.(string))
 }
-C = 1
-fmt.Print(C.(int))
+A = 1
+fmt.Print(A.(int))
 }
 }
 `,
@@ -364,35 +362,36 @@ fmt.Print(C.(int))
 		// examples/7.php
 		{
 			source: []byte(`<?php
-			$d = 0;
+			$a = 0;
 			{
-				$d = "1";
-				echo $d;
+				$a = "1";
+				echo $a;
 			}
-			echo $d;
-			$d = 2;
-			echo $d;
+			echo $a;
+			$a = 2;
+			echo $a;
 			`),
 			expected: `func main() {
-D = 0
+A = 0
 {
-D = "1"
-fmt.Print(D.(string))
+A = "1"
+fmt.Print(A.(string))
 }
-fmt.Print(D.(string))
-D = 2
-fmt.Print(D.(int))
+fmt.Print(A.(string))
+A = 2
+fmt.Print(A.(int))
 }
 `,
 		},
 	}
 
-	parser := parser{
-		translator:         NewNameTranslator(),
-		functionTranslator: NewFunctionTranslator(),
-		useGlobalContext:   false,
-	}
 	for _, t := range tests {
+		parser := parser{
+			translator:         NewNameTranslator(),
+			functionTranslator: NewFunctionTranslator(),
+			useGlobalContext:   false,
+		}
+
 		out := parser.Run(parsePHP(t.source))
 		main := out.Funcs["main"].String()
 		if (strings.Compare(main, t.expected)) != 0 {
