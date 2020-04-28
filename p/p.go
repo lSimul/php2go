@@ -121,6 +121,9 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				Name: "fmt.Print",
 				Args: make([]lang.Expression, 0),
 			}
+
+			parser.gc.RequireNamespace("fmt")
+
 			s := &lang.Str{
 				Value: fmt.Sprintf("`%s`", s.(*stmt.InlineHtml).Value),
 			}
@@ -305,6 +308,8 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				Name: "fmt.Print",
 				Args: make([]lang.Expression, 0),
 			}
+
+			parser.gc.RequireNamespace("fmt")
 
 			ex := s.(*stmt.Echo)
 			for _, e := range ex.Exprs {
@@ -545,6 +550,9 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 					Args:   []lang.Expression{scalar, r},
 					Return: v.Type(),
 				}
+
+				parser.gc.RequireNamespace("array")
+
 				scalar.SetParent(fc)
 				fc.SetParent(b)
 			}
@@ -580,6 +588,9 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 				Args:   []lang.Expression{parser.expression(b, adf.Dim)},
 				Return: lang.String,
 			}
+
+			parser.gc.RequireNamespace("array")
+
 			fc := &lang.FunctionCall{
 				Name: fmt.Sprintf("%s.Unset", v),
 				Args: []lang.Expression{scalar},
@@ -650,6 +661,9 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			Args:   make([]lang.Expression, 1),
 			Return: lang.String,
 		}
+
+		parser.gc.RequireNamespace("fmt")
+
 		s := &lang.Str{
 			Value: "\"",
 		}
@@ -691,6 +705,9 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					Args:   []lang.Expression{parser.expression(b, adf.Dim)},
 					Return: lang.String,
 				}
+
+				parser.gc.RequireNamespace("array")
+
 				fc := &lang.FunctionCall{
 					Name:   fmt.Sprintf("%s.At", v),
 					Args:   []lang.Expression{scalar},
@@ -737,6 +754,9 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			Args:   []lang.Expression{parser.expression(b, adf.Dim)},
 			Return: lang.String,
 		}
+
+		parser.gc.RequireNamespace("array")
+
 		fc := &lang.FunctionCall{
 			Name:   fmt.Sprintf("%s.Isset", v),
 			Args:   []lang.Expression{scalar},
@@ -815,6 +835,8 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			Return: ArrayType(typ),
 		}
 
+		parser.gc.RequireNamespace("array")
+
 		fc.SetParent(b)
 		return fc
 
@@ -830,6 +852,9 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			Args:   []lang.Expression{parser.expression(b, adf.Dim)},
 			Return: lang.String,
 		}
+
+		parser.gc.RequireNamespace("array")
+
 		fc := &lang.FunctionCall{
 			Name:   fmt.Sprintf("%s.At", v),
 			Args:   []lang.Expression{scalar},
@@ -890,6 +915,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		}
 		f.AddArg(parser.expression(b, c.Left))
 		f.AddArg(parser.expression(b, c.Right))
+		parser.gc.RequireNamespace("std")
 		return f
 
 	case *expr.FunctionCall:
@@ -981,7 +1007,9 @@ func (p *parser) conditionExpr(b lang.Block, n node.Node) lang.Expression {
 			Return: lang.Bool,
 		}
 		e.SetParent(b)
+		p.gc.RequireNamespace("std")
 	}
+
 	return e
 }
 

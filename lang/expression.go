@@ -475,6 +475,8 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 	return ret, nil
 }
 
+// TODO: Do not take junk from the package "p".
+// Pulling this out will fix namespaces import.
 func convertToMatchingType(left, right Expression) {
 	lt := left.Type()
 	rt := right.Type()

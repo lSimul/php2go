@@ -261,7 +261,9 @@ func unaryOp(t *testing.T) {
 func testStatements(t *testing.T) {
 	t.Helper()
 
-	parser := parser{}
+	parser := parser{
+		gc: lang.NewGlobalContext(),
+	}
 
 	b := lang.NewCode(nil)
 	html := test.HTML("<html></html>")
