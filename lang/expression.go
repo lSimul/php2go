@@ -448,7 +448,6 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 		return nil, errors.New(`Binary op cannot be used with "void"`)
 	}
 
-	convertToMatchingType(left, right)
 	t := left.Type()
 	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" {
 		t = Bool
@@ -463,99 +462,14 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 	left.SetParent(ret)
 	right.SetParent(ret)
 
-	bp, ok := left.(*BinaryOp)
-	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+	if bp, ok := left.(*BinaryOp); ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
 		bp.inBrackets = true
 	}
-	bp, ok = right.(*BinaryOp)
-	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+	if bp, ok := right.(*BinaryOp); ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
 		bp.inBrackets = true
 	}
 
 	return ret, nil
-}
-
-// TODO: Do not take junk from the package "p".
-// Pulling this out will fix namespaces import.
-func convertToMatchingType(left, right Expression) {
-	lt := left.Type()
-	rt := right.Type()
-	if lt == rt {
-		return
-	}
-
-	// PHP tries to convert string to number,
-	// skipping for now.
-	switch lt {
-	case Bool:
-		switch rt {
-		case Int:
-			f := &FunctionCall{
-				Name:   "std.BoolToInt",
-				Args:   make([]Expression, 1),
-				Return: Int,
-			}
-			f.Args[0] = left
-			f.SetParent(left)
-			left = f
-
-		case Float64:
-			f := &FunctionCall{
-				Name:   "std.BoolToFloat64",
-				Args:   make([]Expression, 1),
-				Return: Float64,
-			}
-			f.Args[0] = left
-			f.SetParent(left)
-			left = f
-		}
-
-	case Int:
-		switch rt {
-		case Bool:
-			f := &FunctionCall{
-				Name:   "std.BoolToInt",
-				Args:   make([]Expression, 1),
-				Return: Int,
-			}
-			f.Args[0] = right
-			f.SetParent(right)
-			right = f
-
-		case Float64:
-			f := &FunctionCall{
-				Name:   "float64",
-				Args:   make([]Expression, 1),
-				Return: Float64,
-			}
-			f.Args[0] = left
-			f.SetParent(left)
-			left = f
-		}
-
-	case Float64:
-		switch rt {
-		case Bool:
-			f := &FunctionCall{
-				Name:   "std.BoolToFloat64",
-				Args:   make([]Expression, 1),
-				Return: Float64,
-			}
-			f.Args[0] = right
-			f.SetParent(right)
-			right = f
-
-		case Int:
-			f := &FunctionCall{
-				Name:   "float",
-				Args:   make([]Expression, 1),
-				Return: Float64,
-			}
-			f.Args[0] = right
-			f.SetParent(right)
-			right = f
-		}
-	}
 }
 
 type FunctionCall struct {

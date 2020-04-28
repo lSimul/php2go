@@ -985,12 +985,101 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 }
 
 func (p *parser) binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
-	res, err := lang.NewBinaryOp(op, p.expression(b, left), p.expression(b, right))
+	l := p.expression(b, left)
+	r := p.expression(b, right)
+	if convertToMatchingType(l, r) {
+		p.gc.RequireNamespace("std")
+	}
+	res, err := lang.NewBinaryOp(op, l, r)
 	if err != nil {
 		panic(err)
 	}
 	res.SetParent(b)
 	return res
+}
+
+// Returns a sign if namespace "std" has to be imported.
+func convertToMatchingType(left, right lang.Expression) bool {
+	lt := left.Type()
+	rt := right.Type()
+	if lt == rt {
+		return false
+	}
+
+	// PHP tries to convert string to number,
+	// skipping for now.
+	t := false
+	switch lt {
+	case lang.Bool:
+		switch rt {
+		case lang.Int:
+			f := &lang.FunctionCall{
+				Name:   "std.BoolToInt",
+				Args:   []lang.Expression{left},
+				Return: lang.Int,
+			}
+			f.SetParent(left)
+			left = f
+			t = true
+
+		case lang.Float64:
+			f := &lang.FunctionCall{
+				Name:   "std.BoolToFloat64",
+				Args:   []lang.Expression{left},
+				Return: lang.Float64,
+			}
+			f.SetParent(left)
+			left = f
+			t = true
+		}
+
+	case lang.Int:
+		switch rt {
+		case lang.Bool:
+			f := &lang.FunctionCall{
+				Name:   "std.BoolToInt",
+				Args:   []lang.Expression{right},
+				Return: lang.Int,
+			}
+			f.SetParent(right)
+			right = f
+			t = true
+
+		case lang.Float64:
+			f := &lang.FunctionCall{
+				Name:   "float64",
+				Args:   []lang.Expression{left},
+				Return: lang.Float64,
+			}
+			f.SetParent(left)
+			left = f
+			t = true
+		}
+
+	case lang.Float64:
+		switch rt {
+		case lang.Bool:
+			f := &lang.FunctionCall{
+				Name:   "std.BoolToFloat64",
+				Args:   []lang.Expression{right},
+				Return: lang.Float64,
+			}
+			f.SetParent(right)
+			right = f
+			t = true
+
+		case lang.Int:
+			f := &lang.FunctionCall{
+				Name:   "float",
+				Args:   []lang.Expression{right},
+				Return: lang.Float64,
+			}
+			f.SetParent(right)
+			right = f
+			t = true
+		}
+	}
+	return t
 }
 
 // conditionExpr lf, f.Cond[0parses next expression and if it does not
