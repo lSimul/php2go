@@ -929,8 +929,8 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					panic(`array_push requires atlast two arguments`)
 				}
 				v, ok := parser.expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.VarRef)
-				if !ok {
-					panic(`First argument has to be a variable.`)
+				if !ok || !IsArray(v.Type()) {
+					panic(`First argument has to be a variable, an array.`)
 				}
 				typ := ArrayItem(v.Type())
 
