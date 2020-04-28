@@ -773,8 +773,9 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			Return: lang.String,
 		}
 		fc := &lang.FunctionCall{
-			Name: fmt.Sprintf("%s.Isset", v),
-			Args: []lang.Expression{scalar},
+			Name:   fmt.Sprintf("%s.Isset", v),
+			Args:   []lang.Expression{scalar},
+			Return: lang.Bool,
 		}
 
 		fc.SetParent(b)
