@@ -149,17 +149,8 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			}
 
 			if f.Cond != nil {
-				n := f.Cond[0]
-				e := parser.expression(lf, n)
-				if e.Type() != lang.Bool {
-					e = &lang.FunctionCall{
-						Name:   "std.Truthy",
-						Args:   []lang.Expression{e},
-						Return: lang.Bool,
-					}
-					e.SetParent(lf)
-				}
-				err := lf.SetCond(e)
+				c := parser.conditionExpr(lf, f.Cond[0])
+				err := lf.SetCond(c)
 				if err != nil {
 					panic(err)
 				}
@@ -177,18 +168,9 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 		case *stmt.While:
 			w := s.(*stmt.While)
 			lf := lang.ConstructFor(b)
+			c := parser.conditionExpr(lf, w.Cond)
 
-			e := parser.expression(lf, w.Cond)
-			if e.Type() != lang.Bool {
-				e = &lang.FunctionCall{
-					Name:   "std.Truthy",
-					Args:   []lang.Expression{e},
-					Return: lang.Bool,
-				}
-				e.SetParent(lf)
-			}
-
-			err := lf.SetCond(e)
+			err := lf.SetCond(c)
 			if err != nil {
 				panic(err)
 			}
@@ -373,19 +355,9 @@ func nodeList(n node.Node) []node.Node {
 func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	expr := p.expression(nif, i.Cond)
-	if expr == nil {
-		panic(`constructIf: missing expression`)
-	}
-	if expr.Type() != lang.Bool {
-		expr = &lang.FunctionCall{
-			Name:   "std.Truthy",
-			Args:   []lang.Expression{expr},
-			Return: lang.Bool,
-		}
-		expr.SetParent(nif)
-	}
-	err := nif.SetCond(expr)
+	c := p.conditionExpr(nif, i.Cond)
+
+	err := nif.SetCond(c)
 	if err != nil {
 		panic(err)
 	}
@@ -419,16 +391,9 @@ func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 func (p *parser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	nif := &lang.If{}
 	nif.SetParent(b)
-	e := p.expression(nif, i.Cond)
-	if e.Type() != lang.Bool {
-		e = &lang.FunctionCall{
-			Name:   "std.Truthy",
-			Args:   []lang.Expression{e},
-			Return: lang.Bool,
-		}
-		e.SetParent(nif)
-	}
-	err := nif.SetCond(e)
+	c := p.conditionExpr(nif, i.Cond)
+
+	err := nif.SetCond(c)
 	if err != nil {
 		panic(err)
 	}
@@ -1000,6 +965,24 @@ func (p *parser) binaryOp(b lang.Block, op string, left, right node.Node) lang.E
 	}
 	res.SetParent(b)
 	return res
+}
+
+// conditionExpr lf, f.Cond[0parses next expression and if it does not
+// return bool, adds function std.Truthy(interface{})
+func (p *parser) conditionExpr(b lang.Block, n node.Node) lang.Expression {
+	e := p.expression(b, n)
+	if e == nil {
+		panic(`conditionExpr: missing expression`)
+	}
+	if e.Type() != lang.Bool {
+		e = &lang.FunctionCall{
+			Name:   "std.Truthy",
+			Args:   []lang.Expression{e},
+			Return: lang.Bool,
+		}
+		e.SetParent(b)
+	}
+	return e
 }
 
 func checkArguments(vars []*lang.Variable, call []node.Node) error {
