@@ -33,22 +33,22 @@ func (s Scalar) IntValue() (int, bool) {
 // a PHP array.
 func NewScalar(val interface{}) Scalar {
 	// TODO: Pointers can appear here.
-	switch val.(type) {
+	switch t := val.(type) {
 	case bool:
-		if val.(bool) {
+		if t {
 			return Scalar("1")
 		}
 		return Scalar("0")
 
 	case int:
-		return Scalar(strconv.Itoa(val.(int)))
+		return Scalar(strconv.Itoa(t))
 
 	case float64:
-		i := int(math.Floor(val.(float64)))
+		i := int(math.Floor(t))
 		return Scalar(strconv.Itoa(i))
 
 	case string:
-		return Scalar(val.(string))
+		return Scalar(t)
 	}
 	if val != nil {
 		panic(`Only NULL and primitive types can be an array key.`)

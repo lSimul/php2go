@@ -3,19 +3,19 @@ package std
 // TODO: Add arrays and something like
 // comparable interface.
 func Truthy(i interface{}) bool {
-	switch i.(type) {
+	switch v := i.(type) {
 	case int:
-		return i.(int) != 0
+		return v != 0
 
 	case float64:
-		return i.(float64) != 0
+		return v != 0
 
 	case string:
-		return i.(string) != ""
+		return v != ""
 
 	case bool:
 		// Is this even needed?
-		return i.(bool)
+		return v
 	}
 
 	return i != nil

@@ -208,11 +208,11 @@ func (c *Code) DefineVariable(v *Variable) {
 		}
 		vr.typ = Anything
 
-		switch vr.FirstDefinition.(type) {
+		switch fd := vr.FirstDefinition.(type) {
 		case *VarDef:
 
 		case *Assign:
-			vr.FirstDefinition.(*Assign).FirstDefinition = false
+			fd.FirstDefinition = false
 			vd := newVarDef(c, vr)
 			vr.FirstDefinition = vd
 			c.Statements = append([]Node{vd}, c.Statements...)
