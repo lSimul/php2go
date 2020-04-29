@@ -34,6 +34,7 @@ func NewParser(v, f NameTranslation) *parser {
 func (p *parser) Run(r *node.Root) *lang.GlobalContext {
 	p.gc = lang.NewGlobalContext()
 	ms, fs := sanitizeRootStmts(r)
+	p.useGlobalContext = false
 
 	for _, s := range fs {
 		f := p.funcDef(&s)
@@ -293,8 +294,9 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			b.AddStatement(sw)
 
 		case *stmt.Return:
-			r := &lang.Return{
-				Expression: parser.expression(b, s.Expr),
+			r := &lang.Return{}
+			if s.Expr != nil {
+				r.Expression = parser.expression(b, s.Expr)
 			}
 			b.AddStatement(r)
 
@@ -1137,7 +1139,12 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 func (p *parser) newVariable(name, typ string, isConst bool) *lang.Variable {
 	// TODO: This fixed "Public" does not look right.
 	// It should probably require already unique name.
-	name = p.translator.Translate(name, Public)
+	if p.useGlobalContext {
+		name = p.translator.Translate(name, Public)
+	} else {
+		name = p.translator.Translate(name, Private)
+	}
+
 	return lang.NewVariable(name, typ, isConst)
 }
 

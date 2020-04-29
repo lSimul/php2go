@@ -189,8 +189,10 @@ func (r Return) Type() string {
 
 func (r Return) String() string {
 	s := strings.Builder{}
-	s.WriteString("return ")
-	s.WriteString(r.Expression.String())
+	s.WriteString("return")
+	if r.Expression != nil {
+		s.WriteString(" " + r.Expression.String())
+	}
 	return s.String()
 }
 
