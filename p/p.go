@@ -152,8 +152,12 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			}
 
 			if s.Cond != nil {
-				c := parser.conditionExpr(lf, s.Cond[0])
-				err := lf.SetCond(c)
+				loop, cond := parser.flowControlExpr(lf, s.Cond[0])
+
+				if loop != nil {
+					lf.Block.AddStatement(loop)
+				}
+				err := lf.SetCond(cond)
 				if err != nil {
 					panic(err)
 				}
@@ -170,9 +174,12 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 
 		case *stmt.While:
 			lf := lang.NewFor(b)
-			c := parser.conditionExpr(lf, s.Cond)
+			loop, cond := parser.flowControlExpr(lf, s.Cond)
 
-			err := lf.SetCond(c)
+			if loop != nil {
+				lf.Block.AddStatement(loop)
+			}
+			err := lf.SetCond(cond)
 			if err != nil {
 				panic(err)
 			}
@@ -352,9 +359,10 @@ func nodeList(n node.Node) []node.Node {
 
 func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 	nif := lang.NewIf(b)
-	c := p.conditionExpr(nif, i.Cond)
+	init, cond := p.flowControlExpr(nif, i.Cond)
 
-	err := nif.SetCond(c)
+	nif.Init = init
+	err := nif.SetCond(cond)
 	if err != nil {
 		panic(err)
 	}
@@ -387,9 +395,10 @@ func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 
 func (p *parser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	nif := lang.NewIf(b)
-	c := p.conditionExpr(nif, i.Cond)
+	init, cond := p.flowControlExpr(nif, i.Cond)
 
-	err := nif.SetCond(c)
+	nif.Init = init
+	err := nif.SetCond(cond)
 	if err != nil {
 		panic(err)
 	}
@@ -1030,24 +1039,41 @@ func convertToMatchingType(left, right lang.Expression) bool {
 	return t
 }
 
-// conditionExpr lf, f.Cond[0parses next expression and if it does not
-// return bool, adds function std.Truthy(interface{})
-func (p *parser) conditionExpr(b lang.Block, n node.Node) lang.Expression {
-	e := p.expression(b, n)
-	if e == nil {
-		panic(`conditionExpr: missing expression`)
+// flowControlExpr parses next statement and tries
+// to convert it into expression which can be used
+// in the for, do, if. If it is expression as it should
+// be, nothing happens, expression is returned.
+// Extra work will be done with an assign; assign will be
+// moved to the "Init" section, condition will be replaced
+// by a variable + possible convertion using std.Truthy.
+// This is the first move from many, I want to resolve
+// everything in the examples/33.php, but code is not ready
+// for this yet.
+func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, expr lang.Expression) {
+	s := p.simpleExpression(b, n)
+	switch s.(type) {
+	case *lang.Assign:
+		a := s.(*lang.Assign)
+		init = a
+		expr = lang.NewVarRef(a.Left(), a.Left().CurrentType)
+
+	case lang.Expression:
+		expr = s.(lang.Expression)
+
+	default:
+		panic(`flowControlExpr: missing expression`)
 	}
-	if e.Type() != lang.Bool {
-		e = &lang.FunctionCall{
+	if expr.Type() != lang.Bool {
+		expr = &lang.FunctionCall{
 			Name:   "std.Truthy",
-			Args:   []lang.Expression{e},
+			Args:   []lang.Expression{expr},
 			Return: lang.Bool,
 		}
-		e.SetParent(b)
+		expr.SetParent(b)
 		p.gc.RequireNamespace("std")
 	}
 
-	return e
+	return
 }
 
 func checkArguments(vars []*lang.Variable, call []node.Node) error {
