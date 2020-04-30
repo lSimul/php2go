@@ -665,17 +665,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 				if v == nil || v.Type() == lang.Void {
 					panic(vn + " is not defined.")
 				}
-				// TODO: Type could know this.
-				switch v.Type() {
-				case lang.Int:
-					s.Value += "%d"
-
-				case lang.Float64:
-					s.Value += "%g"
-
-				case lang.String:
-					s.Value += "%s"
-				}
+				s.Value += varFormat(v.Type())
 				f.AddArg(lang.NewVarRef(v, v.Type()))
 
 			case *expr.ArrayDimFetch:
@@ -701,17 +691,8 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 				scalar.SetParent(fc)
 				fc.SetParent(b)
 
-				// TODO: Type could know this.
-				switch fc.Type() {
-				case lang.Int:
-					s.Value += "%d"
+				s.Value += varFormat(fc.Type())
 
-				case lang.Float64:
-					s.Value += "%g"
-
-				case lang.String:
-					s.Value += "%s"
-				}
 				f.AddArg(fc)
 			}
 		}
@@ -1087,12 +1068,6 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 		panic("Cannot assign \"void\" " + "to \"" + name + "\".")
 	}
 
-	if parser.useGlobalContext {
-		name = parser.translator.Translate(name, Public)
-	} else {
-		name = parser.translator.Translate(name, Private)
-	}
-
 	v := parent.HasVariable(name)
 	fd := false
 	if v == nil {
@@ -1167,4 +1142,21 @@ func (p *parser) constructName(nm *name.Name, translate bool) string {
 		return p.functionTranslator.Translate(s, Public)
 	}
 	return p.functionTranslator.Translate(s, Private)
+}
+
+// TODO: Type could know this.
+func varFormat(t string) string {
+	switch t {
+	case lang.Int:
+		return "%d"
+
+	case lang.Float64:
+		return "%g"
+
+	case lang.String:
+		return "%s"
+
+	default:
+		return "%v"
+	}
 }
