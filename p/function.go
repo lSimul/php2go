@@ -29,13 +29,32 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 		fn:        &fmt,
 		used:      false,
 	}
-	std := make(map[string]*lang.Function)
+
+	std := map[string]*lang.Function{
+		"Concat": {
+			Name: "Concat",
+			Args: []*lang.Variable{
+				lang.NewVariable("left", lang.Anything, false),
+				lang.NewVariable("right", lang.Anything, false),
+			},
+			Return: lang.String,
+		},
+	}
 	fn.funcs["std"] = &funcs{
 		namespace: "php2go/std",
 		fn:        &std,
 		used:      false,
 	}
-	arr := make(map[string]*lang.Function)
+
+	arr := map[string]*lang.Function{
+		"NewScalar": {
+			Name: "NewScalar",
+			Args: []*lang.Variable{
+				lang.NewVariable("s", lang.Anything, false),
+			},
+			Return: "array.Scalar",
+		},
+	}
 	fn.funcs["array"] = &funcs{
 		namespace: "php2go/std/array",
 		fn:        &arr,
@@ -66,11 +85,13 @@ func (f *Func) Namespace(n string) *FunctionCaller {
 	}
 
 	return &FunctionCaller{
+		namespace: n,
 		functions: fn.fn,
 	}
 }
 
 type FunctionCaller struct {
+	namespace string
 	functions *map[string]*lang.Function
 }
 
@@ -86,13 +107,24 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 
 	// TODO: Check for passing by reference.
 	for i := 0; i < len(args); i++ {
+		// TODO: Implement better management of the types;
+		// one if statement is not going to do it.
+		if f.Args[i].Type() == lang.Anything {
+			continue
+		}
 		if args[i].Type() != f.Args[i].Type() {
 			return nil, errors.New("Wrong argument type.")
 		}
 	}
 
+	n := ""
+	if fc.namespace != "" {
+		n = fc.namespace + "."
+	}
+	n += f.Name
+
 	c := &lang.FunctionCall{
-		Name:   f.Name,
+		Name:   n,
 		Args:   args,
 		Return: f.Return,
 	}

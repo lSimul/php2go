@@ -538,18 +538,16 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 			}
 			fc.SetParent(b)
 		} else {
-			scalar := &lang.FunctionCall{
-				Name:   "array.NewScalar",
-				Args:   []lang.Expression{parser.expression(b, v.Dim)},
-				Return: lang.String,
+			args := []lang.Expression{parser.expression(b, v.Dim)}
+			scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+			if err != nil {
+				panic(err)
 			}
 			fc = &lang.FunctionCall{
 				Name:   fmt.Sprintf("%s.Edit", vr),
 				Args:   []lang.Expression{scalar, r},
 				Return: vr.Type(),
 			}
-
-			parser.funcs.Namespace("array")
 
 			scalar.SetParent(fc)
 			fc.SetParent(b)
@@ -577,13 +575,11 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 			if v == nil || v.Type() == lang.Void {
 				panic(vn + " is not defined.")
 			}
-			scalar := &lang.FunctionCall{
-				Name:   "array.NewScalar",
-				Args:   []lang.Expression{parser.expression(b, adf.Dim)},
-				Return: lang.String,
+			args := []lang.Expression{parser.expression(b, adf.Dim)}
+			scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+			if err != nil {
+				panic(err)
 			}
-
-			parser.funcs.Namespace("array")
 
 			fc := &lang.FunctionCall{
 				Name: fmt.Sprintf("%s.Unset", v),
@@ -682,13 +678,11 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					panic(vn + " is not defined.")
 				}
 
-				scalar := &lang.FunctionCall{
-					Name:   "array.NewScalar",
-					Args:   []lang.Expression{parser.expression(b, p.Dim)},
-					Return: lang.String,
+				args := []lang.Expression{parser.expression(b, p.Dim)}
+				scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+				if err != nil {
+					panic(err)
 				}
-
-				parser.funcs.Namespace("array")
 
 				fc := &lang.FunctionCall{
 					Name:   fmt.Sprintf("%s.At", v),
@@ -721,13 +715,12 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		if v == nil || v.Type() == lang.Void {
 			panic(vn + " is not defined.")
 		}
-		scalar := &lang.FunctionCall{
-			Name:   "array.NewScalar",
-			Args:   []lang.Expression{parser.expression(b, adf.Dim)},
-			Return: lang.String,
-		}
 
-		parser.funcs.Namespace("array")
+		args := []lang.Expression{parser.expression(b, adf.Dim)}
+		scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+		if err != nil {
+			panic(err)
+		}
 
 		fc := &lang.FunctionCall{
 			Name:   fmt.Sprintf("%s.Isset", v),
@@ -817,13 +810,11 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			panic(`Expected variable to be indexed.`)
 		}
 
-		scalar := &lang.FunctionCall{
-			Name:   "array.NewScalar",
-			Args:   []lang.Expression{parser.expression(b, e.Dim)},
-			Return: lang.String,
+		args := []lang.Expression{parser.expression(b, e.Dim)}
+		scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+		if err != nil {
+			panic(err)
 		}
-
-		parser.funcs.Namespace("array")
 
 		fc := &lang.FunctionCall{
 			Name:   fmt.Sprintf("%s.At", v),
@@ -868,14 +859,14 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 	// TODO: Add std functions to this parser, so it does not have to be
 	// hacked like this.
 	case *binary.Concat:
-		f := &lang.FunctionCall{
-			Name:   "std.Concat",
-			Args:   make([]lang.Expression, 0),
-			Return: lang.String,
+		args := []lang.Expression{
+			parser.expression(b, e.Left),
+			parser.expression(b, e.Right),
 		}
-		f.AddArg(parser.expression(b, e.Left))
-		f.AddArg(parser.expression(b, e.Right))
-		parser.funcs.Namespace("std")
+		f, err := parser.funcs.Namespace("std").Call("Concat", args)
+		if err != nil {
+			panic(err)
+		}
 		return f
 
 	case *expr.FunctionCall:
