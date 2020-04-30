@@ -96,7 +96,8 @@ func (gc GlobalContext) String() string {
 
 func NewFunc(name string) *Function {
 	f := &Function{
-		Name: name,
+		Name:          name,
+		VariadicCount: false,
 		Body: Code{
 			Vars:       make([]*Variable, 0),
 			Statements: make([]Node, 0),

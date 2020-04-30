@@ -37,6 +37,8 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 				lang.NewVariable("left", lang.Anything, false),
 				lang.NewVariable("right", lang.Anything, false),
 			},
+			VariadicCount: false,
+
 			Return: lang.String,
 		},
 	}
@@ -52,6 +54,8 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 			Args: []*lang.Variable{
 				lang.NewVariable("s", lang.Anything, false),
 			},
+			VariadicCount: false,
+
 			Return: "array.Scalar",
 		},
 	}
