@@ -21,6 +21,7 @@ type parser struct {
 	functionTranslator NameTranslation
 
 	gc               *lang.GlobalContext
+	funcs            *Func
 	useGlobalContext bool
 }
 
@@ -33,21 +34,22 @@ func NewParser(v, f NameTranslation) *parser {
 
 func (p *parser) Run(r *node.Root) *lang.GlobalContext {
 	p.gc = lang.NewGlobalContext()
+	p.funcs = NewFunc(p.gc)
 	ms, fs := sanitizeRootStmts(r)
 	p.useGlobalContext = false
 
 	for _, s := range fs {
 		f := p.funcDef(&s)
-		p.gc.Add(f)
+		p.funcs.Add(f)
 	}
 	for _, s := range fs {
 		f := p.funcDef(&s)
 		p.createFunction(&f.Body, s.Stmts)
-		p.gc.Add(f)
+		p.funcs.Add(f)
 	}
 
 	main := p.mainDef()
-	p.gc.Add(main)
+	p.funcs.Add(main)
 	p.useGlobalContext = true
 	p.createFunction(&main.Body, ms)
 	p.useGlobalContext = false
@@ -123,7 +125,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				Args: make([]lang.Expression, 0),
 			}
 
-			parser.gc.RequireNamespace("fmt")
+			parser.funcs.Namespace("fmt")
 
 			str := &lang.Str{
 				Value: fmt.Sprintf("`%s`", s.Value),
@@ -311,7 +313,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				Args: make([]lang.Expression, 0),
 			}
 
-			parser.gc.RequireNamespace("fmt")
+			parser.funcs.Namespace("fmt")
 
 			for _, e := range s.Exprs {
 				// TODO: Do not ignore information in Argument,
@@ -547,7 +549,7 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 				Return: vr.Type(),
 			}
 
-			parser.gc.RequireNamespace("array")
+			parser.funcs.Namespace("array")
 
 			scalar.SetParent(fc)
 			fc.SetParent(b)
@@ -581,7 +583,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 				Return: lang.String,
 			}
 
-			parser.gc.RequireNamespace("array")
+			parser.funcs.Namespace("array")
 
 			fc := &lang.FunctionCall{
 				Name: fmt.Sprintf("%s.Unset", v),
@@ -653,7 +655,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			Return: lang.String,
 		}
 
-		parser.gc.RequireNamespace("fmt")
+		parser.funcs.Namespace("fmt")
 
 		s := &lang.Str{
 			Value: "\"",
@@ -686,7 +688,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					Return: lang.String,
 				}
 
-				parser.gc.RequireNamespace("array")
+				parser.funcs.Namespace("array")
 
 				fc := &lang.FunctionCall{
 					Name:   fmt.Sprintf("%s.At", v),
@@ -725,7 +727,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			Return: lang.String,
 		}
 
-		parser.gc.RequireNamespace("array")
+		parser.funcs.Namespace("array")
 
 		fc := &lang.FunctionCall{
 			Name:   fmt.Sprintf("%s.Isset", v),
@@ -804,7 +806,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			Return: ArrayType(typ),
 		}
 
-		parser.gc.RequireNamespace("array")
+		parser.funcs.Namespace("array")
 
 		fc.SetParent(b)
 		return fc
@@ -821,7 +823,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			Return: lang.String,
 		}
 
-		parser.gc.RequireNamespace("array")
+		parser.funcs.Namespace("array")
 
 		fc := &lang.FunctionCall{
 			Name:   fmt.Sprintf("%s.At", v),
@@ -873,7 +875,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		}
 		f.AddArg(parser.expression(b, e.Left))
 		f.AddArg(parser.expression(b, e.Right))
-		parser.gc.RequireNamespace("std")
+		parser.funcs.Namespace("std")
 		return f
 
 	case *expr.FunctionCall:
@@ -913,28 +915,17 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 		// TODO: Remove this ugly temporary solution, translating has to be smarter.
 		n = parser.constructName(e.Function.(*name.Name), false)
-		lf := parser.gc.Get(n)
-		if lf == nil {
-			panic(n + " is not defined")
-		}
-
-		f := &lang.FunctionCall{
-			Name:   n,
-			Args:   make([]lang.Expression, 0),
-			Return: parser.gc.Get(n).Type(),
-		}
-
-		err := checkArguments(lf.Args, al.Arguments)
-		if err != nil {
-			panic(err)
-		}
-		// TODO: Check for passing by reference.
+		var args []lang.Expression
 		for _, a := range al.Arguments {
 			// TODO: Do not ignore information in Argument,
 			// it has interesting information like if it is
 			// send by reference and others.
-			arg := parser.expression(b, a.(*node.Argument).Expr)
-			f.AddArg(arg)
+			args = append(args, parser.expression(b, a.(*node.Argument).Expr))
+		}
+
+		f, err := parser.funcs.Namespace("").Call(n, args)
+		if err != nil {
+			panic(err)
 		}
 		return f
 	}
@@ -945,7 +936,7 @@ func (p *parser) binaryOp(b lang.Block, op string, left, right node.Node) lang.E
 	l := p.expression(b, left)
 	r := p.expression(b, right)
 	if convertToMatchingType(l, r) {
-		p.gc.RequireNamespace("std")
+		p.funcs.Namespace("std")
 	}
 	res, err := lang.NewBinaryOp(op, l, r)
 	if err != nil {
@@ -1082,7 +1073,7 @@ func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, exp
 			Return: lang.Bool,
 		}
 		expr.SetParent(b)
-		p.gc.RequireNamespace("std")
+		p.funcs.Namespace("std")
 	}
 
 	return
