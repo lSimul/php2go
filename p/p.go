@@ -1149,11 +1149,9 @@ func (p *parser) newVariable(name, typ string, isConst bool) *lang.Variable {
 	return lang.NewVariable(name, typ, isConst)
 }
 
-/**
- * Function makes things much easier, I expect
- * identifier name to be just simple right now
- * defined string, no variable etc.
- */
+// Function makes things much easier, I expect
+// identifier name to be just simple right now
+// defined string, no variable etc.
 func (p *parser) identifierName(v *expr.Variable) string {
 	switch v.VarName.(type) {
 	case *node.Identifier:
