@@ -120,18 +120,11 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			// Alias for <?php ?> and "empty semicolon", nothing to do.
 
 		case *stmt.InlineHtml:
-			f := &lang.FunctionCall{
-				Name: "fmt.Print",
-				Args: make([]lang.Expression, 0),
+			str := &lang.Str{Value: fmt.Sprintf("`%s`", s.Value)}
+			f, err := parser.funcs.Namespace("fmt").Call("Print", []lang.Expression{str})
+			if err != nil {
+				panic(err)
 			}
-
-			parser.funcs.Namespace("fmt")
-
-			str := &lang.Str{
-				Value: fmt.Sprintf("`%s`", s.Value),
-			}
-			str.SetParent(f)
-			f.AddArg(str)
 			f.SetParent(b)
 			b.AddStatement(f)
 
@@ -308,18 +301,16 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			b.AddStatement(r)
 
 		case *stmt.Echo:
-			f := &lang.FunctionCall{
-				Name: "fmt.Print",
-				Args: make([]lang.Expression, 0),
-			}
-
-			parser.funcs.Namespace("fmt")
-
+			var args []lang.Expression
 			for _, e := range s.Exprs {
 				// TODO: Do not ignore information in Argument,
 				// it has interesting information like if it is
 				// send by reference and others.
-				f.AddArg(parser.expression(b, e))
+				args = append(args, parser.expression(b, e))
+			}
+			f, err := parser.funcs.Namespace("fmt").Call("Print", args)
+			if err != nil {
+				panic(err)
 			}
 			b.AddStatement(f)
 
@@ -645,18 +636,10 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		return lang.NewVarRef(v, v.Type())
 
 	case *scalar.Encapsed:
-		f := &lang.FunctionCall{
-			Name:   "fmt.Sprintf",
-			Args:   make([]lang.Expression, 1),
-			Return: lang.String,
-		}
-
-		parser.funcs.Namespace("fmt")
-
+		args := make([]lang.Expression, 1)
 		s := &lang.Str{
 			Value: "\"",
 		}
-		s.SetParent(f)
 		for _, p := range e.Parts {
 			switch p := p.(type) {
 			case *scalar.EncapsedStringPart:
@@ -669,7 +652,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					panic(vn + " is not defined.")
 				}
 				s.Value += varFormat(v.Type())
-				f.AddArg(lang.NewVarRef(v, v.Type()))
+				args = append(args, lang.NewVarRef(v, v.Type()))
 
 			case *expr.ArrayDimFetch:
 				vn := parser.identifierName(p.Variable.(*expr.Variable))
@@ -678,8 +661,8 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					panic(vn + " is not defined.")
 				}
 
-				args := []lang.Expression{parser.expression(b, p.Dim)}
-				scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+				scalar, err := parser.funcs.Namespace("array").Call(
+					"NewScalar", []lang.Expression{parser.expression(b, p.Dim)})
 				if err != nil {
 					panic(err)
 				}
@@ -694,11 +677,16 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 				s.Value += varFormat(fc.Type())
 
-				f.AddArg(fc)
+				args = append(args, fc)
 			}
 		}
 		s.Value += "\""
-		f.Args[0] = s
+		args[0] = s
+
+		f, err := parser.funcs.Namespace("fmt").Call("Sprintf", args)
+		if err != nil {
+			panic(err)
+		}
 		f.SetParent(b)
 		return f
 
@@ -793,16 +781,13 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			}
 		}
 
-		fc := &lang.FunctionCall{
-			Name:   "array.New" + FirstUpper(typ),
-			Args:   items,
-			Return: ArrayType(typ),
+		f, err := parser.funcs.Namespace("array").Call("New"+FirstUpper(typ), items)
+		if err != nil {
+			panic(err)
 		}
 
-		parser.funcs.Namespace("array")
-
-		fc.SetParent(b)
-		return fc
+		f.SetParent(b)
+		return f
 
 	case *expr.ArrayDimFetch:
 		v, ok := parser.expression(b, e.Variable).(*lang.VarRef)
@@ -1058,13 +1043,12 @@ func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, exp
 		panic(`flowControlExpr: missing expression`)
 	}
 	if expr.Type() != lang.Bool {
-		expr = &lang.FunctionCall{
-			Name:   "std.Truthy",
-			Args:   []lang.Expression{expr},
-			Return: lang.Bool,
+		var err error
+		expr, err = p.funcs.Namespace("std").Call("Truthy", []lang.Expression{expr})
+		if err != nil {
+			panic(err)
 		}
 		expr.SetParent(b)
-		p.funcs.Namespace("std")
 	}
 
 	return

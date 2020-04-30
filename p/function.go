@@ -23,7 +23,27 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 		used:      true,
 	}
 
-	fmt := make(map[string]*lang.Function)
+	fmt := map[string]*lang.Function{
+		"Print": {
+			Name: "Print",
+			Args: []*lang.Variable{
+				lang.NewVariable("vals", lang.Anything, false),
+			},
+			VariadicCount: true,
+
+			Return: lang.Void,
+		},
+		"Sprintf": {
+			Name: "Sprintf",
+			Args: []*lang.Variable{
+				lang.NewVariable("format", lang.String, false),
+				lang.NewVariable("vals", lang.Anything, false),
+			},
+			VariadicCount: true,
+
+			Return: lang.String,
+		},
+	}
 	fn.funcs["fmt"] = &funcs{
 		namespace: "fmt",
 		fn:        &fmt,
@@ -41,6 +61,15 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 
 			Return: lang.String,
 		},
+		"Truthy": {
+			Name: "Truthy",
+			Args: []*lang.Variable{
+				lang.NewVariable("i", lang.Anything, false),
+			},
+			VariadicCount: false,
+
+			Return: lang.Bool,
+		},
 	}
 	fn.funcs["std"] = &funcs{
 		namespace: "php2go/std",
@@ -57,6 +86,24 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 			VariadicCount: false,
 
 			Return: "array.Scalar",
+		},
+		"NewInt": {
+			Name: "NewInt",
+			Args: []*lang.Variable{
+				lang.NewVariable("vals", lang.Anything, false),
+			},
+			VariadicCount: true,
+
+			Return: "array.Int",
+		},
+		"NewString": {
+			Name: "NewString",
+			Args: []*lang.Variable{
+				lang.NewVariable("vals", lang.Anything, false),
+			},
+			VariadicCount: true,
+
+			Return: "array.String",
 		},
 	}
 	fn.funcs["array"] = &funcs{
@@ -105,19 +152,47 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 		return nil, errors.New("Function is not defined.")
 	}
 
-	if len(f.Args) != len(args) {
-		return nil, errors.New("Wrong argument count.")
-	}
-
-	// TODO: Check for passing by reference.
-	for i := 0; i < len(args); i++ {
-		// TODO: Implement better management of the types;
-		// one if statement is not going to do it.
-		if f.Args[i].Type() == lang.Anything {
-			continue
+	// TODO: Refactor this.
+	if f.VariadicCount {
+		if len(f.Args)-1 > len(args) {
+			return nil, errors.New("Not enough arguments.")
 		}
-		if args[i].Type() != f.Args[i].Type() {
-			return nil, errors.New("Wrong argument type.")
+		// Compare first N-1 args.
+		for i := 0; i < len(f.Args)-1; i++ {
+			// TODO: Implement better management of the types;
+			// one if statement is not going to do it.
+			if f.Args[i].Type() == lang.Anything {
+				continue
+			}
+			if args[i].Type() != f.Args[i].Type() {
+				return nil, errors.New("Wrong argument type.")
+			}
+		}
+		// Compare the rest, if any.
+		ref := f.Args[len(f.Args)-1]
+		for i := len(f.Args); i < len(args); i++ {
+			if ref.Type() == lang.Anything {
+				continue
+			}
+			if args[i].Type() != ref.Type() {
+				return nil, errors.New("Wrong argument type.")
+			}
+		}
+	} else {
+		if len(f.Args) != len(args) {
+			return nil, errors.New("Wrong argument count.")
+		}
+
+		// TODO: Check for passing by reference.
+		for i := 0; i < len(args); i++ {
+			// TODO: Implement better management of the types;
+			// one if statement is not going to do it.
+			if f.Args[i].Type() == lang.Anything {
+				continue
+			}
+			if args[i].Type() != f.Args[i].Type() {
+				return nil, errors.New("Wrong argument type.")
+			}
 		}
 	}
 
