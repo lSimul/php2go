@@ -143,7 +143,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			b.AddStatement(ex)
 
 		case *stmt.For:
-			lf := lang.ConstructFor(b)
+			lf := lang.NewFor(b)
 
 			if s.Init != nil {
 				n := s.Init[0]
@@ -169,7 +169,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			b.AddStatement(lf)
 
 		case *stmt.While:
-			lf := lang.ConstructFor(b)
+			lf := lang.NewFor(b)
 			c := parser.conditionExpr(lf, s.Cond)
 
 			err := lf.SetCond(c)
@@ -181,7 +181,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			b.AddStatement(lf)
 
 		case *stmt.Do:
-			lf := lang.ConstructFor(b)
+			lf := lang.NewFor(b)
 
 			parser.createFunction(lf.Block, nodeList(s.Stmt))
 

@@ -353,7 +353,7 @@ func (f For) String() string {
 	return s.String()
 }
 
-func ConstructFor(parent Block) *For {
+func NewFor(parent Block) *For {
 	f := &For{
 		parent: parent,
 		Vars:   make([]*Variable, 0),

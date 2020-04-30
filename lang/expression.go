@@ -450,16 +450,15 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 		return nil, errors.New(`Binary op cannot be used with "void"`)
 	}
 
-	t := left.Type()
 	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" {
-		t = Bool
+		lt = Bool
 	}
 	ret := &BinaryOp{
 		inBrackets: false,
 		Operation:  op,
 		left:       left,
 		right:      right,
-		typ:        t,
+		typ:        lt,
 	}
 	left.SetParent(ret)
 	right.SetParent(ret)

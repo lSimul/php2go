@@ -59,7 +59,7 @@ func constructors(t *testing.T) {
 	}
 
 	parent = nil
-	f := ConstructFor(parent)
+	f := NewFor(parent)
 	if f.Parent() != parent {
 		t.Error("Wrong parent set.")
 	}
@@ -86,7 +86,7 @@ func constructors(t *testing.T) {
 	}
 
 	parent = &Code{}
-	f = ConstructFor(parent)
+	f = NewFor(parent)
 	if f.Parent() != parent {
 		t.Error("Wrong parent set.")
 	}
