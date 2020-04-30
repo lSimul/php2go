@@ -344,12 +344,11 @@ func nodeList(n node.Node) []node.Node {
 	list, ok := n.(*stmt.StmtList)
 	if ok {
 		return list.Stmts
+	}
+	if n == nil {
+		return []node.Node{}
 	} else {
-		if n == nil {
-			return []node.Node{}
-		} else {
-			return []node.Node{n}
-		}
+		return []node.Node{n}
 	}
 }
 
@@ -416,15 +415,15 @@ func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 			s.Cases = append(s.Cases, lc)
 			lc.Condition = parser.expression(lc, c.Cond)
 			parser.createFunction(lc, c.Stmts)
-			if len(lc.Statements) > 0 {
-				_, ok := lc.Statements[len(lc.Statements)-1].(*lang.Break)
-				if ok {
-					lc.Statements = lc.Statements[:len(lc.Statements)-1]
-				} else {
-					f := &lang.Fallthrough{}
-					f.SetParent(lc)
-					lc.Statements = append(lc.Statements, f)
-				}
+			if len(lc.Statements) <= 0 {
+				break
+			}
+			if _, ok := lc.Statements[len(lc.Statements)-1].(*lang.Break); ok {
+				lc.Statements = lc.Statements[:len(lc.Statements)-1]
+			} else {
+				f := &lang.Fallthrough{}
+				f.SetParent(lc)
+				lc.Statements = append(lc.Statements, f)
 			}
 
 		case *stmt.Default:
@@ -436,15 +435,17 @@ func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 			s.Cases = append(s.Cases, d)
 			parser.createFunction(d, c.Stmts)
 
-			if len(d.Statements) > 0 {
-				_, ok := d.Statements[len(d.Statements)-1].(*lang.Break)
-				if ok {
-					d.Statements = d.Statements[:len(d.Statements)-1]
-				} else {
-					f := &lang.Fallthrough{}
-					f.SetParent(d)
-					d.Statements = append(d.Statements, f)
-				}
+			if len(d.Statements) <= 0 {
+				break
+			}
+
+			_, ok := d.Statements[len(d.Statements)-1].(*lang.Break)
+			if ok {
+				d.Statements = d.Statements[:len(d.Statements)-1]
+			} else {
+				f := &lang.Fallthrough{}
+				f.SetParent(d)
+				d.Statements = append(d.Statements, f)
 			}
 		}
 	}
