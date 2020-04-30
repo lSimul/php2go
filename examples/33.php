@@ -23,3 +23,13 @@ if ($a = 0) {
 // } else {
 // echo "False: \$a = \$b = \$c = 3\n";
 // }
+
+$b = 10;
+while ($b--) {
+	echo "$b\n";
+}
+
+$b = -10;
+while ($b++) {
+	echo "$b\n";
+}

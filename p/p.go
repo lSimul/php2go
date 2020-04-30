@@ -1043,9 +1043,9 @@ func convertToMatchingType(left, right lang.Expression) bool {
 // to convert it into expression which can be used
 // in the for, do, if. If it is expression as it should
 // be, nothing happens, expression is returned.
-// Extra work will be done with an assign; assign will be
-// moved to the "Init" section, condition will be replaced
-// by a variable + possible convertion using std.Truthy.
+// Extra work will be done with an assign and {inc,dec}rements.
+// They will be moved to the "Init" section, condition will
+// be replaced by a variable + possible convertion using std.Truthy.
 // This is the first move from many, I want to resolve
 // everything in the examples/33.php, but code is not ready
 // for this yet.
@@ -1056,6 +1056,18 @@ func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, exp
 		a := s.(*lang.Assign)
 		init = a
 		expr = lang.NewVarRef(a.Left(), a.Left().CurrentType)
+
+	case *lang.Dec:
+		d := s.(*lang.Dec)
+		init = d
+		v := d.UsedVar()
+		expr = lang.NewVarRef(v, v.CurrentType)
+
+	case *lang.Inc:
+		i := s.(*lang.Inc)
+		init = i
+		v := i.UsedVar()
+		expr = lang.NewVarRef(v, v.CurrentType)
 
 	case lang.Expression:
 		expr = s.(lang.Expression)

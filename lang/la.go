@@ -750,6 +750,10 @@ func (i *Inc) SetParent(n Node) {
 	i.parent = n
 }
 
+func (i Inc) UsedVar() *Variable {
+	return i.v.V
+}
+
 func (i Inc) String() string {
 	s := strings.Builder{}
 	if i.v.V.Type() == Anything {
@@ -816,4 +820,8 @@ func NewDec(parent Node, v *VarRef) *Dec {
 		parent: parent,
 		v:      v,
 	}
+}
+
+func (d Dec) UsedVar() *Variable {
+	return d.v.V
 }
