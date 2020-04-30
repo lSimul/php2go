@@ -767,6 +767,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		} else if s[0] != '"' && s[len(s)-1] != '"' {
 			s = fmt.Sprintf("\"%s\"", s)
 		}
+		s = strings.ReplaceAll(s, "\\$", "$")
 		str := &lang.Str{
 			Value: s,
 		}
