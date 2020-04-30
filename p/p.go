@@ -185,9 +185,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 
 			parser.createFunction(lf.Block, nodeList(s.Stmt))
 
-			i := &lang.If{
-				Vars: make([]*lang.Variable, 0),
-			}
+			i := lang.NewIf(lf)
 			i.True = lang.NewCode(i)
 			i.SetParent(lf)
 			// TODO: Negation should work only with
@@ -353,8 +351,7 @@ func nodeList(n node.Node) []node.Node {
 }
 
 func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
-	nif := &lang.If{}
-	nif.SetParent(b)
+	nif := lang.NewIf(b)
 	c := p.conditionExpr(nif, i.Cond)
 
 	err := nif.SetCond(c)
@@ -389,8 +386,7 @@ func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 }
 
 func (p *parser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
-	nif := &lang.If{}
-	nif.SetParent(b)
+	nif := lang.NewIf(b)
 	c := p.conditionExpr(nif, i.Cond)
 
 	err := nif.SetCond(c)

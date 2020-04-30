@@ -648,7 +648,7 @@ type If struct {
 
 	Vars []*Variable
 
-	Init Expression
+	Init Node
 	cond Expression
 
 	True  *Code
@@ -728,6 +728,12 @@ func (i If) String() string {
 		s.WriteString(i.False.String())
 	}
 	return s.String()
+}
+
+func NewIf(parent Block) *If {
+	return &If{
+		parent: parent,
+	}
 }
 
 type Inc struct {
