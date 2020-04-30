@@ -87,7 +87,7 @@ func (parser *parser) funcDef(fc *stmt.Function) *lang.Function {
 
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
-		v := parser.newVariable(
+		v := lang.NewVariable(
 			parser.identifierName(p.Variable.(*expr.Variable)),
 			parser.constructName(p.VariableType.(*name.Name), true),
 			false)
@@ -233,14 +233,14 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 					// TODO: Set up return type.
 				}
 				name := parser.identifierName(s.Variable.(*expr.Variable))
-				lf.Value = *parser.newVariable(name, ArrayItem(iterated.Type()), false)
+				lf.Value = *lang.NewVariable(name, ArrayItem(iterated.Type()), false)
 			} else {
 				name := parser.identifierName(s.Key.(*expr.Variable))
 				// TODO: Define type scalar which is being
 				// formated as string.
-				k := parser.newVariable(name, lang.String, false)
+				k := lang.NewVariable(name, lang.String, false)
 				n := parser.identifierName(s.Variable.(*expr.Variable))
-				v := parser.newVariable(n, ArrayItem(iterated.Type()), false)
+				v := lang.NewVariable(n, ArrayItem(iterated.Type()), false)
 
 				it = &lang.FunctionCall{
 					Name: fnName + ".KeyIter",
@@ -248,12 +248,12 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				}
 
 				// TODO: This is not lang.Void
-				lf.Value = *parser.newVariable("pair", lang.Void, false)
+				lf.Value = *lang.NewVariable("pair", lang.Void, false)
 
 				// TODO: I do not have this part of code under control.
 				// Accessing struct elements is out of my reach right now.
 				if k != nil {
-					pairK := parser.newVariable(lf.Value.Name+".K", lang.String, true)
+					pairK := lang.NewVariable(lf.Value.Name+".K", lang.String, true)
 					s, err := lang.NewAssign(k, lang.NewVarRef(pairK, pairK.Type()))
 					if err != nil {
 						panic(err)
@@ -263,7 +263,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 					lf.Block.DefineVariable(k)
 				}
 
-				pairV := parser.newVariable(lf.Value.Name+".V", ArrayItem(iterated.Type()), true)
+				pairV := lang.NewVariable(lf.Value.Name+".V", ArrayItem(iterated.Type()), true)
 				s, err := lang.NewAssign(v, lang.NewVarRef(pairV, pairV.Type()))
 				if err != nil {
 					panic(err)
@@ -1096,7 +1096,7 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 	v := parent.HasVariable(name)
 	fd := false
 	if v == nil {
-		v = parser.newVariable(name, t, false)
+		v = lang.NewVariable(name, t, false)
 		if parser.useGlobalContext {
 			parser.gc.DefineVariable(v)
 		} else {
@@ -1111,7 +1111,7 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 			if v.FirstDefinition.Parent() == parent {
 				v.CurrentType = t
 			} else {
-				v = parser.newVariable(name, t, false)
+				v = lang.NewVariable(name, t, false)
 				fd = true
 			}
 		}
@@ -1135,18 +1135,6 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 	as.SetParent(parent)
 
 	return as
-}
-
-func (p *parser) newVariable(name, typ string, isConst bool) *lang.Variable {
-	// TODO: This fixed "Public" does not look right.
-	// It should probably require already unique name.
-	if p.useGlobalContext {
-		name = p.translator.Translate(name, Public)
-	} else {
-		name = p.translator.Translate(name, Private)
-	}
-
-	return lang.NewVariable(name, typ, isConst)
 }
 
 // Function makes things much easier, I expect
