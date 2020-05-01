@@ -45,10 +45,10 @@ func (gc *GlobalContext) DefineVariable(v *Variable) {
 }
 
 func (gc GlobalContext) HasVariable(name string) *Variable {
-	return gc.DefinesVariable(name)
+	return gc.definesVariable(name)
 }
 
-func (gc GlobalContext) DefinesVariable(name string) *Variable {
+func (gc GlobalContext) definesVariable(name string) *Variable {
 	for _, v := range gc.vars {
 		if v.Name == name {
 			return v
@@ -174,7 +174,7 @@ func (c *Code) SetParent(n Node) {
 }
 
 func (c Code) HasVariable(name string) *Variable {
-	v := c.DefinesVariable(name)
+	v := c.definesVariable(name)
 	if v != nil {
 		return v
 	}
@@ -212,7 +212,7 @@ func (c *Code) DefineVariable(v *Variable) {
 	c.Vars = append(c.Vars, v)
 }
 
-func (c Code) DefinesVariable(name string) *Variable {
+func (c Code) definesVariable(name string) *Variable {
 	for _, v := range c.Vars {
 		if v.Name == name {
 			return v
@@ -282,7 +282,7 @@ func (f *For) SetParent(n Node) {
 }
 
 func (f For) HasVariable(name string) *Variable {
-	v := f.DefinesVariable(name)
+	v := f.definesVariable(name)
 	if v != nil {
 		return v
 	}
@@ -308,7 +308,7 @@ func (f *For) DefineVariable(v *Variable) {
 	f.Vars = append(f.Vars, v)
 }
 
-func (f For) DefinesVariable(name string) *Variable {
+func (f For) definesVariable(name string) *Variable {
 	for _, v := range f.Vars {
 		if v.Name == name {
 			return v
@@ -381,7 +381,7 @@ func (f *Foreach) SetParent(n Node) {
 }
 
 func (f Foreach) HasVariable(name string) *Variable {
-	v := f.DefinesVariable(name)
+	v := f.definesVariable(name)
 	if v != nil {
 		return v
 	}
@@ -395,7 +395,7 @@ func (f Foreach) HasVariable(name string) *Variable {
 func (f *Foreach) AddStatement(n Node)        {}
 func (f *Foreach) DefineVariable(v *Variable) {}
 
-func (f Foreach) DefinesVariable(name string) *Variable {
+func (f Foreach) definesVariable(name string) *Variable {
 	if f.Key != nil && f.Key.Name == name {
 		return f.Key
 	}
@@ -447,7 +447,7 @@ func (sw Switch) HasVariable(name string) *Variable {
 func (sw *Switch) AddStatement(n Node)        {}
 func (sw *Switch) DefineVariable(v *Variable) {}
 
-func (sw Switch) DefinesVariable(name string) *Variable {
+func (sw Switch) definesVariable(name string) *Variable {
 	return nil
 }
 
@@ -484,7 +484,7 @@ func (c *Case) SetParent(n Node) {
 }
 
 func (c Case) HasVariable(name string) *Variable {
-	v := c.DefinesVariable(name)
+	v := c.definesVariable(name)
 	if v != nil {
 		return v
 	}
@@ -539,7 +539,7 @@ func (c *Case) DefineVariable(v *Variable) {
 	c.Vars = append(c.Vars, v)
 }
 
-func (c Case) DefinesVariable(name string) *Variable {
+func (c Case) definesVariable(name string) *Variable {
 	for _, v := range c.Vars {
 		if v.Name == name {
 			return v
@@ -568,7 +568,7 @@ func (d *Default) SetParent(n Node) {
 }
 
 func (d Default) HasVariable(name string) *Variable {
-	v := d.DefinesVariable(name)
+	v := d.definesVariable(name)
 	if v != nil {
 		return v
 	}
@@ -621,7 +621,7 @@ func (d *Default) DefineVariable(v *Variable) {
 	d.Vars = append(d.Vars, v)
 }
 
-func (d Default) DefinesVariable(name string) *Variable {
+func (d Default) definesVariable(name string) *Variable {
 	for _, v := range d.Vars {
 		if v.Name == name {
 			return v
@@ -661,7 +661,7 @@ func (i *If) SetParent(n Node) {
 }
 
 func (i If) HasVariable(name string) *Variable {
-	v := i.DefinesVariable(name)
+	v := i.definesVariable(name)
 	if v != nil {
 		return v
 	}
@@ -687,7 +687,7 @@ func (i *If) DefineVariable(v *Variable) {
 	i.Vars = append(i.Vars, v)
 }
 
-func (i If) DefinesVariable(name string) *Variable {
+func (i If) definesVariable(name string) *Variable {
 	for _, v := range i.Vars {
 		if v.Name == name {
 			return v

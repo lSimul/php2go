@@ -28,7 +28,7 @@ func (f *Function) SetParent(n Node) {
 }
 
 func (f Function) HasVariable(name string) *Variable {
-	v := f.DefinesVariable(name)
+	v := f.definesVariable(name)
 	if v != nil {
 		return v
 	}
@@ -47,7 +47,7 @@ func (f *Function) DefineVariable(v *Variable) {
 	f.Args = append(f.Args, v)
 }
 
-func (f Function) DefinesVariable(name string) *Variable {
+func (f Function) definesVariable(name string) *Variable {
 	for _, a := range f.Args {
 		if a.Name == name {
 			return a

@@ -25,7 +25,7 @@ type Block interface {
 	DefineVariable(*Variable)
 
 	HasVariable(string) *Variable
-	DefinesVariable(string) *Variable
+	definesVariable(string) *Variable
 }
 
 type Expression interface {
