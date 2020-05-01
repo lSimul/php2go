@@ -1,7 +1,6 @@
 package p
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -77,7 +76,6 @@ func (parser *parser) funcDef(fc *stmt.Function) *lang.Function {
 		return nil
 	}
 
-	// TODO: IdentifierName method is for this. (is it still relevant?)
 	n := parser.functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value)
 	f := lang.NewFunc(n)
 	f.SetParent(parser.gc)
@@ -1047,15 +1045,6 @@ func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, exp
 	}
 
 	return
-}
-
-func checkArguments(vars []*lang.Variable, call []node.Node) error {
-	if len(vars) != len(call) {
-		return errors.New("wrong argument count")
-	}
-	// TODO: Check if arguments are passed by reference, make sure
-	// that is done only with variables.
-	return nil
 }
 
 func (parser *parser) buildAssignment(parent lang.Block, name string, right lang.Expression) *lang.Assign {
