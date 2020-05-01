@@ -648,7 +648,7 @@ type If struct {
 
 	Vars []*Variable
 
-	Init Expression
+	Init Node
 	cond Expression
 
 	True  *Code
@@ -730,6 +730,12 @@ func (i If) String() string {
 	return s.String()
 }
 
+func NewIf(parent Block) *If {
+	return &If{
+		parent: parent,
+	}
+}
+
 type Inc struct {
 	parent Node
 
@@ -742,6 +748,10 @@ func (i Inc) Parent() Node {
 
 func (i *Inc) SetParent(n Node) {
 	i.parent = n
+}
+
+func (i Inc) UsedVar() *Variable {
+	return i.v.V
 }
 
 func (i Inc) String() string {
@@ -810,4 +820,8 @@ func NewDec(parent Node, v *VarRef) *Dec {
 		parent: parent,
 		v:      v,
 	}
+}
+
+func (d Dec) UsedVar() *Variable {
+	return d.v.V
 }
