@@ -9,7 +9,9 @@ import (
 type Function struct {
 	parent Block
 
-	Args []*Variable
+	Args          []*Variable
+	VariadicCount bool
+
 	Body Code
 
 	Name   string

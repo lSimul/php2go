@@ -261,8 +261,10 @@ func unaryOp(t *testing.T) {
 func testStatements(t *testing.T) {
 	t.Helper()
 
+	gc := lang.NewGlobalContext()
 	parser := parser{
-		gc: lang.NewGlobalContext(),
+		gc:    gc,
+		funcs: NewFunc(gc),
 	}
 
 	b := lang.NewCode(nil)

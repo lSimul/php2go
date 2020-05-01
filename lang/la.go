@@ -12,7 +12,7 @@ type GlobalContext struct {
 	vars  []*Variable
 	Funcs map[string]*Function
 
-	namespaces map[string]string
+	imports []string
 }
 
 func NewGlobalContext() *GlobalContext {
@@ -21,26 +21,12 @@ func NewGlobalContext() *GlobalContext {
 		vars:   make([]*Variable, 0),
 		Funcs:  make(map[string]*Function, 0),
 
-		namespaces: make(map[string]string),
+		imports: make([]string, 0),
 	}
 }
 
-// TODO: Pull this out of this package, it is starting to be
-// very complicated.
-func (gc *GlobalContext) RequireNamespace(n string) {
-	if _, ok := gc.namespaces[n]; !ok {
-		switch n {
-		case "fmt":
-			gc.namespaces[n] = "fmt"
-		case "std":
-			gc.namespaces[n] = "php2go/std"
-		case "array":
-			gc.namespaces[n] = "php2go/std/array"
-
-		default:
-			panic(`Unknown namespace`)
-		}
-	}
+func (gc *GlobalContext) AddImport(n string) {
+	gc.imports = append(gc.imports, n)
 }
 
 func (gc GlobalContext) SetParent(n Node) {}
@@ -83,13 +69,13 @@ func (gc GlobalContext) String() string {
 	s := strings.Builder{}
 	s.WriteString("package main\n\n")
 
-	if len(gc.namespaces) == 1 {
-		for _, n := range gc.namespaces {
+	if len(gc.imports) == 1 {
+		for _, n := range gc.imports {
 			s.WriteString("import \"" + n + "\"\n")
 		}
-	} else if len(gc.namespaces) > 0 {
+	} else if len(gc.imports) > 0 {
 		s.WriteString("import (\n")
-		for _, n := range gc.namespaces {
+		for _, n := range gc.imports {
 			s.WriteString("\"" + n + "\"\n")
 		}
 		s.WriteString(")\n\n")
@@ -110,7 +96,8 @@ func (gc GlobalContext) String() string {
 
 func NewFunc(name string) *Function {
 	f := &Function{
-		Name: name,
+		Name:          name,
+		VariadicCount: false,
 		Body: Code{
 			Vars:       make([]*Variable, 0),
 			Statements: make([]Node, 0),
