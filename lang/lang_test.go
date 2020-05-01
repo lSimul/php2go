@@ -59,7 +59,7 @@ func constructors(t *testing.T) {
 	}
 
 	parent = nil
-	f := ConstructFor(parent)
+	f := NewFor(parent)
 	if f.Parent() != parent {
 		t.Error("Wrong parent set.")
 	}
@@ -86,7 +86,7 @@ func constructors(t *testing.T) {
 	}
 
 	parent = &Code{}
-	f = ConstructFor(parent)
+	f = NewFor(parent)
 	if f.Parent() != parent {
 		t.Error("Wrong parent set.")
 	}
@@ -120,7 +120,7 @@ func constructors(t *testing.T) {
 
 	v := &Variable{
 		Name:        "",
-		Type:        String,
+		typ:         String,
 		CurrentType: String,
 	}
 	vr := &VarRef{
@@ -139,8 +139,8 @@ func constructors(t *testing.T) {
 	}
 
 	a, err = NewAssign(v, vr)
-	if a.GetType() != v.GetType() {
-		t.Errorf("'%s' expected, '%s' found.\n", v.GetType(), a.GetType())
+	if a.Type() != v.Type() {
+		t.Errorf("'%s' expected, '%s' found.\n", v.Type(), a.Type())
 	}
 	if a.FirstDefinition {
 		t.Error("Default value is false, not true.")
@@ -177,7 +177,7 @@ func constructors(t *testing.T) {
 
 	void := &VarRef{
 		V: &Variable{
-			Type:        Void,
+			typ:         Void,
 			CurrentType: Void,
 		},
 		typ: Void,

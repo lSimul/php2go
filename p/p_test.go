@@ -19,15 +19,18 @@ func TestP(t *testing.T) {
 	t.Run("basic set", functionDef)
 	t.Run("binary operations", testBinaryOp)
 	t.Run("unary operations", unaryOp)
+	t.Run("statements", testStatements)
 	t.Run("text comparision of the main function", testMain)
 }
 
 func helpers(t *testing.T) {
 	t.Helper()
 
-	translator = NewNameTranslator()
-	functionTranslator = NewFunctionTranslator()
-	useGlobalContext = false
+	parser := parser{
+		translator:         NewNameTranslator(),
+		functionTranslator: NewFunctionTranslator(),
+		useGlobalContext:   false,
+	}
 
 	functions := []struct {
 		source   *name.Name
@@ -38,7 +41,7 @@ func helpers(t *testing.T) {
 		{test.Name("func"), "func1"},
 	}
 	for _, f := range functions {
-		if name := constructName(f.source, true); name != f.expected {
+		if name := parser.constructName(f.source, true); name != f.expected {
 			t.Errorf("'%s' expected, '%s' found.\n", f.expected, name)
 		}
 	}
@@ -52,7 +55,7 @@ func helpers(t *testing.T) {
 		{test.Variable("function"), "function"},
 	}
 	for _, v := range variables {
-		if name := identifierName(v.source); name != v.expected {
+		if name := parser.identifierName(v.source); name != v.expected {
 			t.Errorf("'%s' expected, '%s' found.\n", v.expected, name)
 		}
 	}
@@ -73,14 +76,16 @@ func helpers(t *testing.T) {
 func functionDef(t *testing.T) {
 	t.Helper()
 
-	translator = NewNameTranslator()
-	functionTranslator = NewFunctionTranslator()
-	useGlobalContext = false
+	parser := parser{
+		translator:         NewNameTranslator(),
+		functionTranslator: NewFunctionTranslator(),
+		useGlobalContext:   false,
+	}
 
 	// This tests which name and return type will
 	// be used. lang.NewFunc(string) is tested
 	// elsewhere.
-	f := funcDef(nil)
+	f := parser.funcDef(nil)
 	if f != nil {
 		t.Error("From nil nothing can be created.")
 	}
@@ -96,7 +101,7 @@ func functionDef(t *testing.T) {
 	}
 
 	for _, f := range funcDefs {
-		def := funcDef(f.f)
+		def := parser.funcDef(f.f)
 		if def.Name != f.name {
 			t.Errorf("'%s' expected, '%s' found.\n", f.name, def.Name)
 		}
@@ -105,7 +110,7 @@ func functionDef(t *testing.T) {
 		}
 	}
 
-	f = mainDef()
+	f = parser.mainDef()
 	if f.Name != "main" {
 		t.Errorf("'%s' expected, '%s' found.\n", "main", f.Name)
 	}
@@ -128,7 +133,7 @@ func functionDef(t *testing.T) {
 	}
 	for _, rt := range returnTypes {
 		placeholderFunction.ReturnType = rt.typ
-		f := funcDef(placeholderFunction)
+		f := parser.funcDef(placeholderFunction)
 		if f.Return != rt.expected {
 			t.Errorf("'%s' expected, '%s' found.\n", rt.expected, f.Return)
 
@@ -154,8 +159,10 @@ func testBinaryOp(t *testing.T) {
 		{">", lang.Bool},
 		{"==", lang.Bool},
 	}
+
+	parser := parser{}
 	for _, c := range cases {
-		expr := expression(nil, test.BinaryOp(left, c.op, right))
+		expr := parser.expression(nil, test.BinaryOp(left, c.op, right))
 		op, ok := expr.(*lang.BinaryOp)
 		if !ok {
 			t.Fatal("Expected binary operation, something else found.")
@@ -163,8 +170,8 @@ func testBinaryOp(t *testing.T) {
 		if op.Operation != c.op {
 			t.Errorf("'%s' expected, '%s' found.", c.op, op.Operation)
 		}
-		if op.GetType() != c.ret {
-			t.Errorf("'%s' expected, '%s' found.", c.ret, op.GetType())
+		if op.Type() != c.ret {
+			t.Errorf("'%s' expected, '%s' found.", c.ret, op.Type())
 		}
 	}
 }
@@ -174,18 +181,19 @@ func unaryOp(t *testing.T) {
 
 	parent := lang.NewCode(nil)
 
+	parser := parser{}
 	for _, n := range []node.Node{
 		test.Plus(test.String(`"test"`)),
 		test.Plus(test.String(`""`)),
 	} {
-		e := expression(parent, n)
+		e := parser.expression(parent, n)
 		if e.Parent() != parent {
 			t.Error("Parent not set.")
 		}
 		if _, ok := e.(*lang.Str); !ok {
 			t.Error("lang.Str expected.")
 		}
-		if typ := e.GetType(); typ != lang.String {
+		if typ := e.Type(); typ != lang.String {
 			t.Errorf("'string' expected, '%s' found.", typ)
 		}
 	}
@@ -194,14 +202,14 @@ func unaryOp(t *testing.T) {
 		test.Plus(test.Int("0")),
 		test.Plus(test.Int("2")),
 	} {
-		e := expression(parent, n)
+		e := parser.expression(parent, n)
 		if e.Parent() != parent {
 			t.Error("Parent not set.")
 		}
 		if _, ok := e.(*lang.Number); !ok {
 			t.Error("lang.Number expected.")
 		}
-		if typ := e.GetType(); typ != lang.Int {
+		if typ := e.Type(); typ != lang.Int {
 			t.Errorf("'int' expected, '%s' found.", typ)
 		}
 	}
@@ -210,14 +218,14 @@ func unaryOp(t *testing.T) {
 		test.Plus(test.Float("0")),
 		test.Plus(test.Float("1.0")),
 	} {
-		e := expression(parent, n)
+		e := parser.expression(parent, n)
 		if e.Parent() != parent {
 			t.Error("Parent not set.")
 		}
 		if _, ok := e.(*lang.Float); !ok {
 			t.Error("lang.Float expected.")
 		}
-		if typ := e.GetType(); typ != lang.Float64 {
+		if typ := e.Type(); typ != lang.Float64 {
 			t.Errorf("'float' expected, '%s' found.", typ)
 		}
 	}
@@ -233,7 +241,7 @@ func unaryOp(t *testing.T) {
 		{test.Minus(test.Float("0")), lang.Float64},
 		{test.Minus(test.Float("1.0")), lang.Float64},
 	} {
-		e := expression(parent, c.n)
+		e := parser.expression(parent, c.n)
 		u, ok := e.(*lang.UnaryMinus)
 		if !ok {
 			t.Fatal("lang.UnaryMinus expected.")
@@ -244,20 +252,58 @@ func unaryOp(t *testing.T) {
 		if u.Expr.Parent() != u {
 			t.Error("Parent not set.")
 		}
-		if typ := u.GetType(); typ != c.t {
+		if typ := u.Type(); typ != c.t {
 			t.Errorf("'%s' expected, '%s' found.", c.t, typ)
 		}
 	}
 }
 
-// TODO: Improve life cycle of the p.Run, it cannot
-// be started again, issue with undefined variables.
+func testStatements(t *testing.T) {
+	t.Helper()
+
+	parser := parser{
+		gc: lang.NewGlobalContext(),
+	}
+
+	b := lang.NewCode(nil)
+	html := test.HTML("<html></html>")
+	parser.createFunction(b, []node.Node{html})
+	if len(b.Statements) != 1 {
+		t.Fatal("Wrong amount of statements in the block.")
+	}
+	h, ok := b.Statements[0].(*lang.FunctionCall)
+	if !ok {
+		t.Fatal("That one statement should be function call.")
+	}
+	if h.Parent() != b {
+		t.Error("Parent not set.")
+	}
+	if h.Return != lang.Void {
+		t.Errorf("'void' expected, '%s' found.", h.Return)
+	}
+	if h.Name != "fmt.Print" {
+		t.Errorf("'fmt.Print' expected, '%s' found.", h.Name)
+	}
+	if len(h.Args) != 1 {
+		t.Fatal("'fmt.Print' should have only one argument.")
+	}
+	a, ok := h.Args[0].(*lang.Str)
+	if !ok {
+		t.Fatal("That one argument should be string.")
+	}
+	if a.Parent() != h {
+		t.Error("Parent not set.")
+	}
+	if a.Value != "`<html></html>`" {
+		t.Errorf("'`<html></html>`' expected, '%s' found", a.Value)
+	}
+	if a.Type() != lang.String {
+		t.Errorf("'string' expected, '%s' found.", a.Type())
+	}
+}
+
 func testMain(tt *testing.T) {
 	tt.Helper()
-
-	translator = NewNameTranslator()
-	functionTranslator = NewFunctionTranslator()
-	useGlobalContext = false
 
 	tests := []struct {
 		source   []byte
@@ -269,23 +315,21 @@ func testMain(tt *testing.T) {
 			$a = 1 + 2;
 			`),
 			expected: `func main() {
-A = 1 + 2
-}
-`,
+				A = 1 + 2
+			}`,
 		},
 		// examples/4.php
 		{
 			source: []byte(`<?php
 
-			$b = 2 + 3 + 4 * 2;
+			$a = 2 + 3 + 4 * 2;
 
-			echo $b * $b;
+			echo $a * $a;
 		`),
 			expected: `func main() {
-B = 2 + 3 + 4 * 2
-fmt.Print(B * B)
-}
-`,
+				A = 2 + 3 + 4 * 2
+				fmt.Print(A * A)
+			}`,
 		},
 		// examples/5.php
 		// TODO: Get rid of these type casts, define variable only on the lowest level,
@@ -294,64 +338,110 @@ fmt.Print(B * B)
 			source: []byte(`<?php
 			{
 				{
-					$c = "0";
+					$a = "0";
 					// Added to compile it in Go. This var is not used.
-					echo $c;
+					echo $a;
 				}
-				$c = 1;
+				$a = 1;
 
-				echo $c;
+				echo $a;
 			}
 			`),
 			expected: `func main() {
-{
-{
-C = "0"
-fmt.Print(C.(string))
-}
-C = 1
-fmt.Print(C.(int))
-}
-}
-`,
+				{
+					{
+						A = "0"
+						fmt.Print(A.(string))
+					}
+					A = 1
+					fmt.Print(A.(int))
+				}
+			}`,
 		},
 		// examples/7.php
 		{
 			source: []byte(`<?php
-			$d = 0;
+			$a = 0;
 			{
-				$d = "1";
-				echo $d;
+				$a = "1";
+				echo $a;
 			}
-			echo $d;
-			$d = 2;
-			echo $d;
+			echo $a;
+			$a = 2;
+			echo $a;
 			`),
 			expected: `func main() {
-D = 0
-{
-D = "1"
-fmt.Print(D.(string))
-}
-fmt.Print(D.(string))
-D = 2
-fmt.Print(D.(int))
-}
-`,
+				A = 0
+				{
+					A = "1"
+					fmt.Print(A.(string))
+				}
+				fmt.Print(A.(string))
+				A = 2
+				fmt.Print(A.(int))
+			}`,
 		},
 	}
 
 	for _, t := range tests {
-		out := parse(t.source)
-		main := out.Funcs["main"].String()
-		if (strings.Compare(main, t.expected)) != 0 {
-			tt.Errorf("Expected:\n%s\n Found:\n%s\n", t.expected, main)
+		parser := parser{
+			translator:         NewNameTranslator(),
+			functionTranslator: NewFunctionTranslator(),
+			useGlobalContext:   false,
 		}
+
+		out := parser.Run(parsePHP(t.source))
+		main := out.Funcs["main"].String()
+		compare(tt, t.expected, main)
 	}
 }
 
-func parse(source []byte) *lang.GlobalContext {
+func parsePHP(source []byte) *node.Root {
 	parser := php7.NewParser(source, "")
 	parser.Parse()
-	return Run(parser.GetRootNode().(*node.Root))
+	return parser.GetRootNode().(*node.Root)
+}
+
+func compare(t *testing.T, ref, out string) {
+	r := strings.Split(ref, "\n")
+	o := strings.Split(out, "\n")
+	i, j := 0, 0
+	for i < len(r) && j < len(o) {
+		c := true
+		s1 := strings.TrimLeft(r[i], "\t")
+		if s1 == "" {
+			i++
+			c = false
+		}
+		s2 := strings.TrimLeft(o[j], "\t")
+		if s2 == "" {
+			j++
+			c = false
+		}
+		if !c {
+			continue
+		}
+		if s1 != s2 {
+			t.Errorf("Line %d:\nExpected:\n%s\nFound:\n%s\n", i, s1, s2)
+		}
+		i++
+		j++
+	}
+
+	for i < len(r) {
+		s := strings.TrimLeft(r[i], "\t")
+		if s != "" {
+			t.Errorf("Whole string was not parsed")
+			return
+		}
+		i++
+	}
+	for j < len(o) {
+		s := strings.TrimLeft(o[j], "\t")
+		if s != "" {
+			t.Errorf("Whole string was not parsed")
+			return
+		}
+		j++
+	}
 }

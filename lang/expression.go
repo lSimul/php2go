@@ -60,7 +60,7 @@ func (f Function) String() string {
 	for i := 0; i < len(f.Args); i++ {
 		a := f.Args[i]
 		s.WriteString(a.Name + " ")
-		s.WriteString(a.GetType())
+		s.WriteString(a.Type())
 		if i < len(f.Args)-1 {
 			s.WriteString(", ")
 		}
@@ -79,7 +79,7 @@ func (f *Function) AddStatement(n Node) {
 	f.Body.AddStatement(n)
 }
 
-func (f Function) GetType() string {
+func (f Function) Type() string {
 	return f.Return
 }
 
@@ -103,13 +103,13 @@ func (v *VarRef) SetParent(n Node) {
 func (v VarRef) String() string {
 	s := strings.Builder{}
 	s.WriteString(v.V.String())
-	if v.V.Type == Anything {
+	if v.V.typ == Anything {
 		s.WriteString(fmt.Sprintf(".(%s)", v.typ))
 	}
 	return s.String()
 }
 
-func (v VarRef) GetType() string {
+func (v VarRef) Type() string {
 	return v.typ
 }
 
@@ -136,7 +136,7 @@ func (v *VarDef) SetParent(n Node) {
 }
 
 func (v VarDef) String() string {
-	return fmt.Sprintf("var %s %s", v.V.Name, v.V.Type)
+	return fmt.Sprintf("var %s %s", v.V.Name, v.V.Type())
 }
 
 func newVarDef(b Block, v *Variable) *VarDef {
@@ -161,7 +161,7 @@ func (c *Const) SetParent(n Node) {
 }
 
 // TODO: Is this correct return type?
-func (c Const) GetType() string {
+func (c Const) Type() string {
 	return Bool
 }
 
@@ -183,14 +183,16 @@ func (r *Return) SetParent(n Node) {
 	r.parent = n
 }
 
-func (r Return) GetType() string {
-	return r.Expression.GetType()
+func (r Return) Type() string {
+	return r.Expression.Type()
 }
 
 func (r Return) String() string {
 	s := strings.Builder{}
-	s.WriteString("return ")
-	s.WriteString(r.Expression.String())
+	s.WriteString("return")
+	if r.Expression != nil {
+		s.WriteString(" " + r.Expression.String())
+	}
 	return s.String()
 }
 
@@ -215,8 +217,8 @@ func (a *Assign) SetParent(n Node) {
 	a.parent = n
 }
 
-func (a Assign) GetType() string {
-	return a.left.Type
+func (a Assign) Type() string {
+	return a.left.Type()
 }
 
 func (a Assign) String() string {
@@ -269,7 +271,7 @@ func (nb *Number) SetParent(n Node) {
 	nb.parent = n
 }
 
-func (nb Number) GetType() string {
+func (nb Number) Type() string {
 	return Int
 }
 
@@ -294,7 +296,7 @@ func (f *Float) SetParent(n Node) {
 	f.parent = n
 }
 
-func (f Float) GetType() string {
+func (f Float) Type() string {
 	return Float64
 }
 
@@ -316,7 +318,7 @@ func (s *Str) SetParent(n Node) {
 	s.parent = n
 }
 
-func (s Str) GetType() string {
+func (s Str) Type() string {
 	return String
 }
 
@@ -338,8 +340,8 @@ func (m *UnaryMinus) SetParent(n Node) {
 	m.parent = n
 }
 
-func (m UnaryMinus) GetType() string {
-	return m.Expr.GetType()
+func (m UnaryMinus) Type() string {
+	return m.Expr.Type()
 }
 
 func (m UnaryMinus) String() string {
@@ -363,7 +365,7 @@ func (neg *Negation) SetParent(n Node) {
 	neg.parent = n
 }
 
-func (neg Negation) GetType() string {
+func (neg Negation) Type() string {
 	return Bool
 }
 
@@ -395,7 +397,7 @@ func (p *BinaryOp) SetParent(n Node) {
 	p.parent = n
 }
 
-func (p BinaryOp) GetType() string {
+func (p BinaryOp) Type() string {
 	return p.typ
 }
 
@@ -441,119 +443,34 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 	if right == nil {
 		return nil, errors.New("Right expression is missing.")
 	}
-	lt := left.GetType()
-	rt := right.GetType()
+	lt := left.Type()
+	rt := right.Type()
 
 	if lt == Void || rt == Void {
 		return nil, errors.New(`Binary op cannot be used with "void"`)
 	}
 
-	convertToMatchingType(left, right)
-	t := left.GetType()
 	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" {
-		t = Bool
+		lt = Bool
 	}
 	ret := &BinaryOp{
 		inBrackets: false,
 		Operation:  op,
 		left:       left,
 		right:      right,
-		typ:        t,
+		typ:        lt,
 	}
 	left.SetParent(ret)
 	right.SetParent(ret)
 
-	bp, ok := left.(*BinaryOp)
-	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+	if bp, ok := left.(*BinaryOp); ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
 		bp.inBrackets = true
 	}
-	bp, ok = right.(*BinaryOp)
-	if ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
+	if bp, ok := right.(*BinaryOp); ok && ret.OperatorPrecedence() > bp.OperatorPrecedence() {
 		bp.inBrackets = true
 	}
 
 	return ret, nil
-}
-
-func convertToMatchingType(left, right Expression) {
-	lt := left.GetType()
-	rt := right.GetType()
-	if lt == rt {
-		return
-	}
-
-	// PHP tries to convert string to number,
-	// skipping for now.
-	switch lt {
-	case Bool:
-		switch rt {
-		case Int:
-			f := &FunctionCall{
-				Name:   "std.BoolToInt",
-				Args:   make([]Expression, 1),
-				Return: Int,
-			}
-			f.Args[0] = left
-			f.SetParent(left)
-			left = f
-
-		case Float64:
-			f := &FunctionCall{
-				Name:   "std.BoolToFloat64",
-				Args:   make([]Expression, 1),
-				Return: Float64,
-			}
-			f.Args[0] = left
-			f.SetParent(left)
-			left = f
-		}
-
-	case Int:
-		switch rt {
-		case Bool:
-			f := &FunctionCall{
-				Name:   "std.BoolToInt",
-				Args:   make([]Expression, 1),
-				Return: Int,
-			}
-			f.Args[0] = right
-			f.SetParent(right)
-			right = f
-
-		case Float64:
-			f := &FunctionCall{
-				Name:   "float64",
-				Args:   make([]Expression, 1),
-				Return: Float64,
-			}
-			f.Args[0] = left
-			f.SetParent(left)
-			left = f
-		}
-
-	case Float64:
-		switch rt {
-		case Bool:
-			f := &FunctionCall{
-				Name:   "std.BoolToFloat64",
-				Args:   make([]Expression, 1),
-				Return: Float64,
-			}
-			f.Args[0] = right
-			f.SetParent(right)
-			right = f
-
-		case Int:
-			f := &FunctionCall{
-				Name:   "float",
-				Args:   make([]Expression, 1),
-				Return: Float64,
-			}
-			f.Args[0] = right
-			f.SetParent(right)
-			right = f
-		}
-	}
 }
 
 type FunctionCall struct {
@@ -576,7 +493,7 @@ func (f *FunctionCall) SetParent(n Node) {
 	f.parent = n
 }
 
-func (f FunctionCall) GetType() string {
+func (f FunctionCall) Type() string {
 	return f.Return
 }
 

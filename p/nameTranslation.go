@@ -76,13 +76,9 @@ type nameTranslator struct {
 func (t *nameTranslator) Translate(name string, visibility int) string {
 	switch visibility {
 	case Public:
-		b := []byte(name)
-		b[0] = bytes.ToUpper(b)[0]
-		name = string(b)
+		name = FirstUpper(name)
 	case Private:
-		b := []byte(name)
-		b[0] = bytes.ToLower(b)[0]
-		name = string(b)
+		name = FirstLower(name)
 	}
 
 	if name, defined := t.names[name]; defined {
