@@ -504,7 +504,7 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 
 	case (*expr.ArrayDimFetch):
 		vn := parser.identifierName(v.Variable.(*expr.Variable))
-		vr := b.HasVariable(vn)
+		vr := b.HasVariable(vn, true)
 		if vr == nil || vr.Type() == lang.Void {
 			panic(vn + " is not defined.")
 		}
@@ -555,7 +555,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 				panic(`Only arrays are accepted for unset.`)
 			}
 			vn := parser.identifierName(adf.Variable.(*expr.Variable))
-			v := b.HasVariable(vn)
+			v := b.HasVariable(vn, true)
 			if v == nil || v.Type() == lang.Void {
 				panic(vn + " is not defined.")
 			}
@@ -585,7 +585,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		if !ok {
 			panic(`"++" requires variable.`)
 		}
-		if b.HasVariable(v.V.Name) == nil {
+		if b.HasVariable(v.V.Name, true) == nil {
 			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
 		}
 		return lang.NewInc(b, v)
@@ -594,7 +594,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		if !ok {
 			panic(`"--" requires variable.`)
 		}
-		if b.HasVariable(v.V.Name) == nil {
+		if b.HasVariable(v.V.Name, true) == nil {
 			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
 		}
 		return lang.NewDec(b, v)
@@ -622,7 +622,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 	switch e := n.(type) {
 	case *expr.Variable:
 		name := parser.identifierName(e)
-		v := b.HasVariable(name)
+		v := b.HasVariable(name, true)
 		if v == nil {
 			panic("Using undefined variable \"" + name + "\".")
 		}
@@ -640,7 +640,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 			case *expr.Variable:
 				vn := parser.identifierName(p)
-				v := b.HasVariable(vn)
+				v := b.HasVariable(vn, true)
 				if v == nil || v.Type() == lang.Void {
 					panic(vn + " is not defined.")
 				}
@@ -649,7 +649,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 			case *expr.ArrayDimFetch:
 				vn := parser.identifierName(p.Variable.(*expr.Variable))
-				v := b.HasVariable(vn)
+				v := b.HasVariable(vn, true)
 				if v == nil || v.Type() == lang.Void {
 					panic(vn + " is not defined.")
 				}
@@ -692,7 +692,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			panic(`Only arrays are accepted for isset.`)
 		}
 		vn := parser.identifierName(adf.Variable.(*expr.Variable))
-		v := b.HasVariable(vn)
+		v := b.HasVariable(vn, true)
 		if v == nil || v.Type() == lang.Void {
 			panic(vn + " is not defined.")
 		}
@@ -1053,7 +1053,7 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 		panic("Cannot assign \"void\" " + "to \"" + name + "\".")
 	}
 
-	v := parent.HasVariable(name)
+	v := parent.HasVariable(name, false)
 	fd := false
 	if v == nil {
 		v = lang.NewVariable(name, t, false)

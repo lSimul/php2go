@@ -356,6 +356,25 @@ func testMain(tt *testing.T) {
 				}
 			}`,
 		},
+		// examples/6.php
+		{
+			source: []byte(`<?php
+			{
+				$a = 0;
+			}
+
+			$a++;
+			echo $a;
+			`),
+			expected: `func main() {
+				var a int
+				{
+					a = 0
+				}
+				a++
+				fmt.Print(a)
+			}`,
+		},
 		// examples/7.php
 		{
 			source: []byte(`<?php
@@ -369,14 +388,15 @@ func testMain(tt *testing.T) {
 			echo $a;
 			`),
 			expected: `func main() {
-				a := 0
+				var a interface{}
+				a = 0
 				{
-					a := "1"
-					fmt.Print(a)
+					a = "1"
+					fmt.Print(a.(string))
 				}
-				fmt.Print(a)
+				fmt.Print(a.(string))
 				a = 2
-				fmt.Print(a)
+				fmt.Print(a.(int))
 			}`,
 		},
 	}
