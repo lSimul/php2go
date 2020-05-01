@@ -29,7 +29,6 @@ func helpers(t *testing.T) {
 	parser := parser{
 		translator:         NewNameTranslator(),
 		functionTranslator: NewFunctionTranslator(),
-		useGlobalContext:   false,
 	}
 
 	functions := []struct {
@@ -79,7 +78,6 @@ func functionDef(t *testing.T) {
 	parser := parser{
 		translator:         NewNameTranslator(),
 		functionTranslator: NewFunctionTranslator(),
-		useGlobalContext:   false,
 	}
 
 	// This tests which name and return type will
@@ -317,7 +315,7 @@ func testMain(tt *testing.T) {
 			$a = 1 + 2;
 			`),
 			expected: `func main() {
-				A = 1 + 2
+				a := 1 + 2
 			}`,
 		},
 		// examples/4.php
@@ -329,13 +327,11 @@ func testMain(tt *testing.T) {
 			echo $a * $a;
 		`),
 			expected: `func main() {
-				A = 2 + 3 + 4 * 2
-				fmt.Print(A * A)
+				a := 2 + 3 + 4 * 2
+				fmt.Print(a * a)
 			}`,
 		},
 		// examples/5.php
-		// TODO: Get rid of these type casts, define variable only on the lowest level,
-		// then check if it is necessary.
 		{
 			source: []byte(`<?php
 			{
@@ -352,11 +348,11 @@ func testMain(tt *testing.T) {
 			expected: `func main() {
 				{
 					{
-						A = "0"
-						fmt.Print(A.(string))
+						a := "0"
+						fmt.Print(a)
 					}
-					A = 1
-					fmt.Print(A.(int))
+					a := 1
+					fmt.Print(a)
 				}
 			}`,
 		},
@@ -373,14 +369,14 @@ func testMain(tt *testing.T) {
 			echo $a;
 			`),
 			expected: `func main() {
-				A = 0
+				a := 0
 				{
-					A = "1"
-					fmt.Print(A.(string))
+					a := "1"
+					fmt.Print(a)
 				}
-				fmt.Print(A.(string))
-				A = 2
-				fmt.Print(A.(int))
+				fmt.Print(a)
+				a = 2
+				fmt.Print(a)
 			}`,
 		},
 	}
@@ -389,7 +385,6 @@ func testMain(tt *testing.T) {
 		parser := parser{
 			translator:         NewNameTranslator(),
 			functionTranslator: NewFunctionTranslator(),
-			useGlobalContext:   false,
 		}
 
 		out := parser.Run(parsePHP(t.source))

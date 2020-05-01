@@ -20,9 +20,8 @@ type parser struct {
 	translator         NameTranslation
 	functionTranslator NameTranslation
 
-	gc               *lang.GlobalContext
-	funcs            *Func
-	useGlobalContext bool
+	gc    *lang.GlobalContext
+	funcs *Func
 }
 
 func NewParser(v, f NameTranslation) *parser {
@@ -36,7 +35,6 @@ func (p *parser) Run(r *node.Root) *lang.GlobalContext {
 	p.gc = lang.NewGlobalContext()
 	p.funcs = NewFunc(p.gc)
 	ms, fs := sanitizeRootStmts(r)
-	p.useGlobalContext = false
 
 	for _, s := range fs {
 		f := p.funcDef(&s)
@@ -50,9 +48,7 @@ func (p *parser) Run(r *node.Root) *lang.GlobalContext {
 
 	main := p.mainDef()
 	p.funcs.Add(main)
-	p.useGlobalContext = true
 	p.createFunction(&main.Body, ms)
-	p.useGlobalContext = false
 	return p.gc
 }
 
@@ -82,8 +78,7 @@ func (parser *parser) funcDef(fc *stmt.Function) *lang.Function {
 	}
 
 	// TODO: IdentifierName method is for this. (is it still relevant?)
-	// TODO: Make sure visibility is set as it should be.
-	n := parser.functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value, Private)
+	n := parser.functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value)
 	f := lang.NewFunc(n)
 	f.SetParent(parser.gc)
 
@@ -1073,23 +1068,14 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 	fd := false
 	if v == nil {
 		v = lang.NewVariable(name, t, false)
-		if parser.useGlobalContext {
-			parser.gc.DefineVariable(v)
-		} else {
-			parent.DefineVariable(v)
-		}
+		parent.DefineVariable(v)
 		fd = true
 	} else if v.CurrentType != t {
-		if parser.useGlobalContext {
-			parser.gc.DefineVariable(v)
+		if v.FirstDefinition.Parent() == parent {
 			v.CurrentType = t
 		} else {
-			if v.FirstDefinition.Parent() == parent {
-				v.CurrentType = t
-			} else {
-				v = lang.NewVariable(name, t, false)
-				fd = true
-			}
+			v = lang.NewVariable(name, t, false)
+			fd = true
 		}
 		parent.DefineVariable(v)
 	}
@@ -1099,10 +1085,6 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 		panic(err)
 	}
 
-	if parser.useGlobalContext && fd {
-		v.FirstDefinition = parser.gc
-		fd = false
-	}
 	if fd {
 		v.FirstDefinition = as
 	}
@@ -1120,11 +1102,7 @@ func (p *parser) identifierName(v *expr.Variable) string {
 	switch v.VarName.(type) {
 	case *node.Identifier:
 		n := v.VarName.(*node.Identifier).Value
-		if p.useGlobalContext {
-			return p.translator.Translate(n, Public)
-		} else {
-			return p.translator.Translate(n, Private)
-		}
+		return p.translator.Translate(n)
 
 	default:
 		panic(`Variable name is not defined as a simple string.`)
@@ -1139,10 +1117,7 @@ func (p *parser) constructName(nm *name.Name, translate bool) string {
 	if !translate {
 		return s
 	}
-	if p.useGlobalContext {
-		return p.functionTranslator.Translate(s, Public)
-	}
-	return p.functionTranslator.Translate(s, Private)
+	return p.functionTranslator.Translate(s)
 }
 
 // TODO: Type could know this.
