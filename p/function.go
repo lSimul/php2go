@@ -228,8 +228,18 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 			if f.Args[i].Type().Equal(lang.Anything) {
 				continue
 			}
-			if args[i].Type() != f.Args[i].Type() {
-				return nil, errors.New("Wrong argument type.")
+			if t := f.Args[i].Type(); args[i].Type() != t {
+				if t.IsPointer && !args[i].Type().IsPointer {
+					t, ok := args[i].(*lang.VarRef)
+					if !ok {
+						return nil, errors.New("Only variable can be send by reference.")
+					}
+					if err := t.ByReference(); err != nil {
+						return nil, err
+					}
+				} else {
+					return nil, errors.New("Wrong argument type.")
+				}
 			}
 		}
 	}

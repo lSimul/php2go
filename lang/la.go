@@ -770,7 +770,7 @@ func (i Inc) String() string {
 		s.WriteString(i.v.String())
 		s.WriteString(" + 1")
 	} else {
-		if i.v.Reference {
+		if i.v.typ.IsPointer {
 			s.WriteByte('*')
 		}
 		s.WriteString(i.v.String())
@@ -811,7 +811,7 @@ func (i Dec) String() string {
 		s.WriteString(i.v.String())
 		s.WriteString(" - 1")
 	} else {
-		if i.v.Reference {
+		if i.v.typ.IsPointer {
 			s.WriteByte('*')
 		}
 		s.WriteString(i.v.String())

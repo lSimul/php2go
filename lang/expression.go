@@ -64,7 +64,10 @@ func (f Function) String() string {
 	for i := 0; i < len(f.Args); i++ {
 		a := f.Args[i]
 		s.WriteString(a.Name + " ")
-		s.WriteString(a.Type().String())
+		if a.typ.IsPointer {
+			s.WriteByte('*')
+		}
+		s.WriteString(a.typ.String())
 		if i < len(f.Args)-1 {
 			s.WriteString(", ")
 		}
@@ -91,8 +94,6 @@ type VarRef struct {
 	parent Node
 	V      *Variable
 
-	Reference bool
-
 	typ Typ
 }
 
@@ -115,6 +116,11 @@ func (v VarRef) String() string {
 
 func (v VarRef) Type() Typ {
 	return v.typ
+}
+
+func (v *VarRef) ByReference() error {
+	v.typ.reference = true
+	return nil
 }
 
 func NewVarRef(v *Variable, t Typ) *VarRef {
@@ -506,10 +512,8 @@ func (f FunctionCall) String() string {
 	s.WriteString(f.Name)
 	s.WriteString("(")
 	for i := 0; i < len(f.Args); i++ {
-		if v, isVar := f.Args[i].(*VarRef); isVar {
-			if v.Reference {
-				s.WriteString("&")
-			}
+		if f.Args[i].Type().reference {
+			s.WriteByte('&')
 		}
 
 		s.WriteString(f.Args[i].String())

@@ -42,11 +42,12 @@ type Expression interface {
 
 type Typ struct {
 	typ       string
-	isPointer bool
+	IsPointer bool
+	reference bool
 }
 
-func NewTyp(typ string, isPointer bool) Typ {
-	return Typ{typ, isPointer}
+func NewTyp(typ string, IsPointer bool) Typ {
+	return Typ{typ, IsPointer, false}
 }
 
 func (t Typ) String() string {

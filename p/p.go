@@ -108,7 +108,7 @@ func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Express
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
 		// Default value has to be by value.
-		typ := lang.NewTyp(parser.constructName(p.VariableType.(*name.Name), true), false)
+		typ := lang.NewTyp(parser.constructName(p.VariableType.(*name.Name), true), p.ByRef)
 		v := lang.NewVariable(
 			parser.identifierName(p.Variable.(*expr.Variable)),
 			typ, false)
