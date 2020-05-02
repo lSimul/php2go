@@ -398,45 +398,39 @@ func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 	for _, c := range cl.Cases {
 		switch c := c.(type) {
 		case *stmt.Case:
-			lc := &lang.Case{
-				Vars:       make([]*lang.Variable, 0),
-				Statements: make([]lang.Node, 0),
-			}
-			lc.SetParent(s)
+			lc := lang.NewCase(s)
 			s.Cases = append(s.Cases, lc)
 			lc.Condition = parser.expression(lc, c.Cond)
-			parser.createFunction(lc, c.Stmts)
-			if len(lc.Statements) <= 0 {
+			parser.createFunction(lc.Block, c.Stmts)
+			b := lc.Block
+			if len(b.Statements) <= 0 {
 				break
 			}
-			if _, ok := lc.Statements[len(lc.Statements)-1].(*lang.Break); ok {
-				lc.Statements = lc.Statements[:len(lc.Statements)-1]
+			if _, ok := b.Statements[len(b.Statements)-1].(*lang.Break); ok {
+				b.Statements = b.Statements[:len(b.Statements)-1]
 			} else {
 				f := &lang.Fallthrough{}
 				f.SetParent(lc)
-				lc.Statements = append(lc.Statements, f)
+				b.Statements = append(b.Statements, f)
 			}
 
 		case *stmt.Default:
-			d := &lang.Default{
-				Vars:       make([]*lang.Variable, 0),
-				Statements: make([]lang.Node, 0),
-			}
-			d.SetParent(s)
+			d := lang.NewDefault(s)
 			s.Cases = append(s.Cases, d)
-			parser.createFunction(d, c.Stmts)
+			parser.createFunction(d.Block, c.Stmts)
 
-			if len(d.Statements) <= 0 {
+			b := d.Block
+			if len(b.Statements) <= 0 {
 				break
 			}
 
-			_, ok := d.Statements[len(d.Statements)-1].(*lang.Break)
+			_, ok := b.Statements[len(b.Statements)-1].(*lang.Break)
 			if ok {
-				d.Statements = d.Statements[:len(d.Statements)-1]
+				b.Statements = b.Statements[:len(b.Statements)-1]
 			} else {
 				f := &lang.Fallthrough{}
 				f.SetParent(d)
-				d.Statements = append(d.Statements, f)
+				b.Statements = append(b.Statements, f)
 			}
 		}
 	}

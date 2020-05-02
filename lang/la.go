@@ -547,9 +547,8 @@ func (sw Switch) String() string {
 type Case struct {
 	parent *Switch
 
-	Statements []Node
-	Vars       []*Variable
-	Condition  Expression
+	Block     *Code
+	Condition Expression
 }
 
 func (c Case) Parent() Node {
@@ -565,32 +564,12 @@ func (c *Case) SetParent(n Node) {
 }
 
 func (c *Case) HasVariable(name string, oos bool) *Variable {
-	for _, v := range c.Vars {
-		if v.Name == name {
-			return v
-		}
-	}
-
 	if p := c.parent; p != nil {
 		if v := p.HasVariable(name, oos); v != nil {
 			return v
 		}
 	}
-
-	if !oos {
-		return nil
-	}
-
-	v := c.definesVariable(name)
-	if v == nil {
-		return v
-	}
-
-	vd := newVarDef(c, v)
-	v.FirstDefinition = vd
-	c.Statements = append([]Node{vd}, c.Statements...)
-	c.Vars = append(c.Vars, v)
-	return v
+	return nil
 }
 
 func (c Case) String() string {
@@ -598,87 +577,26 @@ func (c Case) String() string {
 	s.WriteString("case ")
 	s.WriteString(c.Condition.String())
 	s.WriteString(":\n")
-	for _, e := range c.Statements {
-		s.WriteString(e.String())
-		s.WriteByte('\n')
-	}
+	s.WriteString(c.Block.String())
 	s.WriteByte('\n')
 	return s.String()
 }
 
-func (c *Case) AddStatement(n Node) {
-	c.Statements = append(c.Statements, n)
-}
+func (Case) AddStatement(Node)                {}
+func (Case) DefineVariable(*Variable)         {}
+func (Case) definesVariable(string) *Variable { return nil }
+func (Case) unset(int)                        {}
 
-func (c *Case) DefineVariable(v *Variable) {
-	// TODO: Definition should be small, this does a lot of things.
-	for _, vr := range c.Vars {
-		if vr != v {
-			continue
-		}
-		if vr.Type() == Anything {
-			return
-		}
-		vr.typ = Anything
-
-		switch vr.FirstDefinition.(type) {
-		case *VarDef:
-
-		case *Assign:
-			vr.FirstDefinition.(*Assign).FirstDefinition = false
-			vd := newVarDef(c, vr)
-			vr.FirstDefinition = vd
-			c.Statements = append([]Node{vd}, c.Statements...)
-			return
-
-		default:
-			panic(`Wrong assignment.`)
-		}
-	}
-	c.Vars = append(c.Vars, v)
-}
-
-func (c Case) definesVariable(name string) *Variable {
-	for i, v := range c.Vars {
-		if v.Name == name {
-			c.unset(i)
-			return v
-		}
-	}
-
-	for i := len(c.Statements) - 1; i >= 0; i-- {
-		if b, ok := c.Statements[i].(Block); ok {
-			if v := b.definesVariable(name); v != nil {
-				return v
-			}
-		}
-	}
-	return nil
-}
-
-func (c *Case) unset(index int) {
-	v := c.Vars[index]
-	copy(c.Vars[index:], c.Vars[index+1:])
-	c.Vars = c.Vars[:len(c.Vars)-1]
-	for i, s := range c.Statements {
-		if v.FirstDefinition != s {
-			continue
-		}
-		switch a := v.FirstDefinition.(type) {
-		case *Assign:
-			a.FirstDefinition = false
-		case *VarDef:
-			copy(c.Statements[i:], c.Statements[i+1:])
-			c.Statements = c.Statements[:len(c.Statements)-1]
-		}
-	}
+func NewCase(parent *Switch) *Case {
+	c := &Case{parent: parent}
+	c.Block = NewCode(c)
+	return c
 }
 
 type Default struct {
 	parent *Switch
 
-	Vars       []*Variable
-	Statements []Node
+	Block *Code
 }
 
 func (d Default) Parent() Node {
@@ -694,111 +612,31 @@ func (d *Default) SetParent(n Node) {
 }
 
 func (d *Default) HasVariable(name string, oos bool) *Variable {
-	for _, v := range d.Vars {
-		if v.Name == name {
-			return v
-		}
-	}
-
 	if p := d.parent; p != nil {
 		if v := p.HasVariable(name, oos); v != nil {
 			return v
 		}
 	}
-
-	if !oos {
-		return nil
-	}
-
-	v := d.definesVariable(name)
-	if v == nil {
-		return v
-	}
-
-	vd := newVarDef(d, v)
-	v.FirstDefinition = vd
-	d.Statements = append([]Node{vd}, d.Statements...)
-	d.Vars = append(d.Vars, v)
-	return v
+	return nil
 }
 
-func (d *Default) unset(index int) {
-	v := d.Vars[index]
-	copy(d.Vars[index:], d.Vars[index+1:])
-	d.Vars = d.Vars[:len(d.Vars)-1]
-	for i, s := range d.Statements {
-		if v.FirstDefinition != s {
-			continue
-		}
-		switch a := v.FirstDefinition.(type) {
-		case *Assign:
-			a.FirstDefinition = false
-		case *VarDef:
-			copy(d.Statements[i:], d.Statements[i+1:])
-			d.Statements = d.Statements[:len(d.Statements)-1]
-		}
-	}
-}
+func (Default) AddStatement(Node)                {}
+func (Default) DefineVariable(*Variable)         {}
+func (Default) definesVariable(string) *Variable { return nil }
+func (Default) unset(int)                        {}
 
 func (d Default) String() string {
 	s := strings.Builder{}
 	s.WriteString("default:\n")
-	for _, e := range d.Statements {
-		s.WriteString(e.String())
-		s.WriteByte('\n')
-	}
+	s.WriteString(d.Block.String())
 	s.WriteByte('\n')
 	return s.String()
 }
 
-func (d *Default) AddStatement(n Node) {
-	d.Statements = append(d.Statements, n)
-}
-
-func (d *Default) DefineVariable(v *Variable) {
-	// TODO: Definition should be small, this does a lot of things.
-	for _, vr := range d.Vars {
-		if vr != v {
-			continue
-		}
-		if vr.Type() == Anything {
-			return
-		}
-		vr.typ = Anything
-
-		switch vr.FirstDefinition.(type) {
-		case *VarDef:
-
-		case *Assign:
-			vr.FirstDefinition.(*Assign).FirstDefinition = false
-			vd := newVarDef(d, vr)
-			vr.FirstDefinition = vd
-			d.Statements = append([]Node{vd}, d.Statements...)
-			return
-
-		default:
-			panic(`Wrong assignment.`)
-		}
-	}
-	d.Vars = append(d.Vars, v)
-}
-
-func (d Default) definesVariable(name string) *Variable {
-	for i, v := range d.Vars {
-		if v.Name == name {
-			d.unset(i)
-			return v
-		}
-	}
-
-	for i := len(d.Statements) - 1; i >= 0; i-- {
-		if b, ok := d.Statements[i].(Block); ok {
-			if v := b.definesVariable(name); v != nil {
-				return v
-			}
-		}
-	}
-	return nil
+func NewDefault(parent *Switch) *Default {
+	d := &Default{parent: parent}
+	d.Block = NewCode(d)
+	return d
 }
 
 type If struct {
