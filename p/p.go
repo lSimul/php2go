@@ -36,17 +36,40 @@ func (p *parser) Run(r *node.Root) *lang.GlobalContext {
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
-		f := p.funcDef(&s)
-		p.funcs.Add(f)
+		f, defaultParams := p.funcDef(&s)
+		p.funcs.Add(f.Name, f, 0)
+
+		for i := len(defaultParams) - 1; i >= 0; i-- {
+			n := p.functionTranslator.Translate(fmt.Sprintf("%s%d", f.Name, i))
+			vf := lang.NewFunc(n)
+			var args []lang.Expression
+			for j := 0; j < len(f.Args)-(len(defaultParams)-i); j++ {
+				v := lang.NewVariable(f.Args[j].Name, f.Args[j].Type(), false)
+				vf.Args = append(vf.Args, v)
+				args = append(args, lang.NewVarRef(v, v.CurrentType))
+			}
+			args = append(args, defaultParams[i])
+
+			c, err := p.funcs.Namespace("").Call(f.Name, args)
+			if err != nil {
+				panic(err)
+			}
+			if f.Return == lang.Void {
+				vf.Body.AddStatement(c)
+			} else {
+				vf.Body.AddStatement(&lang.Return{Expression: c})
+			}
+			p.funcs.Add(f.Name, vf, len(defaultParams)-i)
+		}
 	}
 	for _, s := range fs {
-		f := p.funcDef(&s)
+		f, _ := p.funcDef(&s)
 		p.createFunction(&f.Body, s.Stmts)
-		p.funcs.Add(f)
+		p.funcs.Add(f.Name, f, 0)
 	}
 
 	main := p.mainDef()
-	p.funcs.Add(main)
+	p.funcs.Add(main.Name, main, 0)
 	p.createFunction(&main.Body, ms)
 	return p.gc
 }
@@ -71,21 +94,32 @@ func sanitizeRootStmts(r *node.Root) ([]node.Node, []stmt.Function) {
 	return main, functions
 }
 
-func (parser *parser) funcDef(fc *stmt.Function) *lang.Function {
+func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Expression) {
+	defaultParams := make([]lang.Expression, 0)
 	if fc == nil {
-		return nil
+		return nil, defaultParams
 	}
 
 	n := parser.functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value)
 	f := lang.NewFunc(n)
 	f.SetParent(parser.gc)
 
+	hasDefaultParams := false
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
 		v := lang.NewVariable(
 			parser.identifierName(p.Variable.(*expr.Variable)),
 			parser.constructName(p.VariableType.(*name.Name), true),
 			false)
+
+		if p.DefaultValue != nil {
+			dv := parser.expression(nil, p.DefaultValue)
+			defaultParams = append(defaultParams, dv)
+			hasDefaultParams = true
+		} else if hasDefaultParams {
+			panic(`Default parameters cannot be defined with gaps.`)
+		}
+
 		f.Args = append(f.Args, v)
 	}
 
@@ -97,7 +131,7 @@ func (parser *parser) funcDef(fc *stmt.Function) *lang.Function {
 		f.Return = n
 	}
 
-	return f
+	return f, defaultParams
 }
 
 func (p *parser) mainDef() *lang.Function {

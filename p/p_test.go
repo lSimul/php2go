@@ -83,7 +83,7 @@ func functionDef(t *testing.T) {
 	// This tests which name and return type will
 	// be used. lang.NewFunc(string) is tested
 	// elsewhere.
-	f := parser.funcDef(nil)
+	f, _ := parser.funcDef(nil)
 	if f != nil {
 		t.Error("From nil nothing can be created.")
 	}
@@ -99,7 +99,7 @@ func functionDef(t *testing.T) {
 	}
 
 	for _, f := range funcDefs {
-		def := parser.funcDef(f.f)
+		def, _ := parser.funcDef(f.f)
 		if def.Name != f.name {
 			t.Errorf("'%s' expected, '%s' found.\n", f.name, def.Name)
 		}
@@ -131,7 +131,7 @@ func functionDef(t *testing.T) {
 	}
 	for _, rt := range returnTypes {
 		placeholderFunction.ReturnType = rt.typ
-		f := parser.funcDef(placeholderFunction)
+		f, _ := parser.funcDef(placeholderFunction)
 		if f.Return != rt.expected {
 			t.Errorf("'%s' expected, '%s' found.\n", rt.expected, f.Return)
 

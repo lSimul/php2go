@@ -19,96 +19,110 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 
 	fn.funcs[""] = &funcs{
 		namespace: "",
-		fn:        &gc.Funcs,
+		fn:        make(map[string][]*lang.Function),
 		used:      true,
 	}
 
-	fmt := map[string]*lang.Function{
+	fmt := map[string][]*lang.Function{
 		"Print": {
-			Name: "Print",
-			Args: []*lang.Variable{
-				lang.NewVariable("vals", lang.Anything, false),
-			},
-			VariadicCount: true,
+			{
+				Name: "Print",
+				Args: []*lang.Variable{
+					lang.NewVariable("vals", lang.Anything, false),
+				},
+				VariadicCount: true,
 
-			Return: lang.Void,
+				Return: lang.Void,
+			},
 		},
 		"Sprintf": {
-			Name: "Sprintf",
-			Args: []*lang.Variable{
-				lang.NewVariable("format", lang.String, false),
-				lang.NewVariable("vals", lang.Anything, false),
-			},
-			VariadicCount: true,
+			{
+				Name: "Sprintf",
+				Args: []*lang.Variable{
+					lang.NewVariable("format", lang.String, false),
+					lang.NewVariable("vals", lang.Anything, false),
+				},
+				VariadicCount: true,
 
-			Return: lang.String,
+				Return: lang.String,
+			},
 		},
 	}
 	fn.funcs["fmt"] = &funcs{
 		namespace: "fmt",
-		fn:        &fmt,
+		fn:        fmt,
 		used:      false,
 	}
 
-	std := map[string]*lang.Function{
+	std := map[string][]*lang.Function{
 		"Concat": {
-			Name: "Concat",
-			Args: []*lang.Variable{
-				lang.NewVariable("left", lang.Anything, false),
-				lang.NewVariable("right", lang.Anything, false),
-			},
-			VariadicCount: false,
+			{
+				Name: "Concat",
+				Args: []*lang.Variable{
+					lang.NewVariable("left", lang.Anything, false),
+					lang.NewVariable("right", lang.Anything, false),
+				},
+				VariadicCount: false,
 
-			Return: lang.String,
+				Return: lang.String,
+			},
 		},
 		"Truthy": {
-			Name: "Truthy",
-			Args: []*lang.Variable{
-				lang.NewVariable("i", lang.Anything, false),
-			},
-			VariadicCount: false,
+			{
+				Name: "Truthy",
+				Args: []*lang.Variable{
+					lang.NewVariable("i", lang.Anything, false),
+				},
+				VariadicCount: false,
 
-			Return: lang.Bool,
+				Return: lang.Bool,
+			},
 		},
 	}
 	fn.funcs["std"] = &funcs{
 		namespace: "php2go/std",
-		fn:        &std,
+		fn:        std,
 		used:      false,
 	}
 
-	arr := map[string]*lang.Function{
+	arr := map[string][]*lang.Function{
 		"NewScalar": {
-			Name: "NewScalar",
-			Args: []*lang.Variable{
-				lang.NewVariable("s", lang.Anything, false),
-			},
-			VariadicCount: false,
+			{
+				Name: "NewScalar",
+				Args: []*lang.Variable{
+					lang.NewVariable("s", lang.Anything, false),
+				},
+				VariadicCount: false,
 
-			Return: "array.Scalar",
+				Return: "array.Scalar",
+			},
 		},
 		"NewInt": {
-			Name: "NewInt",
-			Args: []*lang.Variable{
-				lang.NewVariable("vals", lang.Anything, false),
-			},
-			VariadicCount: true,
+			{
+				Name: "NewInt",
+				Args: []*lang.Variable{
+					lang.NewVariable("vals", lang.Anything, false),
+				},
+				VariadicCount: true,
 
-			Return: "array.Int",
+				Return: "array.Int",
+			},
 		},
 		"NewString": {
-			Name: "NewString",
-			Args: []*lang.Variable{
-				lang.NewVariable("vals", lang.Anything, false),
-			},
-			VariadicCount: true,
+			{
+				Name: "NewString",
+				Args: []*lang.Variable{
+					lang.NewVariable("vals", lang.Anything, false),
+				},
+				VariadicCount: true,
 
-			Return: "array.String",
+				Return: "array.String",
+			},
 		},
 	}
 	fn.funcs["array"] = &funcs{
 		namespace: "php2go/std/array",
-		fn:        &arr,
+		fn:        arr,
 		used:      false,
 	}
 
@@ -117,11 +131,24 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 
 type funcs struct {
 	namespace string
-	fn        *map[string]*lang.Function
+	fn        map[string][]*lang.Function
 	used      bool
 }
 
-func (fn *Func) Add(f *lang.Function) {
+// Adds a function to the universe so it is recognized when calling
+// the function using Func.Namespace(string).Call(string, []lang.Expression)
+// First argument is a real name of the function. It goes well with the
+// missingArgs argument, goal is to found the correct function. Functions
+// in PHP can have variable amount of arguments.
+func (fn *Func) Add(name string, f *lang.Function, missingArgs int) {
+	if _, ok := fn.funcs[""].fn[name]; !ok {
+		fn.funcs[""].fn[name] = make([]*lang.Function, 0)
+	}
+	if len(fn.funcs[""].fn[name]) > missingArgs {
+		fn.funcs[""].fn[name][missingArgs] = f
+	} else {
+		fn.funcs[""].fn[name] = append(fn.funcs[""].fn[name], f)
+	}
 	fn.gc.Add(f)
 }
 
@@ -137,19 +164,30 @@ func (f *Func) Namespace(n string) *FunctionCaller {
 
 	return &FunctionCaller{
 		namespace: n,
-		functions: fn.fn,
+		functions: &fn.fn,
 	}
 }
 
 type FunctionCaller struct {
 	namespace string
-	functions *map[string]*lang.Function
+	functions *map[string][]*lang.Function
 }
 
 func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.FunctionCall, error) {
-	f, ok := (*fc.functions)[name]
+	funcs, ok := (*fc.functions)[name]
 	if !ok {
 		return nil, errors.New("Function is not defined.")
+	}
+
+	f := funcs[0]
+	if !f.VariadicCount {
+		i := len(f.Args) - len(args)
+		if i >= len(funcs) {
+			return nil, errors.New("Undefined function for this amount of parameters")
+		}
+		if i != 0 {
+			f = funcs[i]
+		}
 	}
 
 	// TODO: Refactor this.
