@@ -109,8 +109,8 @@ func functionDef(t *testing.T) {
 	}
 
 	f = parser.mainDef()
-	if f.Name != "mainFunc" {
-		t.Errorf("'%s' expected, '%s' found.\n", "mainFunc", f.Name)
+	if f.Name != "main" {
+		t.Errorf("'%s' expected, '%s' found.\n", "main", f.Name)
 	}
 	if !f.Return.Equal(lang.Void) {
 		t.Errorf("'%s' expected, '%s' found.\n", lang.Void, f.Return)
@@ -313,7 +313,7 @@ func testMain(tt *testing.T) {
 			source: []byte(`<?php
 			$a = 1 + 2;
 			`),
-			expected: `func mainFunc() {
+			expected: `func main() {
 				a := 1 + 2
 			}`,
 		},
@@ -325,7 +325,7 @@ func testMain(tt *testing.T) {
 
 			echo $a * $a;
 		`),
-			expected: `func mainFunc() {
+			expected: `func main() {
 				a := 2 + 3 + 4 * 2
 				fmt.Print(a * a)
 			}`,
@@ -344,7 +344,7 @@ func testMain(tt *testing.T) {
 				echo $a;
 			}
 			`),
-			expected: `func mainFunc() {
+			expected: `func main() {
 				{
 					{
 						a := "0"
@@ -365,7 +365,7 @@ func testMain(tt *testing.T) {
 			$a++;
 			echo $a;
 			`),
-			expected: `func mainFunc() {
+			expected: `func main() {
 				var a int
 				{
 					a = 0
@@ -386,7 +386,7 @@ func testMain(tt *testing.T) {
 			$a = 2;
 			echo $a;
 			`),
-			expected: `func mainFunc() {
+			expected: `func main() {
 				var a interface{}
 				a = 0
 				{
@@ -406,8 +406,8 @@ func testMain(tt *testing.T) {
 			functionTranslator: NewFunctionTranslator(),
 		}
 
-		out := parser.Run(parsePHP(t.source))
-		main := out.Funcs["mainFunc"].String()
+		out := parser.Run(parsePHP(t.source), false)
+		main := out.Funcs["main"].String()
 		compare(tt, t.expected, main)
 	}
 }

@@ -28,11 +28,6 @@ func NewGlobalContext() *GlobalContext {
 	_get := NewVariable("_GET", NewTyp("array.String", false), false)
 	gc.vars = append(gc.vars, w, _get)
 
-	gc.imports = append(gc.imports,
-		"flag", "io", "log", "net/http", "os",
-		"github.com/lSimul/php2go/std/array",
-	)
-
 	return gc
 }
 

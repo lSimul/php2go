@@ -1,6 +1,7 @@
 package p
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -19,6 +20,8 @@ type parser struct {
 	translator         NameTranslation
 	functionTranslator NameTranslation
 
+	asServer bool
+
 	gc    *lang.GlobalContext
 	funcs *Func
 }
@@ -27,12 +30,26 @@ func NewParser(v, f NameTranslation) *parser {
 	return &parser{
 		translator:         v,
 		functionTranslator: f,
+		asServer:           false,
 	}
 }
 
-func (p *parser) Run(r *node.Root) *lang.GlobalContext {
+func (p *parser) Run(r *node.Root, asServer bool) *lang.GlobalContext {
 	p.gc = lang.NewGlobalContext()
 	p.funcs = NewFunc(p.gc)
+	if asServer {
+		p.asServer = asServer
+
+		p.gc.AddImport("flag")
+		p.gc.AddImport("log")
+		p.gc.AddImport("net/http")
+
+		p.gc.AddImport("io")
+		p.gc.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
+
+		p.funcs.Namespace("array")
+		p.gc.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
+	}
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
@@ -70,6 +87,14 @@ func (p *parser) Run(r *node.Root) *lang.GlobalContext {
 
 	main := p.mainDef()
 	p.funcs.Add(main.Name, main, 0)
+	if asServer {
+		p.gc.AddImport("os")
+		a, err := lang.NewAssign(p.gc.HasVariable("W", false), &lang.Const{Value: "os.Stdout"})
+		if err != nil {
+			panic(err)
+		}
+		main.Body.AddStatement(a)
+	}
 	p.createFunction(&main.Body, ms)
 	return p.gc
 }
@@ -137,7 +162,12 @@ func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Express
 }
 
 func (p *parser) mainDef() *lang.Function {
-	f := lang.NewFunc("mainFunc")
+	var f *lang.Function
+	if p.asServer {
+		f = lang.NewFunc("mainFunc")
+	} else {
+		f = lang.NewFunc("main")
+	}
 	f.SetParent(p.gc)
 	return f
 }
@@ -150,7 +180,13 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 
 		case *stmt.InlineHtml:
 			str := &lang.Str{Value: fmt.Sprintf("`%s`", s.Value)}
-			f, err := parser.funcs.Namespace("fmt").Call("Print", []lang.Expression{str})
+			var err error
+			var f *lang.FunctionCall
+			if parser.asServer {
+				f, err = parser.servePrint([]lang.Expression{str})
+			} else {
+				f, err = parser.funcs.Namespace("fmt").Call("Print", []lang.Expression{str})
+			}
 			if err != nil {
 				panic(err)
 			}
@@ -340,7 +376,14 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				// send by reference and others.
 				args = append(args, parser.expression(b, e))
 			}
-			f, err := parser.funcs.Namespace("fmt").Call("Print", args)
+
+			var err error
+			var f *lang.FunctionCall
+			if parser.asServer {
+				f, err = parser.servePrint(args)
+			} else {
+				f, err = parser.funcs.Namespace("fmt").Call("Print", args)
+			}
 			if err != nil {
 				panic(err)
 			}
@@ -1255,6 +1298,15 @@ func (p *parser) constructName(nm *name.Name, translate bool) string {
 		return s
 	}
 	return p.functionTranslator.Translate(s)
+}
+
+func (p *parser) servePrint(args []lang.Expression) (*lang.FunctionCall, error) {
+	v := p.gc.HasVariable("W", false)
+	if v == nil {
+		return nil, errors.New("Variable io.Writer not defined")
+	}
+	args = append([]lang.Expression{lang.NewVarRef(v, lang.NewTyp(lang.Writer, false))}, args...)
+	return p.funcs.Namespace("fmt").Call("Fprintf", args)
 }
 
 // TODO: Type could know this.

@@ -9,6 +9,7 @@ const (
 	Float64  = "float64"
 	Bool     = "bool"
 	Anything = "interface{}"
+	Writer   = "io.Writer"
 )
 
 type Node interface {
