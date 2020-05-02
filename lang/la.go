@@ -44,11 +44,11 @@ func (gc *GlobalContext) DefineVariable(v *Variable) {
 	gc.vars = append(gc.vars, v)
 }
 
-func (gc GlobalContext) HasVariable(name string) *Variable {
-	return gc.DefinesVariable(name)
+func (gc GlobalContext) HasVariable(name string, oos bool) *Variable {
+	return gc.definesVariable(name)
 }
 
-func (gc GlobalContext) DefinesVariable(name string) *Variable {
+func (gc GlobalContext) definesVariable(name string) *Variable {
 	for _, v := range gc.vars {
 		if v.Name == name {
 			return v
@@ -56,6 +56,8 @@ func (gc GlobalContext) DefinesVariable(name string) *Variable {
 	}
 	return nil
 }
+
+func (gc GlobalContext) unset(index int) {}
 
 func (gc *GlobalContext) Add(f *Function) {
 	gc.Funcs[f.Name] = f
@@ -173,13 +175,52 @@ func (c *Code) SetParent(n Node) {
 	c.parent = n.(Block)
 }
 
-func (c Code) HasVariable(name string) *Variable {
-	v := c.DefinesVariable(name)
-	if v != nil {
-		return v
+func (c *Code) HasVariable(name string, oos bool) *Variable {
+	if oos {
+		for i := len(c.Statements) - 1; i >= 0; i-- {
+			switch s := c.Statements[i].(type) {
+			case Block:
+				v := s.definesVariable(name)
+				if v == nil {
+					continue
+				}
+				for _, cv := range c.Vars {
+					if cv.Name == name {
+						// This is a nasty hack. Instead of changing
+						// VarDefs pointing to "v" I change its type.
+						// Fixing this will not be that hard, during every
+						// NewVarDef I will append to variable array.
+						v.typ = Anything
+						cv.CurrentType = v.CurrentType
+						c.DefineVariable(cv)
+						return cv
+					}
+				}
+				c.DefineVariable(v)
+				vd := newVarDef(c, v)
+				v.FirstDefinition = vd
+				c.Statements = append([]Node{vd}, c.Statements...)
+				c.Vars = append(c.Vars, v)
+				return v
+
+			case *Assign:
+				if s.left.Name == name {
+					return c.HasVariable(name, false)
+				}
+			}
+		}
 	}
+
+	for _, v := range c.Vars {
+		if v.Name == name {
+			return v
+		}
+	}
+
 	if p := c.parent; p != nil {
-		return p.HasVariable(name)
+		if v := p.HasVariable(name, oos); v != nil {
+			return v
+		}
 	}
 	return nil
 }
@@ -212,13 +253,40 @@ func (c *Code) DefineVariable(v *Variable) {
 	c.Vars = append(c.Vars, v)
 }
 
-func (c Code) DefinesVariable(name string) *Variable {
-	for _, v := range c.Vars {
+func (c *Code) definesVariable(name string) *Variable {
+	for i, v := range c.Vars {
 		if v.Name == name {
+			c.unset(i)
 			return v
 		}
 	}
+
+	for i := len(c.Statements) - 1; i >= 0; i-- {
+		if b, ok := c.Statements[i].(Block); ok {
+			if v := b.definesVariable(name); v != nil {
+				return v
+			}
+		}
+	}
 	return nil
+}
+
+func (c *Code) unset(index int) {
+	v := c.Vars[index]
+	copy(c.Vars[index:], c.Vars[index+1:])
+	c.Vars = c.Vars[:len(c.Vars)-1]
+	for i, s := range c.Statements {
+		if v.FirstDefinition != s {
+			continue
+		}
+		switch a := v.FirstDefinition.(type) {
+		case *Assign:
+			a.FirstDefinition = false
+		case *VarDef:
+			copy(c.Statements[i:], c.Statements[i+1:])
+			c.Statements = c.Statements[:len(c.Statements)-1]
+		}
+	}
 }
 
 func (c *Code) AddStatement(n Node) {
@@ -281,13 +349,13 @@ func (f *For) SetParent(n Node) {
 	f.parent = n.(Block)
 }
 
-func (f For) HasVariable(name string) *Variable {
-	v := f.DefinesVariable(name)
+func (f For) HasVariable(name string, oos bool) *Variable {
+	v := f.definesVariable(name)
 	if v != nil {
 		return v
 	}
 	if f.parent != nil {
-		return f.parent.HasVariable(name)
+		return f.parent.HasVariable(name, oos)
 	}
 	return nil
 }
@@ -308,13 +376,22 @@ func (f *For) DefineVariable(v *Variable) {
 	f.Vars = append(f.Vars, v)
 }
 
-func (f For) DefinesVariable(name string) *Variable {
-	for _, v := range f.Vars {
+func (f *For) definesVariable(name string) *Variable {
+	for i, v := range f.Vars {
 		if v.Name == name {
+			f.unset(i)
 			return v
 		}
 	}
 	return nil
+}
+
+func (f *For) unset(index int) {
+	copy(f.Vars[index:], f.Vars[index+1:])
+	f.Vars = f.Vars[:len(f.Vars)-1]
+	if a, ok := f.Init.(*Assign); ok {
+		a.FirstDefinition = false
+	}
 }
 
 func (f *For) AddStatement(n Node) {
@@ -380,14 +457,14 @@ func (f *Foreach) SetParent(n Node) {
 	f.parent = n.(Block)
 }
 
-func (f Foreach) HasVariable(name string) *Variable {
-	v := f.DefinesVariable(name)
+func (f Foreach) HasVariable(name string, oos bool) *Variable {
+	v := f.definesVariable(name)
 	if v != nil {
 		return v
 	}
 
 	if f.parent != nil {
-		return f.parent.HasVariable(name)
+		return f.parent.HasVariable(name, oos)
 	}
 	return nil
 }
@@ -395,7 +472,7 @@ func (f Foreach) HasVariable(name string) *Variable {
 func (f *Foreach) AddStatement(n Node)        {}
 func (f *Foreach) DefineVariable(v *Variable) {}
 
-func (f Foreach) DefinesVariable(name string) *Variable {
+func (f Foreach) definesVariable(name string) *Variable {
 	if f.Key != nil && f.Key.Name == name {
 		return f.Key
 	}
@@ -404,6 +481,8 @@ func (f Foreach) DefinesVariable(name string) *Variable {
 	}
 	return nil
 }
+
+func (_ *Foreach) unset(index int) {}
 
 func (f Foreach) String() string {
 	k := "_"
@@ -437,9 +516,9 @@ func (sw *Switch) SetParent(n Node) {
 	sw.parent = n.(Block)
 }
 
-func (sw Switch) HasVariable(name string) *Variable {
+func (sw Switch) HasVariable(name string, oos bool) *Variable {
 	if sw.parent != nil {
-		return sw.parent.HasVariable(name)
+		return sw.parent.HasVariable(name, oos)
 	}
 	return nil
 }
@@ -447,9 +526,11 @@ func (sw Switch) HasVariable(name string) *Variable {
 func (sw *Switch) AddStatement(n Node)        {}
 func (sw *Switch) DefineVariable(v *Variable) {}
 
-func (sw Switch) DefinesVariable(name string) *Variable {
+func (sw Switch) definesVariable(name string) *Variable {
 	return nil
 }
+
+func (sw Switch) unset(index int) {}
 
 func (sw Switch) String() string {
 	s := strings.Builder{}
@@ -483,15 +564,33 @@ func (c *Case) SetParent(n Node) {
 	c.parent = sw
 }
 
-func (c Case) HasVariable(name string) *Variable {
-	v := c.DefinesVariable(name)
-	if v != nil {
+func (c *Case) HasVariable(name string, oos bool) *Variable {
+	for _, v := range c.Vars {
+		if v.Name == name {
+			return v
+		}
+	}
+
+	if p := c.parent; p != nil {
+		if v := p.HasVariable(name, oos); v != nil {
+			return v
+		}
+	}
+
+	if !oos {
+		return nil
+	}
+
+	v := c.definesVariable(name)
+	if v == nil {
 		return v
 	}
-	if c.parent != nil {
-		return c.parent.HasVariable(name)
-	}
-	return nil
+
+	vd := newVarDef(c, v)
+	v.FirstDefinition = vd
+	c.Statements = append([]Node{vd}, c.Statements...)
+	c.Vars = append(c.Vars, v)
+	return v
 }
 
 func (c Case) String() string {
@@ -539,13 +638,40 @@ func (c *Case) DefineVariable(v *Variable) {
 	c.Vars = append(c.Vars, v)
 }
 
-func (c Case) DefinesVariable(name string) *Variable {
-	for _, v := range c.Vars {
+func (c Case) definesVariable(name string) *Variable {
+	for i, v := range c.Vars {
 		if v.Name == name {
+			c.unset(i)
 			return v
 		}
 	}
+
+	for i := len(c.Statements) - 1; i >= 0; i-- {
+		if b, ok := c.Statements[i].(Block); ok {
+			if v := b.definesVariable(name); v != nil {
+				return v
+			}
+		}
+	}
 	return nil
+}
+
+func (c *Case) unset(index int) {
+	v := c.Vars[index]
+	copy(c.Vars[index:], c.Vars[index+1:])
+	c.Vars = c.Vars[:len(c.Vars)-1]
+	for i, s := range c.Statements {
+		if v.FirstDefinition != s {
+			continue
+		}
+		switch a := v.FirstDefinition.(type) {
+		case *Assign:
+			a.FirstDefinition = false
+		case *VarDef:
+			copy(c.Statements[i:], c.Statements[i+1:])
+			c.Statements = c.Statements[:len(c.Statements)-1]
+		}
+	}
 }
 
 type Default struct {
@@ -567,15 +693,51 @@ func (d *Default) SetParent(n Node) {
 	d.parent = sw
 }
 
-func (d Default) HasVariable(name string) *Variable {
-	v := d.DefinesVariable(name)
-	if v != nil {
+func (d *Default) HasVariable(name string, oos bool) *Variable {
+	for _, v := range d.Vars {
+		if v.Name == name {
+			return v
+		}
+	}
+
+	if p := d.parent; p != nil {
+		if v := p.HasVariable(name, oos); v != nil {
+			return v
+		}
+	}
+
+	if !oos {
+		return nil
+	}
+
+	v := d.definesVariable(name)
+	if v == nil {
 		return v
 	}
-	if d.parent != nil {
-		return d.parent.HasVariable(name)
+
+	vd := newVarDef(d, v)
+	v.FirstDefinition = vd
+	d.Statements = append([]Node{vd}, d.Statements...)
+	d.Vars = append(d.Vars, v)
+	return v
+}
+
+func (d *Default) unset(index int) {
+	v := d.Vars[index]
+	copy(d.Vars[index:], d.Vars[index+1:])
+	d.Vars = d.Vars[:len(d.Vars)-1]
+	for i, s := range d.Statements {
+		if v.FirstDefinition != s {
+			continue
+		}
+		switch a := v.FirstDefinition.(type) {
+		case *Assign:
+			a.FirstDefinition = false
+		case *VarDef:
+			copy(d.Statements[i:], d.Statements[i+1:])
+			d.Statements = d.Statements[:len(d.Statements)-1]
+		}
 	}
-	return nil
 }
 
 func (d Default) String() string {
@@ -621,10 +783,19 @@ func (d *Default) DefineVariable(v *Variable) {
 	d.Vars = append(d.Vars, v)
 }
 
-func (d Default) DefinesVariable(name string) *Variable {
-	for _, v := range d.Vars {
+func (d Default) definesVariable(name string) *Variable {
+	for i, v := range d.Vars {
 		if v.Name == name {
+			d.unset(i)
 			return v
+		}
+	}
+
+	for i := len(d.Statements) - 1; i >= 0; i-- {
+		if b, ok := d.Statements[i].(Block); ok {
+			if v := b.definesVariable(name); v != nil {
+				return v
+			}
 		}
 	}
 	return nil
@@ -660,13 +831,13 @@ func (i *If) SetParent(n Node) {
 	i.parent = n.(Block)
 }
 
-func (i If) HasVariable(name string) *Variable {
-	v := i.DefinesVariable(name)
+func (i If) HasVariable(name string, oos bool) *Variable {
+	v := i.definesVariable(name)
 	if v != nil {
 		return v
 	}
 	if i.parent != nil {
-		return i.parent.HasVariable(name)
+		return i.parent.HasVariable(name, oos)
 	}
 	return nil
 }
@@ -687,13 +858,22 @@ func (i *If) DefineVariable(v *Variable) {
 	i.Vars = append(i.Vars, v)
 }
 
-func (i If) DefinesVariable(name string) *Variable {
-	for _, v := range i.Vars {
+func (i *If) definesVariable(name string) *Variable {
+	for index, v := range i.Vars {
 		if v.Name == name {
+			i.unset(index)
 			return v
 		}
 	}
 	return nil
+}
+
+func (i *If) unset(index int) {
+	copy(i.Vars[index:], i.Vars[index+1:])
+	i.Vars = i.Vars[:len(i.Vars)-1]
+	if a, ok := i.Init.(*Assign); ok {
+		a.FirstDefinition = false
+	}
 }
 
 func (i *If) AddStatement(n Node) {}

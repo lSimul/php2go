@@ -1,7 +1,6 @@
 package p
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -20,9 +19,8 @@ type parser struct {
 	translator         NameTranslation
 	functionTranslator NameTranslation
 
-	gc               *lang.GlobalContext
-	funcs            *Func
-	useGlobalContext bool
+	gc    *lang.GlobalContext
+	funcs *Func
 }
 
 func NewParser(v, f NameTranslation) *parser {
@@ -36,7 +34,6 @@ func (p *parser) Run(r *node.Root) *lang.GlobalContext {
 	p.gc = lang.NewGlobalContext()
 	p.funcs = NewFunc(p.gc)
 	ms, fs := sanitizeRootStmts(r)
-	p.useGlobalContext = false
 
 	for _, s := range fs {
 		f := p.funcDef(&s)
@@ -50,9 +47,7 @@ func (p *parser) Run(r *node.Root) *lang.GlobalContext {
 
 	main := p.mainDef()
 	p.funcs.Add(main)
-	p.useGlobalContext = true
 	p.createFunction(&main.Body, ms)
-	p.useGlobalContext = false
 	return p.gc
 }
 
@@ -81,9 +76,7 @@ func (parser *parser) funcDef(fc *stmt.Function) *lang.Function {
 		return nil
 	}
 
-	// TODO: IdentifierName method is for this. (is it still relevant?)
-	// TODO: Make sure visibility is set as it should be.
-	n := parser.functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value, Private)
+	n := parser.functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value)
 	f := lang.NewFunc(n)
 	f.SetParent(parser.gc)
 
@@ -511,7 +504,7 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 
 	case (*expr.ArrayDimFetch):
 		vn := parser.identifierName(v.Variable.(*expr.Variable))
-		vr := b.HasVariable(vn)
+		vr := b.HasVariable(vn, true)
 		if vr == nil || vr.Type() == lang.Void {
 			panic(vn + " is not defined.")
 		}
@@ -562,7 +555,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 				panic(`Only arrays are accepted for unset.`)
 			}
 			vn := parser.identifierName(adf.Variable.(*expr.Variable))
-			v := b.HasVariable(vn)
+			v := b.HasVariable(vn, true)
 			if v == nil || v.Type() == lang.Void {
 				panic(vn + " is not defined.")
 			}
@@ -592,7 +585,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		if !ok {
 			panic(`"++" requires variable.`)
 		}
-		if b.HasVariable(v.V.Name) == nil {
+		if b.HasVariable(v.V.Name, true) == nil {
 			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
 		}
 		return lang.NewInc(b, v)
@@ -601,7 +594,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		if !ok {
 			panic(`"--" requires variable.`)
 		}
-		if b.HasVariable(v.V.Name) == nil {
+		if b.HasVariable(v.V.Name, true) == nil {
 			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
 		}
 		return lang.NewDec(b, v)
@@ -629,7 +622,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 	switch e := n.(type) {
 	case *expr.Variable:
 		name := parser.identifierName(e)
-		v := b.HasVariable(name)
+		v := b.HasVariable(name, true)
 		if v == nil {
 			panic("Using undefined variable \"" + name + "\".")
 		}
@@ -647,7 +640,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 			case *expr.Variable:
 				vn := parser.identifierName(p)
-				v := b.HasVariable(vn)
+				v := b.HasVariable(vn, true)
 				if v == nil || v.Type() == lang.Void {
 					panic(vn + " is not defined.")
 				}
@@ -656,7 +649,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 			case *expr.ArrayDimFetch:
 				vn := parser.identifierName(p.Variable.(*expr.Variable))
-				v := b.HasVariable(vn)
+				v := b.HasVariable(vn, true)
 				if v == nil || v.Type() == lang.Void {
 					panic(vn + " is not defined.")
 				}
@@ -699,7 +692,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			panic(`Only arrays are accepted for isset.`)
 		}
 		vn := parser.identifierName(adf.Variable.(*expr.Variable))
-		v := b.HasVariable(vn)
+		v := b.HasVariable(vn, true)
 		if v == nil || v.Type() == lang.Void {
 			panic(vn + " is not defined.")
 		}
@@ -1054,42 +1047,24 @@ func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, exp
 	return
 }
 
-func checkArguments(vars []*lang.Variable, call []node.Node) error {
-	if len(vars) != len(call) {
-		return errors.New("wrong argument count")
-	}
-	// TODO: Check if arguments are passed by reference, make sure
-	// that is done only with variables.
-	return nil
-}
-
 func (parser *parser) buildAssignment(parent lang.Block, name string, right lang.Expression) *lang.Assign {
 	t := right.Type()
 	if t == lang.Void {
 		panic("Cannot assign \"void\" " + "to \"" + name + "\".")
 	}
 
-	v := parent.HasVariable(name)
+	v := parent.HasVariable(name, false)
 	fd := false
 	if v == nil {
 		v = lang.NewVariable(name, t, false)
-		if parser.useGlobalContext {
-			parser.gc.DefineVariable(v)
-		} else {
-			parent.DefineVariable(v)
-		}
+		parent.DefineVariable(v)
 		fd = true
 	} else if v.CurrentType != t {
-		if parser.useGlobalContext {
-			parser.gc.DefineVariable(v)
+		if v.FirstDefinition.Parent() == parent {
 			v.CurrentType = t
 		} else {
-			if v.FirstDefinition.Parent() == parent {
-				v.CurrentType = t
-			} else {
-				v = lang.NewVariable(name, t, false)
-				fd = true
-			}
+			v = lang.NewVariable(name, t, false)
+			fd = true
 		}
 		parent.DefineVariable(v)
 	}
@@ -1099,10 +1074,6 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 		panic(err)
 	}
 
-	if parser.useGlobalContext && fd {
-		v.FirstDefinition = parser.gc
-		fd = false
-	}
 	if fd {
 		v.FirstDefinition = as
 	}
@@ -1120,11 +1091,7 @@ func (p *parser) identifierName(v *expr.Variable) string {
 	switch v.VarName.(type) {
 	case *node.Identifier:
 		n := v.VarName.(*node.Identifier).Value
-		if p.useGlobalContext {
-			return p.translator.Translate(n, Public)
-		} else {
-			return p.translator.Translate(n, Private)
-		}
+		return p.translator.Translate(n)
 
 	default:
 		panic(`Variable name is not defined as a simple string.`)
@@ -1139,10 +1106,7 @@ func (p *parser) constructName(nm *name.Name, translate bool) string {
 	if !translate {
 		return s
 	}
-	if p.useGlobalContext {
-		return p.functionTranslator.Translate(s, Public)
-	}
-	return p.functionTranslator.Translate(s, Private)
+	return p.functionTranslator.Translate(s)
 }
 
 // TODO: Type could know this.

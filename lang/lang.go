@@ -24,8 +24,14 @@ type Block interface {
 	AddStatement(Node)
 	DefineVariable(*Variable)
 
-	HasVariable(string) *Variable
-	DefinesVariable(string) *Variable
+	// HasVariable tries to find a variable definition
+	// at any cost, even searching out of scope. It is
+	// bounded to the DefinesVariable, this function
+	// does the out of scope search, HasVariable changes
+	// the definition so it can be used in Go.
+	HasVariable(string, bool) *Variable
+	definesVariable(string) *Variable
+	unset(index int)
 }
 
 type Expression interface {

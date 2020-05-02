@@ -6,11 +6,6 @@ import (
 	"strings"
 )
 
-const (
-	Public  = 1
-	Private = 2
-)
-
 var keywords = map[string]bool{
 	"break":       true,
 	"case":        true,
@@ -37,6 +32,9 @@ var keywords = map[string]bool{
 	"switch":      true,
 	"type":        true,
 	"var":         true,
+
+	"array": true,
+	"std":   true,
 }
 
 func ArrayType(s string) string {
@@ -65,7 +63,7 @@ func FirstLower(s string) string {
 }
 
 type NameTranslation interface {
-	Translate(string, int) string
+	Translate(string) string
 }
 
 type nameTranslator struct {
@@ -73,14 +71,7 @@ type nameTranslator struct {
 	used  map[string]bool
 }
 
-func (t *nameTranslator) Translate(name string, visibility int) string {
-	switch visibility {
-	case Public:
-		name = FirstUpper(name)
-	case Private:
-		name = FirstLower(name)
-	}
-
+func (t *nameTranslator) Translate(name string) string {
 	if name, defined := t.names[name]; defined {
 		return name
 	}

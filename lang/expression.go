@@ -27,13 +27,13 @@ func (f *Function) SetParent(n Node) {
 	f.parent = n.(Block)
 }
 
-func (f Function) HasVariable(name string) *Variable {
-	v := f.DefinesVariable(name)
+func (f Function) HasVariable(name string, oos bool) *Variable {
+	v := f.definesVariable(name)
 	if v != nil {
 		return v
 	}
 	if p := f.parent; p != nil {
-		return p.HasVariable(name)
+		return p.HasVariable(name, oos)
 	}
 	return nil
 }
@@ -47,7 +47,7 @@ func (f *Function) DefineVariable(v *Variable) {
 	f.Args = append(f.Args, v)
 }
 
-func (f Function) DefinesVariable(name string) *Variable {
+func (f Function) definesVariable(name string) *Variable {
 	for _, a := range f.Args {
 		if a.Name == name {
 			return a
@@ -55,6 +55,8 @@ func (f Function) DefinesVariable(name string) *Variable {
 	}
 	return nil
 }
+
+func (f Function) unset(index int) {}
 
 func (f Function) String() string {
 	s := strings.Builder{}
@@ -138,7 +140,7 @@ func (v *VarDef) SetParent(n Node) {
 }
 
 func (v VarDef) String() string {
-	return fmt.Sprintf("var %s %s", v.V.Name, v.V.Type())
+	return fmt.Sprintf("var %s %s", v.V.Name, v.V.typ)
 }
 
 func newVarDef(b Block, v *Variable) *VarDef {
