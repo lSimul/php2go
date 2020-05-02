@@ -876,8 +876,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			}
 		}
 
-		// TODO: Remove this ugly temporary solution, translating has to be smarter.
-		n = parser.constructName(e.Function.(*name.Name), false)
+		n = parser.constructName(e.Function.(*name.Name), true)
 		var args []lang.Expression
 		for _, a := range al.Arguments {
 			// TODO: Do not ignore information in Argument,

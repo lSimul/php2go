@@ -8,7 +8,7 @@ func(1, 2, 3, 4);
 
 $for = 1;
 
-function fn(): int {
+function ff(): int {
 	return -1;
 }
 
