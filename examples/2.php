@@ -2,8 +2,8 @@
 
 $a = "This example should fail, string to int assignment";
 
-$a = fn();
+$a = ff();
 
-function fn(): int {
+function ff(): int {
 	return -1;
 }

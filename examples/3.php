@@ -1,7 +1,7 @@
 <?php
 
-$a = fn();
+$a = ff();
 
-function fn(): void {
+function ff(): void {
 	echo "This should fail, method does not return value.";
 }
