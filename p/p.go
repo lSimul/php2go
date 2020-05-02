@@ -54,7 +54,7 @@ func (p *parser) Run(r *node.Root) *lang.GlobalContext {
 			if err != nil {
 				panic(err)
 			}
-			if f.Return == lang.Void {
+			if f.Return.Equal(lang.Void) {
 				vf.Body.AddStatement(c)
 			} else {
 				vf.Body.AddStatement(&lang.Return{Expression: c})
@@ -107,10 +107,11 @@ func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Express
 	hasDefaultParams := false
 	for _, pr := range fc.Params {
 		p := pr.(*node.Parameter)
+		// Default value has to be by value.
+		typ := lang.NewTyp(parser.constructName(p.VariableType.(*name.Name), true), false)
 		v := lang.NewVariable(
 			parser.identifierName(p.Variable.(*expr.Variable)),
-			parser.constructName(p.VariableType.(*name.Name), true),
-			false)
+			typ, false)
 
 		if p.DefaultValue != nil {
 			dv := parser.expression(nil, p.DefaultValue)
@@ -128,7 +129,8 @@ func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Express
 		if n == "void" {
 			n = lang.Void
 		}
-		f.Return = n
+		// In PHP every return type is by value.
+		f.Return = lang.NewTyp(n, false)
 	}
 
 	return f, defaultParams
@@ -237,7 +239,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			lf.Block = lang.NewCode(lf)
 
 			iterated := parser.expression(lf, s.Expr)
-			if !IsArray(iterated.Type()) {
+			if !IsArray(iterated.Type().String()) {
 				panic(`Only arrays can be iterated.`)
 			}
 
@@ -260,14 +262,16 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 					// TODO: Set up return type.
 				}
 				name := parser.identifierName(s.Variable.(*expr.Variable))
-				lf.Value = *lang.NewVariable(name, ArrayItem(iterated.Type()), false)
+				typ := lang.NewTyp(ArrayItem(iterated.Type().String()), false)
+				lf.Value = *lang.NewVariable(name, typ, false)
 			} else {
 				name := parser.identifierName(s.Key.(*expr.Variable))
 				// TODO: Define type scalar which is being
 				// formated as string.
-				k := lang.NewVariable(name, lang.String, false)
+				k := lang.NewVariable(name, lang.NewTyp(lang.String, false), false)
 				n := parser.identifierName(s.Variable.(*expr.Variable))
-				v := lang.NewVariable(n, ArrayItem(iterated.Type()), false)
+				typ := lang.NewTyp(ArrayItem(iterated.Type().String()), false)
+				v := lang.NewVariable(n, typ, false)
 
 				it = &lang.FunctionCall{
 					Name: fnName + ".KeyIter",
@@ -275,12 +279,12 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				}
 
 				// TODO: This is not lang.Void
-				lf.Value = *lang.NewVariable("pair", lang.Void, false)
+				lf.Value = *lang.NewVariable("pair", lang.NewTyp(lang.Void, false), false)
 
 				// TODO: I do not have this part of code under control.
 				// Accessing struct elements is out of my reach right now.
 				if k != nil {
-					pairK := lang.NewVariable(lf.Value.Name+".K", lang.String, true)
+					pairK := lang.NewVariable(lf.Value.Name+".K", lang.NewTyp(lang.String, false), true)
 					s, err := lang.NewAssign(k, lang.NewVarRef(pairK, pairK.Type()))
 					if err != nil {
 						panic(err)
@@ -290,7 +294,8 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 					lf.Block.DefineVariable(k)
 				}
 
-				pairV := lang.NewVariable(lf.Value.Name+".V", ArrayItem(iterated.Type()), true)
+				typ = lang.NewTyp(ArrayItem(iterated.Type().String()), false)
+				pairV := lang.NewVariable(lf.Value.Name+".V", typ, true)
 				s, err := lang.NewAssign(v, lang.NewVarRef(pairV, pairV.Type()))
 				if err != nil {
 					panic(err)
@@ -533,11 +538,11 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 	case (*expr.ArrayDimFetch):
 		vn := parser.identifierName(v.Variable.(*expr.Variable))
 		vr := b.HasVariable(vn, true)
-		if vr == nil || vr.Type() == lang.Void {
+		if vr == nil || vr.Type().Equal(lang.Void) {
 			panic(vn + " is not defined.")
 		}
 
-		if l, r := ArrayItem(vr.Type()), r.Type(); l != r {
+		if l, r := ArrayItem(vr.Type().String()), r.Type().String(); l != r {
 			panic(fmt.Sprintf("Array editing: '%s' expected, '%s' given.", l, r))
 		}
 
@@ -584,7 +589,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 			}
 			vn := parser.identifierName(adf.Variable.(*expr.Variable))
 			v := b.HasVariable(vn, true)
-			if v == nil || v.Type() == lang.Void {
+			if v == nil || v.Type().Equal(lang.Void) {
 				panic(vn + " is not defined.")
 			}
 			args := []lang.Expression{parser.expression(b, adf.Dim)}
@@ -669,16 +674,16 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			case *expr.Variable:
 				vn := parser.identifierName(p)
 				v := b.HasVariable(vn, true)
-				if v == nil || v.Type() == lang.Void {
+				if v == nil || v.Type().Equal(lang.Void) {
 					panic(vn + " is not defined.")
 				}
-				s.Value += varFormat(v.Type())
+				s.Value += varFormat(v.Type().String())
 				args = append(args, lang.NewVarRef(v, v.Type()))
 
 			case *expr.ArrayDimFetch:
 				vn := parser.identifierName(p.Variable.(*expr.Variable))
 				v := b.HasVariable(vn, true)
-				if v == nil || v.Type() == lang.Void {
+				if v == nil || v.Type().Equal(lang.Void) {
 					panic(vn + " is not defined.")
 				}
 
@@ -691,12 +696,12 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 				fc := &lang.FunctionCall{
 					Name:   fmt.Sprintf("%s.At", v),
 					Args:   []lang.Expression{scalar},
-					Return: ArrayItem(v.Type()),
+					Return: lang.NewTyp(ArrayItem(v.Type().String()), false),
 				}
 				scalar.SetParent(fc)
 				fc.SetParent(b)
 
-				s.Value += varFormat(fc.Type())
+				s.Value += varFormat(fc.Type().String())
 
 				args = append(args, fc)
 			}
@@ -721,7 +726,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		}
 		vn := parser.identifierName(adf.Variable.(*expr.Variable))
 		v := b.HasVariable(vn, true)
-		if v == nil || v.Type() == lang.Void {
+		if v == nil || v.Type().Equal(lang.Void) {
 			panic(vn + " is not defined.")
 		}
 
@@ -734,7 +739,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		fc := &lang.FunctionCall{
 			Name:   fmt.Sprintf("%s.Isset", v),
 			Args:   []lang.Expression{scalar},
-			Return: lang.Bool,
+			Return: lang.NewTyp(lang.Bool, false),
 		}
 
 		fc.SetParent(b)
@@ -795,9 +800,9 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		if len(items) == 0 {
 			panic(`Cannot decide type, empty array.`)
 		}
-		typ := items[0].Type()
+		typ := items[0].Type().String()
 		for _, i := range items {
-			if i.Type() != typ {
+			if !i.Type().Equal(typ) {
 				panic(`Type is not the same for every element of the array.`)
 			}
 		}
@@ -825,7 +830,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		fc := &lang.FunctionCall{
 			Name:   fmt.Sprintf("%s.At", v),
 			Args:   []lang.Expression{scalar},
-			Return: ArrayItem(v.Type()),
+			Return: lang.NewTyp(ArrayItem(v.Type().String()), false),
 		}
 		scalar.SetParent(fc)
 		fc.SetParent(b)
@@ -885,15 +890,15 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					panic(`array_push requires atlast two arguments`)
 				}
 				v, ok := parser.expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.VarRef)
-				if !ok || !IsArray(v.Type()) {
+				if !ok || !IsArray(v.Type().String()) {
 					panic(`First argument has to be a variable, an array.`)
 				}
-				typ := ArrayItem(v.Type())
+				typ := ArrayItem(v.Type().String())
 
 				vars := []lang.Expression{}
 				for _, arg := range al.Arguments[1:] {
 					v := parser.expression(b, arg.(*node.Argument).Expr)
-					if v.Type() != typ {
+					if !v.Type().Equal(typ) {
 						panic(`Cannot push this type.`)
 					}
 					vars = append(vars, v)
@@ -902,7 +907,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 				fc := &lang.FunctionCall{
 					Name:   v.V.Name + ".Push",
 					Args:   vars,
-					Return: lang.Int,
+					Return: lang.NewTyp(lang.Int, false),
 				}
 
 				fc.SetParent(b)
@@ -953,14 +958,14 @@ func convertToMatchingType(left, right lang.Expression) bool {
 	// PHP tries to convert string to number,
 	// skipping for now.
 	t := false
-	switch lt {
+	switch lt.String() {
 	case lang.Bool:
-		switch rt {
+		switch rt.String() {
 		case lang.Int:
 			f := &lang.FunctionCall{
 				Name:   "std.BoolToInt",
 				Args:   []lang.Expression{left},
-				Return: lang.Int,
+				Return: lang.NewTyp(lang.Int, false),
 			}
 			f.SetParent(left)
 			left = f
@@ -970,7 +975,7 @@ func convertToMatchingType(left, right lang.Expression) bool {
 			f := &lang.FunctionCall{
 				Name:   "std.BoolToFloat64",
 				Args:   []lang.Expression{left},
-				Return: lang.Float64,
+				Return: lang.NewTyp(lang.Float64, false),
 			}
 			f.SetParent(left)
 			left = f
@@ -978,12 +983,12 @@ func convertToMatchingType(left, right lang.Expression) bool {
 		}
 
 	case lang.Int:
-		switch rt {
+		switch rt.String() {
 		case lang.Bool:
 			f := &lang.FunctionCall{
 				Name:   "std.BoolToInt",
 				Args:   []lang.Expression{right},
-				Return: lang.Int,
+				Return: lang.NewTyp(lang.Int, false),
 			}
 			f.SetParent(right)
 			right = f
@@ -993,7 +998,7 @@ func convertToMatchingType(left, right lang.Expression) bool {
 			f := &lang.FunctionCall{
 				Name:   "float64",
 				Args:   []lang.Expression{left},
-				Return: lang.Float64,
+				Return: lang.NewTyp(lang.Float64, false),
 			}
 			f.SetParent(left)
 			left = f
@@ -1001,12 +1006,12 @@ func convertToMatchingType(left, right lang.Expression) bool {
 		}
 
 	case lang.Float64:
-		switch rt {
+		switch rt.String() {
 		case lang.Bool:
 			f := &lang.FunctionCall{
 				Name:   "std.BoolToFloat64",
 				Args:   []lang.Expression{right},
-				Return: lang.Float64,
+				Return: lang.NewTyp(lang.Float64, false),
 			}
 			f.SetParent(right)
 			right = f
@@ -1016,7 +1021,7 @@ func convertToMatchingType(left, right lang.Expression) bool {
 			f := &lang.FunctionCall{
 				Name:   "float",
 				Args:   []lang.Expression{right},
-				Return: lang.Float64,
+				Return: lang.NewTyp(lang.Float64, false),
 			}
 			f.SetParent(right)
 			right = f
@@ -1062,7 +1067,7 @@ func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, exp
 	default:
 		panic(`flowControlExpr: missing expression`)
 	}
-	if expr.Type() != lang.Bool {
+	if !expr.Type().Equal(lang.Bool) {
 		var err error
 		expr, err = p.funcs.Namespace("std").Call("Truthy", []lang.Expression{expr})
 		if err != nil {
@@ -1076,7 +1081,7 @@ func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, exp
 
 func (parser *parser) buildAssignment(parent lang.Block, name string, right lang.Expression) *lang.Assign {
 	t := right.Type()
-	if t == lang.Void {
+	if t.Equal(lang.Void) {
 		panic("Cannot assign \"void\" " + "to \"" + name + "\".")
 	}
 

@@ -37,7 +37,7 @@ func (gc GlobalContext) AddStatement(n Node) { panic(`not implemented`) }
 func (gc *GlobalContext) DefineVariable(v *Variable) {
 	for _, vr := range gc.vars {
 		if vr.Name == v.Name {
-			vr.typ = Anything
+			vr.typ = NewTyp(Anything, false)
 			return
 		}
 	}
@@ -104,7 +104,7 @@ func NewFunc(name string) *Function {
 			Vars:       make([]*Variable, 0),
 			Statements: make([]Node, 0),
 		},
-		Return: Void,
+		Return: NewTyp(Void, false),
 	}
 	f.Body.SetParent(f)
 	return f
@@ -190,7 +190,7 @@ func (c *Code) HasVariable(name string, oos bool) *Variable {
 						// VarDefs pointing to "v" I change its type.
 						// Fixing this will not be that hard, during every
 						// NewVarDef I will append to variable array.
-						v.typ = Anything
+						v.typ = NewTyp(Anything, false)
 						cv.CurrentType = v.CurrentType
 						c.DefineVariable(cv)
 						return cv
@@ -231,10 +231,10 @@ func (c *Code) DefineVariable(v *Variable) {
 		if vr != v {
 			continue
 		}
-		if vr.typ == Anything {
+		if vr.typ.Equal(Anything) {
 			return
 		}
-		vr.typ = Anything
+		vr.typ = NewTyp(Anything, false)
 
 		switch fd := vr.FirstDefinition.(type) {
 		case *VarDef:
@@ -332,7 +332,7 @@ type For struct {
 }
 
 func (f *For) SetCond(e Expression) error {
-	if e.Type() != Bool {
+	if !e.Type().Equal(Bool) {
 		return errors.New(`Condition must be an expression returning bool.`)
 	}
 	f.cond = e
@@ -365,7 +365,7 @@ func (f *For) DefineVariable(v *Variable) {
 		if vr.Name != v.Name || vr.typ == v.typ {
 			continue
 		}
-		vr.typ = Anything
+		vr.typ = NewTyp(Anything, false)
 		a, ok := vr.FirstDefinition.(*Assign)
 		if !ok {
 			panic(`For cycle cannot move to VarDef.`)
@@ -652,7 +652,7 @@ type If struct {
 }
 
 func (i *If) SetCond(e Expression) error {
-	if e.Type() != Bool {
+	if !e.Type().Equal(Bool) {
 		return errors.New(`Condition must be an expression returning bool.`)
 	}
 	i.cond = e
@@ -685,7 +685,7 @@ func (i *If) DefineVariable(v *Variable) {
 		if vr.Name != v.Name || vr.Type() == v.typ {
 			continue
 		}
-		vr.typ = Anything
+		vr.typ = NewTyp(Anything, false)
 		a, ok := vr.FirstDefinition.(*Assign)
 		if !ok {
 			panic(`For cycle cannot move to VarDef.`)
@@ -761,8 +761,8 @@ func (i Inc) UsedVar() *Variable {
 
 func (i Inc) String() string {
 	s := strings.Builder{}
-	if i.v.V.Type() == Anything {
-		if i.v.typ == String {
+	if i.v.V.Type().Equal(Anything) {
+		if i.v.typ.Equal(String) {
 			panic(`Unable to use Inc with 'string'.`)
 		}
 		s.WriteString(i.v.V.String())
@@ -802,8 +802,8 @@ func (d *Dec) SetParent(n Node) {
 
 func (i Dec) String() string {
 	s := strings.Builder{}
-	if i.v.V.Type() == Anything {
-		if i.v.typ == String {
+	if i.v.V.Type().Equal(Anything) {
+		if i.v.typ.Equal(String) {
 			panic(`Unable to use Dec with 'string'.`)
 		}
 		s.WriteString(i.v.V.String())

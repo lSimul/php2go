@@ -28,23 +28,23 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 			{
 				Name: "Print",
 				Args: []*lang.Variable{
-					lang.NewVariable("vals", lang.Anything, false),
+					lang.NewVariable("vals", lang.NewTyp(lang.Anything, false), false),
 				},
 				VariadicCount: true,
 
-				Return: lang.Void,
+				Return: lang.NewTyp(lang.Void, false),
 			},
 		},
 		"Sprintf": {
 			{
 				Name: "Sprintf",
 				Args: []*lang.Variable{
-					lang.NewVariable("format", lang.String, false),
-					lang.NewVariable("vals", lang.Anything, false),
+					lang.NewVariable("format", lang.NewTyp(lang.String, false), false),
+					lang.NewVariable("vals", lang.NewTyp(lang.Anything, false), false),
 				},
 				VariadicCount: true,
 
-				Return: lang.String,
+				Return: lang.NewTyp(lang.String, false),
 			},
 		},
 	}
@@ -59,23 +59,23 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 			{
 				Name: "Concat",
 				Args: []*lang.Variable{
-					lang.NewVariable("left", lang.Anything, false),
-					lang.NewVariable("right", lang.Anything, false),
+					lang.NewVariable("left", lang.NewTyp(lang.Anything, false), false),
+					lang.NewVariable("right", lang.NewTyp(lang.Anything, false), false),
 				},
 				VariadicCount: false,
 
-				Return: lang.String,
+				Return: lang.NewTyp(lang.String, false),
 			},
 		},
 		"Truthy": {
 			{
 				Name: "Truthy",
 				Args: []*lang.Variable{
-					lang.NewVariable("i", lang.Anything, false),
+					lang.NewVariable("i", lang.NewTyp(lang.Anything, false), false),
 				},
 				VariadicCount: false,
 
-				Return: lang.Bool,
+				Return: lang.NewTyp(lang.Bool, false),
 			},
 		},
 	}
@@ -90,33 +90,33 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 			{
 				Name: "NewScalar",
 				Args: []*lang.Variable{
-					lang.NewVariable("s", lang.Anything, false),
+					lang.NewVariable("s", lang.NewTyp(lang.Anything, false), false),
 				},
 				VariadicCount: false,
 
-				Return: "array.Scalar",
+				Return: lang.NewTyp("array.Scalar", false),
 			},
 		},
 		"NewInt": {
 			{
 				Name: "NewInt",
 				Args: []*lang.Variable{
-					lang.NewVariable("vals", lang.Anything, false),
+					lang.NewVariable("vals", lang.NewTyp(lang.Anything, false), false),
 				},
 				VariadicCount: true,
 
-				Return: "array.Int",
+				Return: lang.NewTyp("array.Int", false),
 			},
 		},
 		"NewString": {
 			{
 				Name: "NewString",
 				Args: []*lang.Variable{
-					lang.NewVariable("vals", lang.Anything, false),
+					lang.NewVariable("vals", lang.NewTyp(lang.Anything, false), false),
 				},
 				VariadicCount: true,
 
-				Return: "array.String",
+				Return: lang.NewTyp("array.String", false),
 			},
 		},
 	}
@@ -199,7 +199,7 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 		for i := 0; i < len(f.Args)-1; i++ {
 			// TODO: Implement better management of the types;
 			// one if statement is not going to do it.
-			if f.Args[i].Type() == lang.Anything {
+			if f.Args[i].Type().Equal(lang.Anything) {
 				continue
 			}
 			if args[i].Type() != f.Args[i].Type() {
@@ -209,7 +209,7 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 		// Compare the rest, if any.
 		ref := f.Args[len(f.Args)-1]
 		for i := len(f.Args); i < len(args); i++ {
-			if ref.Type() == lang.Anything {
+			if ref.Type().Equal(lang.Anything) {
 				continue
 			}
 			if args[i].Type() != ref.Type() {
@@ -225,7 +225,7 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 		for i := 0; i < len(args); i++ {
 			// TODO: Implement better management of the types;
 			// one if statement is not going to do it.
-			if f.Args[i].Type() == lang.Anything {
+			if f.Args[i].Type().Equal(lang.Anything) {
 				continue
 			}
 			if args[i].Type() != f.Args[i].Type() {

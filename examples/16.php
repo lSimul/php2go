@@ -1,6 +1,6 @@
 <?php
 
-function fn(int &$a) {
+function ff(int &$a) {
 	$a++;
 }
 
@@ -10,13 +10,13 @@ function f(int $a) {
 
 $a = 0;
 
-fn($a);
+ff($a);
 echo $a . "\n";
-fn($a);
+ff($a);
 echo $a . "\n";
-fn($a);
+ff($a);
 echo $a . "\n";
-fn($a);
+ff($a);
 echo $a . "\n";
 f($a);
 echo $a . "\n";

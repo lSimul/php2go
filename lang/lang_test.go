@@ -120,12 +120,12 @@ func constructors(t *testing.T) {
 
 	v := &Variable{
 		Name:        "",
-		typ:         String,
-		CurrentType: String,
+		typ:         NewTyp(String, false),
+		CurrentType: NewTyp(String, false),
 	}
 	vr := &VarRef{
 		V:   v,
-		typ: String,
+		typ: NewTyp(String, false),
 	}
 
 	_, err = NewAssign(v, nil)
@@ -177,10 +177,10 @@ func constructors(t *testing.T) {
 
 	void := &VarRef{
 		V: &Variable{
-			typ:         Void,
-			CurrentType: Void,
+			typ:         NewTyp(Void, false),
+			CurrentType: NewTyp(Void, false),
 		},
-		typ: Void,
+		typ: NewTyp(Void, false),
 	}
 
 	_, err = NewBinaryOp("", void, vr)

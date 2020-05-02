@@ -15,7 +15,7 @@ type Function struct {
 	Body Code
 
 	Name   string
-	Return string
+	Return Typ
 }
 
 func (f Function) Parent() Node {
@@ -64,15 +64,15 @@ func (f Function) String() string {
 	for i := 0; i < len(f.Args); i++ {
 		a := f.Args[i]
 		s.WriteString(a.Name + " ")
-		s.WriteString(a.Type())
+		s.WriteString(a.Type().String())
 		if i < len(f.Args)-1 {
 			s.WriteString(", ")
 		}
 	}
 	s.WriteString(") ")
 
-	if f.Return != Void {
-		s.WriteString(f.Return + " ")
+	if !f.Return.Equal(Void) {
+		s.WriteString(f.Return.String() + " ")
 	}
 	s.WriteString(f.Body.String())
 	s.WriteString("\n")
@@ -83,7 +83,7 @@ func (f *Function) AddStatement(n Node) {
 	f.Body.AddStatement(n)
 }
 
-func (f Function) Type() string {
+func (f Function) Type() Typ {
 	return f.Return
 }
 
@@ -93,7 +93,7 @@ type VarRef struct {
 
 	Reference bool
 
-	typ string
+	typ Typ
 }
 
 func (v VarRef) Parent() Node {
@@ -107,17 +107,17 @@ func (v *VarRef) SetParent(n Node) {
 func (v VarRef) String() string {
 	s := strings.Builder{}
 	s.WriteString(v.V.String())
-	if v.V.typ == Anything {
+	if v.V.typ.Equal(Anything) {
 		s.WriteString(fmt.Sprintf(".(%s)", v.typ))
 	}
 	return s.String()
 }
 
-func (v VarRef) Type() string {
+func (v VarRef) Type() Typ {
 	return v.typ
 }
 
-func NewVarRef(v *Variable, t string) *VarRef {
+func NewVarRef(v *Variable, t Typ) *VarRef {
 	return &VarRef{
 		V:   v,
 		typ: t,
@@ -165,8 +165,8 @@ func (c *Const) SetParent(n Node) {
 }
 
 // TODO: Is this correct return type?
-func (c Const) Type() string {
-	return Bool
+func (c Const) Type() Typ {
+	return NewTyp(Bool, false)
 }
 
 func (c Const) String() string {
@@ -187,7 +187,7 @@ func (r *Return) SetParent(n Node) {
 	r.parent = n
 }
 
-func (r Return) Type() string {
+func (r Return) Type() Typ {
 	return r.Expression.Type()
 }
 
@@ -221,7 +221,7 @@ func (a *Assign) SetParent(n Node) {
 	a.parent = n
 }
 
-func (a Assign) Type() string {
+func (a Assign) Type() Typ {
 	return a.left.Type()
 }
 
@@ -275,8 +275,8 @@ func (nb *Number) SetParent(n Node) {
 	nb.parent = n
 }
 
-func (nb Number) Type() string {
-	return Int
+func (nb Number) Type() Typ {
+	return NewTyp(Int, false)
 }
 
 func (nb Number) String() string {
@@ -300,8 +300,8 @@ func (f *Float) SetParent(n Node) {
 	f.parent = n
 }
 
-func (f Float) Type() string {
-	return Float64
+func (f Float) Type() Typ {
+	return NewTyp(Float64, false)
 }
 
 func (f Float) String() string {
@@ -322,8 +322,8 @@ func (s *Str) SetParent(n Node) {
 	s.parent = n
 }
 
-func (s Str) Type() string {
-	return String
+func (s Str) Type() Typ {
+	return NewTyp(String, false)
 }
 
 func (s Str) String() string {
@@ -344,7 +344,7 @@ func (m *UnaryMinus) SetParent(n Node) {
 	m.parent = n
 }
 
-func (m UnaryMinus) Type() string {
+func (m UnaryMinus) Type() Typ {
 	return m.Expr.Type()
 }
 
@@ -369,8 +369,8 @@ func (neg *Negation) SetParent(n Node) {
 	neg.parent = n
 }
 
-func (neg Negation) Type() string {
-	return Bool
+func (neg Negation) Type() Typ {
+	return NewTyp(Bool, false)
 }
 
 func (neg Negation) String() string {
@@ -390,7 +390,7 @@ type BinaryOp struct {
 
 	right Expression
 	left  Expression
-	typ   string
+	typ   Typ
 }
 
 func (p BinaryOp) Parent() Node {
@@ -401,7 +401,7 @@ func (p *BinaryOp) SetParent(n Node) {
 	p.parent = n
 }
 
-func (p BinaryOp) Type() string {
+func (p BinaryOp) Type() Typ {
 	return p.typ
 }
 
@@ -450,12 +450,12 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 	lt := left.Type()
 	rt := right.Type()
 
-	if lt == Void || rt == Void {
+	if lt.Equal(Void) || rt.Equal(Void) {
 		return nil, errors.New(`Binary op cannot be used with "void"`)
 	}
 
 	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" {
-		lt = Bool
+		lt = NewTyp(Bool, false)
 	}
 	ret := &BinaryOp{
 		inBrackets: false,
@@ -482,7 +482,7 @@ type FunctionCall struct {
 
 	Name   string
 	Args   []Expression
-	Return string
+	Return Typ
 }
 
 func (f *FunctionCall) AddArg(e Expression) {
@@ -497,7 +497,7 @@ func (f *FunctionCall) SetParent(n Node) {
 	f.parent = n
 }
 
-func (f FunctionCall) Type() string {
+func (f FunctionCall) Type() Typ {
 	return f.Return
 }
 

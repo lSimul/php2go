@@ -37,28 +37,45 @@ type Block interface {
 type Expression interface {
 	Node
 
-	Type() string
+	Type() Typ
+}
+
+type Typ struct {
+	typ       string
+	isPointer bool
+}
+
+func NewTyp(typ string, isPointer bool) Typ {
+	return Typ{typ, isPointer}
+}
+
+func (t Typ) String() string {
+	return t.typ
+}
+
+func (t Typ) Equal(s string) bool {
+	return s == t.typ
 }
 
 type Variable struct {
-	typ   string
+	typ   Typ
 	Name  string
 	Const bool
 
 	FirstDefinition Node
 
-	CurrentType string
+	CurrentType Typ
 }
 
 func (v Variable) String() string {
 	return v.Name
 }
 
-func (v Variable) Type() string {
+func (v Variable) Type() Typ {
 	return v.CurrentType
 }
 
-func NewVariable(name, typ string, isConst bool) *Variable {
+func NewVariable(name string, typ Typ, isConst bool) *Variable {
 	return &Variable{
 		Name:  name,
 		typ:   typ,

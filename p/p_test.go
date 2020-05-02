@@ -103,7 +103,7 @@ func functionDef(t *testing.T) {
 		if def.Name != f.name {
 			t.Errorf("'%s' expected, '%s' found.\n", f.name, def.Name)
 		}
-		if def.Return != f.ret {
+		if !def.Return.Equal(f.ret) {
 			t.Errorf("'%s' expected, '%s' found.\n", f.name, def.Return)
 		}
 	}
@@ -112,7 +112,7 @@ func functionDef(t *testing.T) {
 	if f.Name != "main" {
 		t.Errorf("'%s' expected, '%s' found.\n", "main", f.Name)
 	}
-	if f.Return != lang.Void {
+	if !f.Return.Equal(lang.Void) {
 		t.Errorf("'%s' expected, '%s' found.\n", lang.Void, f.Return)
 	}
 
@@ -132,9 +132,8 @@ func functionDef(t *testing.T) {
 	for _, rt := range returnTypes {
 		placeholderFunction.ReturnType = rt.typ
 		f, _ := parser.funcDef(placeholderFunction)
-		if f.Return != rt.expected {
+		if !f.Return.Equal(rt.expected) {
 			t.Errorf("'%s' expected, '%s' found.\n", rt.expected, f.Return)
-
 		}
 	}
 }
@@ -168,7 +167,7 @@ func testBinaryOp(t *testing.T) {
 		if op.Operation != c.op {
 			t.Errorf("'%s' expected, '%s' found.", c.op, op.Operation)
 		}
-		if op.Type() != c.ret {
+		if !op.Type().Equal(c.ret) {
 			t.Errorf("'%s' expected, '%s' found.", c.ret, op.Type())
 		}
 	}
@@ -191,7 +190,7 @@ func unaryOp(t *testing.T) {
 		if _, ok := e.(*lang.Str); !ok {
 			t.Error("lang.Str expected.")
 		}
-		if typ := e.Type(); typ != lang.String {
+		if typ := e.Type(); !typ.Equal(lang.String) {
 			t.Errorf("'string' expected, '%s' found.", typ)
 		}
 	}
@@ -207,7 +206,7 @@ func unaryOp(t *testing.T) {
 		if _, ok := e.(*lang.Number); !ok {
 			t.Error("lang.Number expected.")
 		}
-		if typ := e.Type(); typ != lang.Int {
+		if typ := e.Type(); !typ.Equal(lang.Int) {
 			t.Errorf("'int' expected, '%s' found.", typ)
 		}
 	}
@@ -223,7 +222,7 @@ func unaryOp(t *testing.T) {
 		if _, ok := e.(*lang.Float); !ok {
 			t.Error("lang.Float expected.")
 		}
-		if typ := e.Type(); typ != lang.Float64 {
+		if typ := e.Type(); !typ.Equal(lang.Float64) {
 			t.Errorf("'float' expected, '%s' found.", typ)
 		}
 	}
@@ -250,7 +249,7 @@ func unaryOp(t *testing.T) {
 		if u.Expr.Parent() != u {
 			t.Error("Parent not set.")
 		}
-		if typ := u.Type(); typ != c.t {
+		if typ := u.Type(); !typ.Equal(c.t) {
 			t.Errorf("'%s' expected, '%s' found.", c.t, typ)
 		}
 	}
@@ -278,7 +277,7 @@ func testStatements(t *testing.T) {
 	if h.Parent() != b {
 		t.Error("Parent not set.")
 	}
-	if h.Return != lang.Void {
+	if !h.Return.Equal(lang.Void) {
 		t.Errorf("'void' expected, '%s' found.", h.Return)
 	}
 	if h.Name != "fmt.Print" {
@@ -297,7 +296,7 @@ func testStatements(t *testing.T) {
 	if a.Value != "`<html></html>`" {
 		t.Errorf("'`<html></html>`' expected, '%s' found", a.Value)
 	}
-	if a.Type() != lang.String {
+	if !a.Type().Equal(lang.String) {
 		t.Errorf("'string' expected, '%s' found.", a.Type())
 	}
 }
