@@ -38,17 +38,7 @@ func (p *parser) Run(r *node.Root, asServer bool) *lang.GlobalContext {
 	p.gc = lang.NewGlobalContext()
 	p.funcs = NewFunc(p.gc)
 	if asServer {
-		p.asServer = asServer
-
-		p.gc.AddImport("flag")
-		p.gc.AddImport("log")
-		p.gc.AddImport("net/http")
-
-		p.gc.AddImport("io")
-		p.gc.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
-
-		p.funcs.Namespace("array")
-		p.gc.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
+		p.globalContextAsServer()
 	}
 	ms, fs := sanitizeRootStmts(r)
 
@@ -87,16 +77,22 @@ func (p *parser) Run(r *node.Root, asServer bool) *lang.GlobalContext {
 
 	main := p.mainDef()
 	p.funcs.Add(main.Name, main, 0)
-	if asServer {
-		p.gc.AddImport("os")
-		a, err := lang.NewAssign(p.gc.HasVariable("W", false), &lang.Const{Value: "os.Stdout"})
-		if err != nil {
-			panic(err)
-		}
-		main.Body.AddStatement(a)
-	}
 	p.createFunction(&main.Body, ms)
 	return p.gc
+}
+
+func (p *parser) globalContextAsServer() {
+	p.asServer = true
+	p.gc.AddImport("flag")
+	p.gc.AddImport("log")
+	p.gc.AddImport("net/http")
+	p.gc.AddImport("os")
+
+	p.gc.AddImport("io")
+	p.gc.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
+
+	p.funcs.Namespace("array")
+	p.gc.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
 }
 
 // SanitizeRootStmts splits statements based on their type,

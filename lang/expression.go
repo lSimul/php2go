@@ -133,6 +133,7 @@ func NewVarRef(v *Variable, t Typ) *VarRef {
 type VarDef struct {
 	parent Node
 	V      *Variable
+	Right  Expression
 
 	typ string
 }
@@ -146,12 +147,18 @@ func (v *VarDef) SetParent(n Node) {
 }
 
 func (v VarDef) String() string {
-	return fmt.Sprintf("var %s %s", v.V.Name, v.V.typ)
+	s := strings.Builder{}
+	s.WriteString(fmt.Sprintf("var %s %s", v.V.Name, v.V.typ))
+	if v.Right != nil {
+		s.WriteString(v.Right.String())
+	}
+	return s.String()
 }
 
 func newVarDef(b Block, v *Variable) *VarDef {
 	return &VarDef{
 		parent: b,
+		Right:  nil,
 		V:      v,
 	}
 }
