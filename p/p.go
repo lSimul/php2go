@@ -836,6 +836,15 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		fc.SetParent(b)
 		return fc
 
+		/*
+			TODO:
+			[.] coalesce
+			[.] equal
+			[.] not_equal
+			[.] pow // **
+			[.] spaceship
+		*/
+
 	case *binary.Plus:
 		return parser.binaryOp(b, "+", e.Left, e.Right)
 
@@ -844,6 +853,12 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Mul:
 		return parser.binaryOp(b, "*", e.Left, e.Right)
+
+	case *binary.Div:
+		return parser.binaryOp(b, "/", e.Left, e.Right)
+
+	case *binary.Mod:
+		return parser.binaryOp(b, "%", e.Left, e.Right)
 
 	case *binary.Smaller:
 		return parser.binaryOp(b, "<", e.Left, e.Right)
@@ -859,6 +874,42 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 	case *binary.Identical:
 		return parser.binaryOp(b, "==", e.Left, e.Right)
+
+	case *binary.NotIdentical:
+		return parser.binaryOp(b, "!=", e.Left, e.Right)
+
+	case *binary.LogicalAnd:
+		// and
+		return parser.binaryOp(b, "&&", e.Left, e.Right)
+
+	case *binary.BooleanAnd:
+		return parser.binaryOp(b, "&&", e.Left, e.Right)
+
+	case *binary.LogicalOr:
+		// or
+		return parser.binaryOp(b, "||", e.Left, e.Right)
+
+	case *binary.BooleanOr:
+		return parser.binaryOp(b, "||", e.Left, e.Right)
+
+	case *binary.LogicalXor:
+		// xor
+		return parser.binaryOp(b, "^", e.Left, e.Right)
+
+	case *binary.BitwiseXor:
+		return parser.binaryOp(b, "^", e.Left, e.Right)
+
+	case *binary.BitwiseAnd:
+		return parser.binaryOp(b, "&", e.Left, e.Right)
+
+	case *binary.BitwiseOr:
+		return parser.binaryOp(b, "|", e.Left, e.Right)
+
+	case *binary.ShiftLeft:
+		return parser.binaryOp(b, "<<", e.Left, e.Right)
+
+	case *binary.ShiftRight:
+		return parser.binaryOp(b, ">>", e.Left, e.Right)
 
 	case *expr.ConstFetch:
 		c := &lang.Const{

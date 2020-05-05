@@ -460,7 +460,8 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 		return nil, errors.New(`Binary op cannot be used with "void"`)
 	}
 
-	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" {
+	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" || op == "!=" ||
+		op == "&&" || op == "||" || op == "^" || op == "&" || op == "|" {
 		lt = NewTyp(Bool, false)
 	}
 	ret := &BinaryOp{
