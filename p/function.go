@@ -80,7 +80,7 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 		},
 	}
 	fn.funcs["std"] = &funcs{
-		namespace: "php2go/std",
+		namespace: "github.com/lSimul/php2go/std",
 		fn:        std,
 		used:      false,
 	}
@@ -121,7 +121,7 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 		},
 	}
 	fn.funcs["array"] = &funcs{
-		namespace: "php2go/std/array",
+		namespace: "github.com/lSimul/php2go/std/array",
 		fn:        arr,
 		used:      false,
 	}
