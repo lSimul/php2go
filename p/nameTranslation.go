@@ -104,14 +104,25 @@ func NewNameTranslator() NameTranslation {
 	}
 }
 
+type fnTranslator struct {
+	nameTranslator
+}
+
+func (f *fnTranslator) Translate(name string) string {
+	name = strings.ToLower(name)
+	return f.nameTranslator.Translate(name)
+}
+
 func NewFunctionTranslator() NameTranslation {
 	used := make(map[string]bool)
 	for k, v := range keywords {
 		used[k] = v
 	}
 	used["main"] = true
-	return &nameTranslator{
-		names: make(map[string]string),
-		used:  used,
+	return &fnTranslator{
+		nameTranslator: nameTranslator{
+			names: make(map[string]string),
+			used:  used,
+		},
 	}
 }
