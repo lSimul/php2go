@@ -67,9 +67,14 @@ func (gc GlobalContext) Get(name string) *Function {
 	return gc.Funcs[name]
 }
 
-func (gc GlobalContext) String() string {
+func (gc *GlobalContext) String() string {
 	s := strings.Builder{}
 	s.WriteString("package main\n\n")
+
+	fn := strings.Builder{}
+	for _, f := range gc.Funcs {
+		fn.WriteString(f.String())
+	}
 
 	if len(gc.imports) == 1 {
 		for _, n := range gc.imports {
@@ -90,9 +95,8 @@ func (gc GlobalContext) String() string {
 		s.WriteByte('\n')
 	}
 
-	for _, f := range gc.Funcs {
-		s.WriteString(f.String())
-	}
+	s.WriteString(fn.String())
+
 	return s.String()
 }
 
@@ -739,94 +743,4 @@ func NewIf(parent Block) *If {
 	return &If{
 		parent: parent,
 	}
-}
-
-type Inc struct {
-	parent Node
-
-	v *VarRef
-}
-
-func (i Inc) Parent() Node {
-	return i.parent
-}
-
-func (i *Inc) SetParent(n Node) {
-	i.parent = n
-}
-
-func (i Inc) UsedVar() *Variable {
-	return i.v.V
-}
-
-func (i Inc) String() string {
-	s := strings.Builder{}
-	if i.v.V.Type().Equal(Anything) {
-		if i.v.typ.Equal(String) {
-			panic(`Unable to use Inc with 'string'.`)
-		}
-		s.WriteString(i.v.V.String())
-		s.WriteString(" = ")
-		s.WriteString(i.v.String())
-		s.WriteString(" + 1")
-	} else {
-		if i.v.typ.IsPointer {
-			s.WriteByte('*')
-		}
-		s.WriteString(i.v.String())
-		s.WriteString("++")
-	}
-	return s.String()
-}
-
-func NewInc(parent Node, v *VarRef) *Inc {
-	return &Inc{
-		parent: parent,
-		v:      v,
-	}
-}
-
-type Dec struct {
-	parent Node
-
-	v *VarRef
-}
-
-func (d Dec) Parent() Node {
-	return d.parent
-}
-
-func (d *Dec) SetParent(n Node) {
-	d.parent = n
-}
-
-func (i Dec) String() string {
-	s := strings.Builder{}
-	if i.v.V.Type().Equal(Anything) {
-		if i.v.typ.Equal(String) {
-			panic(`Unable to use Dec with 'string'.`)
-		}
-		s.WriteString(i.v.V.String())
-		s.WriteString(" = ")
-		s.WriteString(i.v.String())
-		s.WriteString(" - 1")
-	} else {
-		if i.v.typ.IsPointer {
-			s.WriteByte('*')
-		}
-		s.WriteString(i.v.String())
-		s.WriteString("--")
-	}
-	return s.String()
-}
-
-func NewDec(parent Node, v *VarRef) *Dec {
-	return &Dec{
-		parent: parent,
-		v:      v,
-	}
-}
-
-func (d Dec) UsedVar() *Variable {
-	return d.v.V
 }

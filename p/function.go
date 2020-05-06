@@ -67,6 +67,28 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 				Return: lang.NewTyp(lang.String, false),
 			},
 		},
+		"StrDec": {
+			{
+				Name: "StrDec",
+				Args: []*lang.Variable{
+					lang.NewVariable("s", lang.NewTyp(lang.String, false), false),
+				},
+				VariadicCount: false,
+
+				Return: lang.NewTyp(lang.String, false),
+			},
+		},
+		"StrInc": {
+			{
+				Name: "StrInc",
+				Args: []*lang.Variable{
+					lang.NewVariable("s", lang.NewTyp(lang.String, false), false),
+				},
+				VariadicCount: false,
+
+				Return: lang.NewTyp(lang.String, false),
+			},
+		},
 		"Truthy": {
 			{
 				Name: "Truthy",

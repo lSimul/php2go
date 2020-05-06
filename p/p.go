@@ -621,7 +621,12 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		if b.HasVariable(v.V.Name, true) == nil {
 			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
 		}
-		return lang.NewInc(b, v)
+		return lang.NewInc(
+			b, v,
+			func(e lang.Expression) (lang.Expression, error) {
+				return parser.funcs.Namespace("std").Call("StrInc", []lang.Expression{e})
+			},
+		)
 	}
 	dec := func() lang.Node {
 		if !ok {
@@ -630,7 +635,12 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		if b.HasVariable(v.V.Name, true) == nil {
 			panic(fmt.Sprintf("'%s' is not defined.", v.V.Name))
 		}
-		return lang.NewDec(b, v)
+		return lang.NewDec(
+			b, v,
+			func(e lang.Expression) (lang.Expression, error) {
+				return parser.funcs.Namespace("std").Call("StrDec", []lang.Expression{e})
+			},
+		)
 	}
 
 	switch e := n.(type) {

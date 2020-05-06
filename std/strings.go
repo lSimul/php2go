@@ -26,3 +26,13 @@ func interfaceToString(i interface{}) string {
 	}
 	return ""
 }
+
+// TODO: Implement this.
+func StrDec(s string) string {
+	return s
+}
+
+// TODO: Implement this.
+func StrInc(s string) string {
+	return s
+}
