@@ -1016,48 +1016,25 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		return f
 
 	case *expr.FunctionCall:
-		al := e.ArgumentList
-
 		n := parser.constructName(e.Function.(*name.Name), false)
-		if ok := PHPFunctions[n]; ok {
-			if n == "array_push" {
-				if len(al.Arguments) < 2 {
-					panic(`array_push requires atlast two arguments`)
-				}
-				v, ok := parser.expression(b, al.Arguments[0].(*node.Argument).Expr).(*lang.VarRef)
-				if !ok || !IsArray(v.Type().String()) {
-					panic(`First argument has to be a variable, an array.`)
-				}
-				typ := ArrayItem(v.Type().String())
-
-				vars := []lang.Expression{}
-				for _, arg := range al.Arguments[1:] {
-					v := parser.expression(b, arg.(*node.Argument).Expr)
-					if !v.Type().Equal(typ) {
-						panic(`Cannot push this type.`)
-					}
-					vars = append(vars, v)
-				}
-
-				fc := &lang.FunctionCall{
-					Name:   v.V.Name + ".Push",
-					Args:   vars,
-					Return: lang.NewTyp(lang.Int, false),
-				}
-
-				fc.SetParent(b)
-				return fc
-			}
-		}
-
-		n = parser.constructName(e.Function.(*name.Name), true)
-		var args []lang.Expression
-		for _, a := range al.Arguments {
+		arguments := e.ArgumentList.Arguments
+		args := make([]lang.Expression, 0, len(arguments))
+		for _, a := range arguments {
 			// TODO: Do not ignore information in Argument,
 			// it has interesting information like if it is
 			// send by reference and others.
 			args = append(args, parser.expression(b, a.(*node.Argument).Expr))
 		}
+
+		if fc, ok := PHPFunctions[n]; ok {
+			f, err := fc(b, args)
+			if err != nil {
+				panic(err)
+			}
+			return f
+		}
+
+		n = parser.constructName(e.Function.(*name.Name), true)
 
 		f, err := parser.funcs.Namespace("").Call(n, args)
 		if err != nil {
