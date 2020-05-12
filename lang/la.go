@@ -354,10 +354,16 @@ func (f *For) SetParent(n Node) {
 }
 
 func (f For) HasVariable(name string, oos bool) *Variable {
-	v := f.definesVariable(name)
-	if v != nil {
-		return v
+	for _, v := range f.Vars {
+		if v.Name == name {
+			return v
+		}
 	}
+
+	if oos {
+		return f.definesVariable(name)
+	}
+
 	if f.parent != nil {
 		return f.parent.HasVariable(name, oos)
 	}
@@ -387,7 +393,7 @@ func (f *For) definesVariable(name string) *Variable {
 			return v
 		}
 	}
-	return nil
+	return f.Block.definesVariable(name)
 }
 
 func (f *For) unset(index int) {
