@@ -494,6 +494,11 @@ func (p *parser) simpleExpression(b lang.Block, n node.Node) lang.Node {
 		return e
 	}
 
+	a := p.directAssignment(b, n)
+	if a != nil {
+		return a
+	}
+
 	if a, ok := n.(*assign.Assign); ok {
 		r := p.expression(b, a.Expression)
 		if r == nil {
@@ -510,6 +515,10 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 	e := parser.expression(b, n)
 	if e != nil {
 		return e
+	}
+
+	if a := parser.directAssignment(b, n); a != nil {
+		return a
 	}
 
 	a, ok := n.(*assign.Assign)
@@ -574,6 +583,71 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 	default:
 		panic(fmt.Sprintf("Unexpected left side: %v", a))
 	}
+}
+
+func (parser *parser) directAssignment(b lang.Block, n node.Node) lang.Expression {
+	assignmentFunc := func(op string, expr node.Node, nv *expr.Variable) *lang.Assign {
+		e := parser.expression(b, expr)
+		n := parser.identifierName(nv)
+		v := b.HasVariable(n, true)
+		if v == nil {
+			panic(n + " is not defined.")
+		}
+		e = parser.bOp(b, op, lang.NewVarRef(v, v.CurrentType), e)
+		if e == nil {
+			panic("Issue with a binary operand.")
+		}
+		return parser.buildAssignment(b, n, e)
+	}
+
+	switch a := n.(type) {
+	case (*assign.Concat):
+		e := parser.expression(b, a.Expression)
+		n := parser.identifierName(a.Variable.(*expr.Variable))
+		v := b.HasVariable(n, true)
+		if v == nil {
+			panic(n + " is not defined.")
+		}
+		fc, err := parser.funcs.Namespace("std").Call("Concat", []lang.Expression{
+			lang.NewVarRef(v, v.CurrentType), e,
+		})
+		if err != nil {
+			panic(err)
+		}
+		return parser.buildAssignment(b, n, fc)
+
+	case (*assign.Plus):
+		return assignmentFunc("+", a.Expression, a.Variable.(*expr.Variable))
+
+	case (*assign.Minus):
+		return assignmentFunc("-", a.Expression, a.Variable.(*expr.Variable))
+
+	case (*assign.Div):
+		return assignmentFunc("/", a.Expression, a.Variable.(*expr.Variable))
+
+	case (*assign.Mul):
+		return assignmentFunc("*", a.Expression, a.Variable.(*expr.Variable))
+
+	case (*assign.Mod):
+		return assignmentFunc("%", a.Expression, a.Variable.(*expr.Variable))
+
+	case (*assign.BitwiseAnd):
+		return assignmentFunc("&", a.Expression, a.Variable.(*expr.Variable))
+
+	case (*assign.BitwiseOr):
+		return assignmentFunc("|", a.Expression, a.Variable.(*expr.Variable))
+
+	case (*assign.BitwiseXor):
+		return assignmentFunc("^", a.Expression, a.Variable.(*expr.Variable))
+
+	case (*assign.ShiftLeft):
+		return assignmentFunc("<<", a.Expression, a.Variable.(*expr.Variable))
+
+	case (*assign.ShiftRight):
+		return assignmentFunc(">>", a.Expression, a.Variable.(*expr.Variable))
+	}
+
+	return nil
 }
 
 func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
@@ -997,6 +1071,10 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 func (p *parser) binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
 	l := p.expression(b, left)
 	r := p.expression(b, right)
+	return p.bOp(b, op, l, r)
+}
+
+func (p *parser) bOp(b lang.Block, op string, l, r lang.Expression) lang.Expression {
 	if convertToMatchingType(l, r) {
 		p.funcs.Namespace("std")
 	}
