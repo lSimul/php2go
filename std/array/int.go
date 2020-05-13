@@ -99,3 +99,7 @@ func (a *Int) Unset(k Scalar) {
 		}
 	}
 }
+
+func (a Int) Count() int {
+	return len(a.order)
+}

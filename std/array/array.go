@@ -148,7 +148,11 @@ func (a *%s) Unset(k Scalar) {
 		}
 	}
 }
-`, arrName))
+
+func (a %s) Count() int {
+	return len(a.order)
+}
+`, arrName, arrName))
 
 	b, err := format.Source(writer.Bytes())
 	if err != nil {

@@ -63,4 +63,5 @@ func NewScalar(val interface{}) Scalar {
 type Array interface {
 	Isset(Scalar) bool
 	Unset(Scalar)
+	Count() int
 }
