@@ -406,7 +406,7 @@ func testMain(tt *testing.T) {
 			functionTranslator: NewFunctionTranslator(),
 		}
 
-		out := parser.Run(parsePHP(t.source))
+		out := parser.Run(parsePHP(t.source), false)
 		main := out.Funcs["main"].String()
 		compare(tt, t.expected, main)
 	}

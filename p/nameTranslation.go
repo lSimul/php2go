@@ -119,10 +119,11 @@ func NewFunctionTranslator() NameTranslation {
 		used[k] = v
 	}
 	used["main"] = true
-	return &fnTranslator{
-		nameTranslator: nameTranslator{
-			names: make(map[string]string),
-			used:  used,
-		},
+	used["mainServer"] = true
+	used["mainCLI"] = true
+	used["mainFunc"] = true
+	return &nameTranslator{
+		names: make(map[string]string),
+		used:  used,
 	}
 }
