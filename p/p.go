@@ -800,7 +800,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 				if v == nil || v.Type().Equal(lang.Void) {
 					panic(vn + " is not defined.")
 				}
-				s.Value += varFormat(v.Type().String())
+				s.Value += v.Type().Format()
 				args = append(args, lang.NewVarRef(v, v.Type()))
 
 			case *expr.ArrayDimFetch:
@@ -824,7 +824,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 				scalar.SetParent(fc)
 				fc.SetParent(b)
 
-				s.Value += varFormat(fc.Type().String())
+				s.Value += fc.Type().Format()
 
 				args = append(args, fc)
 			}
@@ -1303,21 +1303,4 @@ func (p *parser) servePrint(args []lang.Expression) (*lang.FunctionCall, error) 
 	}
 	args = append([]lang.Expression{lang.NewVarRef(v, lang.NewTyp(lang.Writer, false))}, args...)
 	return p.funcs.Namespace("fmt").Call("Fprintf", args)
-}
-
-// TODO: Type could know this.
-func varFormat(t string) string {
-	switch t {
-	case lang.Int:
-		return "%d"
-
-	case lang.Float64:
-		return "%g"
-
-	case lang.String:
-		return "%s"
-
-	default:
-		return "%v"
-	}
 }

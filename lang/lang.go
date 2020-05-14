@@ -51,6 +51,22 @@ func NewTyp(typ string, IsPointer bool) Typ {
 	return Typ{typ, IsPointer, false}
 }
 
+func (t Typ) Format() string {
+	switch t.typ {
+	case Int:
+		return "%d"
+
+	case Float64:
+		return "%g"
+
+	case String:
+		return "%s"
+
+	default:
+		return "%v"
+	}
+}
+
 func (t Typ) String() string {
 	return t.typ
 }
