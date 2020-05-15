@@ -3,7 +3,7 @@ package p
 import (
 	"errors"
 
-	"php2go/lang"
+	"github.com/lSimul/php2go/lang"
 )
 
 var PHPFunctions = map[string](func(lang.Block, []lang.Expression) (*lang.FunctionCall, error)){

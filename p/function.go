@@ -2,7 +2,8 @@ package p
 
 import (
 	"errors"
-	"php2go/lang"
+
+	"github.com/lSimul/php2go/lang"
 )
 
 type Func struct {

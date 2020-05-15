@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 
-	"php2go/std/array"
+	"github.com/lSimul/php2go/std/array"
 )
 
 var W io.Writer

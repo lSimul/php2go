@@ -13,7 +13,7 @@ import (
 	"github.com/z7zmey/php-parser/node/scalar"
 	"github.com/z7zmey/php-parser/node/stmt"
 
-	"php2go/lang"
+	"github.com/lSimul/php2go/lang"
 )
 
 type parser struct {

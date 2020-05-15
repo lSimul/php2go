@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"php2go/lang"
-	"php2go/p/test"
+	"github.com/lSimul/php2go/lang"
+	"github.com/lSimul/php2go/p/test"
 
 	"github.com/z7zmey/php-parser/node"
 	"github.com/z7zmey/php-parser/node/expr"

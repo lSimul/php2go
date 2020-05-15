@@ -8,11 +8,12 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"php2go/p"
 
 	"github.com/z7zmey/php-parser/node"
 	"github.com/z7zmey/php-parser/php7"
 	"github.com/z7zmey/php-parser/visitor"
+
+	"github.com/lSimul/php2go/p"
 )
 
 func main() {
