@@ -536,6 +536,15 @@ func (f Foreach) definesVariable(name string) *Variable {
 
 func (_ *Foreach) unset(index int) {}
 
+func NewForeach(parent Block) *Foreach {
+	f := &Foreach{
+		parent: parent,
+	}
+	f.Block = NewCode(f)
+	f.SetParent(parent)
+	return f
+}
+
 func (f Foreach) String() string {
 	k := "_"
 	if f.Key != nil {

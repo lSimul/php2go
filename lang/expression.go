@@ -186,6 +186,28 @@ func (c Const) String() string {
 	return c.Value
 }
 
+type Goto struct {
+	parent Node
+
+	Value Const
+}
+
+func (c Goto) Parent() Node {
+	return c.parent
+}
+
+func (c *Goto) SetParent(n Node) {
+	c.parent = n
+}
+
+func (c Goto) Type() Typ {
+	return NewTyp(Void, false)
+}
+
+func (c Goto) String() string {
+	return fmt.Sprintf("goto %s", c.Value)
+}
+
 type Return struct {
 	parent Node
 

@@ -3,6 +3,7 @@ package p
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/z7zmey/php-parser/node"
@@ -200,6 +201,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 
 		case *stmt.For:
 			lf := lang.NewFor(b)
+			b.AddStatement(lf)
 
 			if s.Init != nil {
 				n := s.Init[0]
@@ -226,10 +228,11 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			}
 
 			parser.createFunction(lf.Block, nodeList(s.Stmt))
-			b.AddStatement(lf)
 
 		case *stmt.While:
 			lf := lang.NewFor(b)
+			b.AddStatement(lf)
+
 			loop, cond := parser.flowControlExpr(lf, s.Cond)
 
 			if loop != nil {
@@ -241,10 +244,10 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			}
 
 			parser.createFunction(lf.Block, nodeList(s.Stmt))
-			b.AddStatement(lf)
 
 		case *stmt.Do:
 			lf := lang.NewFor(b)
+			b.AddStatement(lf)
 
 			parser.createFunction(lf.Block, nodeList(s.Stmt))
 
@@ -263,13 +266,9 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			i.True.AddStatement(&lang.Break{})
 			lf.Block.AddStatement(i)
 
-			b.AddStatement(lf)
-
 		case *stmt.Foreach:
-			lf := &lang.Foreach{}
-			lf.SetParent(b)
-			lf.Block = lang.NewCode(lf)
-
+			lf := lang.NewForeach(b)
+			b.AddStatement(lf)
 			iterated := parser.expression(lf, s.Expr)
 			if !IsArray(iterated.Type().String()) {
 				panic(`Only arrays can be iterated.`)
@@ -341,9 +340,6 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 
 			parser.createFunction(lf.Block, nodeList(s.Stmt))
 
-			lf.SetParent(b)
-			b.AddStatement(lf)
-
 		case *stmt.If:
 			i := parser.constructIf(b, s)
 			b.AddStatement(i)
@@ -353,9 +349,9 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				Cases: make([]lang.Node, 0),
 			}
 			sw.SetParent(b)
+			b.AddStatement(sw)
 			sw.Condition = parser.expression(sw, s.Cond)
 			parser.constructSwitch(sw, s.CaseList)
-			b.AddStatement(sw)
 
 		case *stmt.Return:
 			r := &lang.Return{}
@@ -386,14 +382,102 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			b.AddStatement(f)
 
 		case *stmt.Break:
-			br := &lang.Break{}
-			br.SetParent(b)
-			b.AddStatement(br)
+			if s.Expr == nil {
+				c := &lang.Break{}
+				c.SetParent(b)
+				b.AddStatement(c)
+				return
+			}
+
+			e := parser.expression(b, s.Expr)
+			v, ok := e.(*lang.Number)
+			if !ok {
+				panic(`break should be numerical`)
+			}
+			// Let's say value in this node is valid.
+			n, _ := strconv.Atoi(v.Value)
+			var bb lang.Node = b
+			if n <= 0 {
+				panic(`break jump should be > 0`)
+			}
+			for {
+				if bb == nil {
+					panic(fmt.Sprintf("Invalid break, not enough blocks, still %d needed.", n))
+				}
+
+				if n == 0 {
+					c := &lang.Const{
+						// TODO: Make sure name is unique.
+						Value: "BREAK",
+					}
+					gt := &lang.Goto{
+						Value: *c,
+					}
+					gt.SetParent(b)
+					b.AddStatement(gt)
+
+					c.Value += ":"
+					c.SetParent(bb)
+					bl := bb.(lang.Block)
+					bl.AddStatement(c)
+					return
+				}
+
+				switch bb.(type) {
+				case *lang.Switch, *lang.For, *lang.Foreach:
+					n--
+				}
+				bb = bb.Parent()
+			}
 
 		case *stmt.Continue:
-			c := &lang.Continue{}
-			c.SetParent(b)
-			b.AddStatement(c)
+			if s.Expr == nil {
+				c := &lang.Continue{}
+				c.SetParent(b)
+				b.AddStatement(c)
+				return
+			}
+
+			e := parser.expression(b, s.Expr)
+			v, ok := e.(*lang.Number)
+			if !ok {
+				panic(`continue should be numerical`)
+			}
+			// Let's say value in this node is valid.
+			n, _ := strconv.Atoi(v.Value)
+			var bb lang.Node = b
+			if n <= 0 {
+				panic(`continue jump should be > 0`)
+			}
+			for {
+				if bb == nil {
+					panic(fmt.Sprintf("Invalid continue, not enough blocks, still %d needed.", n))
+				}
+
+				if n == 0 {
+					c := &lang.Const{
+						// TODO: Make sure name is unique.
+						Value: "CONTINUE",
+					}
+					gt := &lang.Goto{
+						Value: *c,
+					}
+					gt.SetParent(b)
+					b.AddStatement(gt)
+
+					c.Value += ":"
+					c.SetParent(bb)
+					bl := bb.(lang.Block)
+					bl.AddStatement(c)
+					return
+				}
+
+				switch bb.(type) {
+				case *lang.Switch, *lang.For, *lang.Foreach:
+					n--
+				}
+				bb = bb.Parent()
+			}
 
 		default:
 			// parser.statemtn contains also "my" statements
@@ -484,9 +568,11 @@ func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 			if len(b.Statements) <= 0 {
 				break
 			}
-			if _, ok := b.Statements[len(b.Statements)-1].(*lang.Break); ok {
+			switch b.Statements[len(b.Statements)-1].(type) {
+			case *lang.Goto, *lang.Continue:
+			case *lang.Break:
 				b.Statements = b.Statements[:len(b.Statements)-1]
-			} else {
+			default:
 				f := &lang.Fallthrough{}
 				f.SetParent(lc)
 				b.Statements = append(b.Statements, f)
@@ -502,10 +588,11 @@ func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 				break
 			}
 
-			_, ok := b.Statements[len(b.Statements)-1].(*lang.Break)
-			if ok {
+			switch b.Statements[len(b.Statements)-1].(type) {
+			case *lang.Goto, *lang.Continue:
+			case *lang.Break:
 				b.Statements = b.Statements[:len(b.Statements)-1]
-			} else {
+			default:
 				f := &lang.Fallthrough{}
 				f.SetParent(d)
 				b.Statements = append(b.Statements, f)
@@ -722,6 +809,16 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 			}
 		}
 		return ret
+
+	case *stmt.Label:
+		n := parser.translator.Translate(s.LabelName.(*node.Identifier).Value)
+		return &lang.Const{Value: n + ":"}
+
+	case *stmt.Goto:
+		c := lang.Const{
+			Value: parser.translator.Translate(s.Label.(*node.Identifier).Value),
+		}
+		return &lang.Goto{Value: c}
 	}
 
 	var v *lang.VarRef

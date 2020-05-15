@@ -60,7 +60,6 @@ func constructors(t *testing.T) {
 		t.Error("Code has some extra statements.")
 	}
 
-	parent = nil
 	f := NewFor(parent)
 	if f.Parent() != parent {
 		t.Error("Wrong parent set.")
