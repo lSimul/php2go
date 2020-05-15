@@ -2,6 +2,7 @@ package p
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/lSimul/php2go/lang"
 )
@@ -222,7 +223,7 @@ type FunctionCaller struct {
 func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.FunctionCall, error) {
 	funcs, ok := (*fc.functions)[name]
 	if !ok {
-		return nil, errors.New("Function is not defined.")
+		return nil, errors.New(fmt.Sprintf("Function '%s' is not defined.", name))
 	}
 
 	f := funcs[0]
