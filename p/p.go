@@ -3,6 +3,8 @@ package p
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/z7zmey/php-parser/node/name"
 	"github.com/z7zmey/php-parser/node/scalar"
 	"github.com/z7zmey/php-parser/node/stmt"
+	"github.com/z7zmey/php-parser/php7"
 
 	"github.com/lSimul/php2go/lang"
 )
@@ -41,14 +44,40 @@ func NewParser(v, f NameTranslation) *parser {
 	}
 }
 
+func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
+	src, err := ioutil.ReadFile(path)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	parser := php7.NewParser(src, path)
+	parser.Parse()
+
+	if errs := parser.GetErrors(); len(errs) > 0 {
+		for _, e := range errs {
+			fmt.Print(e)
+		}
+		os.Exit(1)
+	}
+
+	return p.Run(parser.GetRootNode().(*node.Root), path, asServer)
+}
+
 func (p *parser) Run(r *node.Root, path string, asServer bool) *lang.GlobalContext {
-	p.gc = lang.NewGlobalContext()
-	p.funcs = NewFunc(p.gc)
+	if p.gc == nil {
+		p.gc = lang.NewGlobalContext()
+		p.funcs = NewFunc(p.gc)
+	}
 	p.file = lang.NewFile(p.gc, path)
 
 	if asServer {
 		p.serverFile()
 	}
+	return p.run(r)
+}
+
+func (p *parser) run(r *node.Root) *lang.GlobalContext {
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {

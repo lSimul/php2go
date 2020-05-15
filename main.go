@@ -10,7 +10,6 @@ import (
 	"os"
 
 	"github.com/z7zmey/php-parser/node"
-	"github.com/z7zmey/php-parser/php7"
 	"github.com/z7zmey/php-parser/visitor"
 
 	"github.com/lSimul/php2go/p"
@@ -22,29 +21,9 @@ func main() {
 		fmt.Println("Usage: php2go <php file> [<output folder>]")
 		return
 	}
-	name := os.Args[1]
-	src, err := ioutil.ReadFile(name)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	parser := php7.NewParser(src, name)
-	parser.Parse()
-
-	if errs := parser.GetErrors(); len(errs) > 0 {
-		for _, e := range errs {
-			fmt.Print(e)
-		}
-		os.Exit(1)
-	}
-
-	rootNode := parser.GetRootNode()
-
-	print(rootNode)
 
 	p := p.NewParser(p.NewNameTranslator(), p.NewFunctionTranslator())
-	gc := p.Run(rootNode.(*node.Root), name, true)
+	gc := p.RunFromString(os.Args[1], true)
 
 	if len(os.Args) < 3 {
 		fmt.Print(gc)
