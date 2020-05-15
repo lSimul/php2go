@@ -7,55 +7,71 @@ import (
 )
 
 type GlobalContext struct {
-	parent Node
-
-	vars  []*Variable
-	Funcs map[string]*Function
-
-	imports []string
+	Files []*File
 }
 
 func NewGlobalContext() *GlobalContext {
-	gc := &GlobalContext{
-		parent: nil,
-		vars:   make([]*Variable, 0),
-		Funcs:  make(map[string]*Function, 0),
+	return &GlobalContext{
+		Files: make([]*File, 0),
+	}
+}
 
+func (gc *GlobalContext) Add(f *File) {
+	gc.Files = append(gc.Files, f)
+}
+
+func (gc GlobalContext) HasVariable(name string, oos bool) *Variable {
+	for _, f := range gc.Files {
+		if v := f.HasVariable(name, false); v != nil {
+			return v
+		}
+	}
+	return nil
+}
+
+func (gc GlobalContext) String() string {
+	return gc.Files[0].String()
+}
+
+type File struct {
+	parent *GlobalContext
+
+	name string
+
+	vars    []*Variable
+	Funcs   map[string]*Function
+	imports []string
+}
+
+func NewFile(gc *GlobalContext, name string) *File {
+	f := &File{
+		parent: gc,
+
+		name: name,
+
+		vars:    make([]*Variable, 0),
+		Funcs:   make(map[string]*Function, 0),
 		imports: make([]string, 0),
 	}
-
-	w := NewVariable("W", NewTyp("io.Writer", false), false)
-	_get := NewVariable("_GET", NewTyp("array.String", false), false)
-	gc.vars = append(gc.vars, w, _get)
-
-	return gc
+	gc.Add(f)
+	return f
 }
 
-func (gc *GlobalContext) AddImport(n string) {
-	gc.imports = append(gc.imports, n)
-}
+func (f File) Parent() Node     { return nil }
+func (f File) SetParent(n Node) {}
 
-func (gc GlobalContext) SetParent(n Node) {}
-func (gc GlobalContext) Parent() Node     { return nil }
-
-func (gc GlobalContext) AddStatement(n Node) { panic(`not implemented`) }
-
-func (gc *GlobalContext) DefineVariable(v *Variable) {
-	for _, vr := range gc.vars {
+func (f *File) DefineVariable(v *Variable) {
+	for _, vr := range f.vars {
 		if vr.Name == v.Name {
 			vr.typ = NewTyp(Anything, false)
 			return
 		}
 	}
-	gc.vars = append(gc.vars, v)
+	f.vars = append(f.vars, v)
 }
 
-func (gc GlobalContext) HasVariable(name string, oos bool) *Variable {
-	return gc.definesVariable(name)
-}
-
-func (gc GlobalContext) definesVariable(name string) *Variable {
-	for _, v := range gc.vars {
+func (f File) HasVariable(name string, oos bool) *Variable {
+	for _, v := range f.vars {
 		if v.Name == name {
 			return v
 		}
@@ -63,35 +79,33 @@ func (gc GlobalContext) definesVariable(name string) *Variable {
 	return nil
 }
 
-func (gc GlobalContext) unset(index int) {}
-
-func (gc *GlobalContext) Add(f *Function) {
-	gc.Funcs[f.Name] = f
+func (f *File) Add(fc *Function) {
+	f.Funcs[fc.Name] = fc
 }
 
-func (gc GlobalContext) Get(name string) *Function {
-	return gc.Funcs[name]
+func (f *File) AddImport(name string) {
+	f.imports = append(f.imports, name)
 }
 
-func (gc *GlobalContext) String() string {
+func (f *File) String() string {
 	s := strings.Builder{}
 
 	fn := strings.Builder{}
-	for _, f := range gc.Funcs {
+	for _, f := range f.Funcs {
 		fn.WriteString(f.String())
 	}
 
 	s.WriteString("package main\n\n")
 
-	if len(gc.imports) > 0 {
+	if len(f.imports) > 0 {
 		s.WriteString("import (\n")
-		for _, n := range gc.imports {
+		for _, n := range f.imports {
 			s.WriteString("\"" + n + "\"\n")
 		}
 		s.WriteString(")\n\n")
 	}
 
-	for _, v := range gc.vars {
+	for _, v := range f.vars {
 		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type()))
 	}
 

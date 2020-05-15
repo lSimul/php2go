@@ -28,6 +28,8 @@ type parser struct {
 
 	gc    *lang.GlobalContext
 	funcs *Func
+
+	file *lang.File
 }
 
 func NewParser(v, f NameTranslation) *parser {
@@ -39,17 +41,19 @@ func NewParser(v, f NameTranslation) *parser {
 	}
 }
 
-func (p *parser) Run(r *node.Root, asServer bool) *lang.GlobalContext {
+func (p *parser) Run(r *node.Root, path string, asServer bool) *lang.GlobalContext {
 	p.gc = lang.NewGlobalContext()
 	p.funcs = NewFunc(p.gc)
+	p.file = lang.NewFile(p.gc, path)
+
 	if asServer {
-		p.globalContextAsServer()
+		p.serverFile()
 	}
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
 		f, defaultParams := p.funcDef(&s)
-		p.funcs.Add(f.Name, f, 0)
+		p.funcs.Add(p.file, f.Name, f, 0)
 
 		for i := len(defaultParams) - 1; i >= 0; i-- {
 			n := p.functionTranslator.Translate(fmt.Sprintf("%s%d", f.Name, i))
@@ -62,7 +66,7 @@ func (p *parser) Run(r *node.Root, asServer bool) *lang.GlobalContext {
 			}
 			args = append(args, defaultParams[i])
 
-			c, err := p.funcs.Namespace("").Call(f.Name, args)
+			c, err := p.funcs.Namespace(p.file, "").Call(f.Name, args)
 			if err != nil {
 				panic(err)
 			}
@@ -71,33 +75,34 @@ func (p *parser) Run(r *node.Root, asServer bool) *lang.GlobalContext {
 			} else {
 				vf.Body.AddStatement(&lang.Return{Expression: c})
 			}
-			p.funcs.Add(f.Name, vf, len(defaultParams)-i)
+			p.funcs.Add(p.file, f.Name, vf, len(defaultParams)-i)
 		}
 	}
 	for _, s := range fs {
 		f, _ := p.funcDef(&s)
 		p.createFunction(&f.Body, s.Stmts)
-		p.funcs.Add(f.Name, f, 0)
+		p.funcs.Add(p.file, f.Name, f, 0)
 	}
 
 	main := p.mainDef()
-	p.funcs.Add(main.Name, main, 0)
+	p.funcs.Add(p.file, main.Name, main, 0)
 	p.createFunction(&main.Body, ms)
 	return p.gc
 }
 
-func (p *parser) globalContextAsServer() {
+func (p *parser) serverFile() {
 	p.asServer = true
-	p.gc.AddImport("flag")
-	p.gc.AddImport("log")
-	p.gc.AddImport("net/http")
-	p.gc.AddImport("os")
 
-	p.gc.AddImport("io")
-	p.gc.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
+	p.file.AddImport("flag")
+	p.file.AddImport("log")
+	p.file.AddImport("net/http")
+	p.file.AddImport("os")
 
-	p.funcs.Namespace("array")
-	p.gc.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
+	p.file.AddImport("io")
+	p.file.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
+
+	p.funcs.Namespace(p.file, "array")
+	p.file.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
 }
 
 // SanitizeRootStmts splits statements based on their type,
@@ -128,7 +133,7 @@ func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Express
 
 	n := parser.functionTranslator.Translate(fc.FunctionName.(*node.Identifier).Value)
 	f := lang.NewFunc(n)
-	f.SetParent(parser.gc)
+	f.SetParent(parser.file)
 
 	hasDefaultParams := false
 	for _, pr := range fc.Params {
@@ -169,7 +174,7 @@ func (p *parser) mainDef() *lang.Function {
 	} else {
 		f = lang.NewFunc("main")
 	}
-	f.SetParent(p.gc)
+	f.SetParent(p.file)
 	return f
 }
 
@@ -186,7 +191,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			if parser.asServer {
 				f, err = parser.servePrint([]lang.Expression{str})
 			} else {
-				f, err = parser.funcs.Namespace("fmt").Call("Print", []lang.Expression{str})
+				f, err = parser.funcs.Namespace(parser.file, "fmt").Call("Print", []lang.Expression{str})
 			}
 			if err != nil {
 				panic(err)
@@ -379,7 +384,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			if parser.asServer {
 				f, err = parser.servePrint(args)
 			} else {
-				f, err = parser.funcs.Namespace("fmt").Call("Print", args)
+				f, err = parser.funcs.Namespace(parser.file, "fmt").Call("Print", args)
 			}
 			if err != nil {
 				panic(err)
@@ -710,7 +715,7 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 			fc.SetParent(b)
 		} else {
 			args := []lang.Expression{parser.expression(b, v.Dim)}
-			scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+			scalar, err := parser.funcs.Namespace(parser.file, "array").Call("NewScalar", args)
 			if err != nil {
 				panic(err)
 			}
@@ -753,7 +758,7 @@ func (parser *parser) directAssignment(b lang.Block, n node.Node) lang.Expressio
 		if v == nil {
 			panic(n + " is not defined.")
 		}
-		fc, err := parser.funcs.Namespace("std").Call("Concat", []lang.Expression{
+		fc, err := parser.funcs.Namespace(parser.file, "std").Call("Concat", []lang.Expression{
 			lang.NewVarRef(v, v.CurrentType), e,
 		})
 		if err != nil {
@@ -812,7 +817,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 				panic(vn + " is not defined.")
 			}
 			args := []lang.Expression{parser.expression(b, adf.Dim)}
-			scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+			scalar, err := parser.funcs.Namespace(parser.file, "array").Call("NewScalar", args)
 			if err != nil {
 				panic(err)
 			}
@@ -853,7 +858,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		return lang.NewInc(
 			b, v,
 			func(e lang.Expression) (lang.Expression, error) {
-				return parser.funcs.Namespace("std").Call("StrInc", []lang.Expression{e})
+				return parser.funcs.Namespace(parser.file, "std").Call("StrInc", []lang.Expression{e})
 			},
 		)
 	}
@@ -867,7 +872,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		return lang.NewDec(
 			b, v,
 			func(e lang.Expression) (lang.Expression, error) {
-				return parser.funcs.Namespace("std").Call("StrDec", []lang.Expression{e})
+				return parser.funcs.Namespace(parser.file, "std").Call("StrDec", []lang.Expression{e})
 			},
 		)
 	}
@@ -926,7 +931,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					panic(vn + " is not defined.")
 				}
 
-				scalar, err := parser.funcs.Namespace("array").Call(
+				scalar, err := parser.funcs.Namespace(parser.file, "array").Call(
 					"NewScalar", []lang.Expression{parser.expression(b, p.Dim)})
 				if err != nil {
 					panic(err)
@@ -948,7 +953,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		s.Value += "\""
 		args[0] = s
 
-		f, err := parser.funcs.Namespace("fmt").Call("Sprintf", args)
+		f, err := parser.funcs.Namespace(parser.file, "fmt").Call("Sprintf", args)
 		if err != nil {
 			panic(err)
 		}
@@ -970,7 +975,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		}
 
 		args := []lang.Expression{parser.expression(b, adf.Dim)}
-		scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+		scalar, err := parser.funcs.Namespace(parser.file, "array").Call("NewScalar", args)
 		if err != nil {
 			panic(err)
 		}
@@ -1057,7 +1062,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			}
 		}
 
-		f, err := parser.funcs.Namespace("array").Call("New"+FirstUpper(typ), items)
+		f, err := parser.funcs.Namespace(parser.file, "array").Call("New"+FirstUpper(typ), items)
 		if err != nil {
 			panic(err)
 		}
@@ -1072,7 +1077,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		}
 
 		args := []lang.Expression{parser.expression(b, e.Dim)}
-		scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
+		scalar, err := parser.funcs.Namespace(parser.file, "array").Call("NewScalar", args)
 		if err != nil {
 			panic(err)
 		}
@@ -1181,7 +1186,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			parser.expression(b, e.Left),
 			parser.expression(b, e.Right),
 		}
-		f, err := parser.funcs.Namespace("std").Call("Concat", args)
+		f, err := parser.funcs.Namespace(parser.file, "std").Call("Concat", args)
 		if err != nil {
 			panic(err)
 		}
@@ -1208,14 +1213,14 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 		n = parser.constructName(e.Function.(*name.Name), true)
 
-		f, err := parser.funcs.Namespace("").Call(n, args)
+		f, err := parser.funcs.Namespace(parser.file, "").Call(n, args)
 		if err != nil {
 			panic(err)
 		}
 		return f
 
 	case *cast.Int:
-		f, err := parser.funcs.Namespace("std").Call("ToInt", []lang.Expression{
+		f, err := parser.funcs.Namespace(parser.file, "std").Call("ToInt", []lang.Expression{
 			parser.expression(b, e.Expr),
 		})
 		if err != nil {
@@ -1235,7 +1240,7 @@ func (p *parser) binaryOp(b lang.Block, op string, left, right node.Node) lang.E
 
 func (p *parser) bOp(b lang.Block, op string, l, r lang.Expression) lang.Expression {
 	if convertToMatchingType(l, r) {
-		p.funcs.Namespace("std")
+		p.funcs.Namespace(p.file, "std")
 	}
 	res, err := lang.NewBinaryOp(op, l, r)
 	if err != nil {
@@ -1367,7 +1372,7 @@ func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, exp
 	}
 	if !expr.Type().Equal(lang.Bool) {
 		var err error
-		expr, err = p.funcs.Namespace("std").Call("Truthy", []lang.Expression{expr})
+		expr, err = p.funcs.Namespace(p.file, "std").Call("Truthy", []lang.Expression{expr})
 		if err != nil {
 			panic(err)
 		}
@@ -1445,5 +1450,5 @@ func (p *parser) servePrint(args []lang.Expression) (*lang.FunctionCall, error) 
 		return nil, errors.New("Variable io.Writer not defined")
 	}
 	args = append([]lang.Expression{lang.NewVarRef(v, lang.NewTyp(lang.Writer, false))}, args...)
-	return p.funcs.Namespace("fmt").Call("Fprintf", args)
+	return p.funcs.Namespace(p.file, "fmt").Call("Fprintf", args)
 }

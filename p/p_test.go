@@ -263,6 +263,7 @@ func testStatements(t *testing.T) {
 		gc:    gc,
 		funcs: NewFunc(gc),
 	}
+	parser.file = lang.NewFile(gc, "dummy")
 
 	b := lang.NewCode(nil)
 	html := test.HTML("<html></html>")
@@ -406,8 +407,8 @@ func testMain(tt *testing.T) {
 			functionTranslator: NewFunctionTranslator(),
 		}
 
-		out := parser.Run(parsePHP(t.source), false)
-		main := out.Funcs["main"].String()
+		out := parser.Run(parsePHP(t.source), "dummy", false)
+		main := out.Files[0].Funcs["main"].String()
 		compare(tt, t.expected, main)
 	}
 }

@@ -187,7 +187,7 @@ type funcs struct {
 // First argument is a real name of the function. It goes well with the
 // missingArgs argument, goal is to found the correct function. Functions
 // in PHP can have variable amount of arguments.
-func (fn *Func) Add(name string, f *lang.Function, missingArgs int) {
+func (fn *Func) Add(file *lang.File, name string, f *lang.Function, missingArgs int) {
 	if _, ok := fn.funcs[""].fn[name]; !ok {
 		fn.funcs[""].fn[name] = make([]*lang.Function, 0)
 	}
@@ -196,17 +196,17 @@ func (fn *Func) Add(name string, f *lang.Function, missingArgs int) {
 	} else {
 		fn.funcs[""].fn[name] = append(fn.funcs[""].fn[name], f)
 	}
-	fn.gc.Add(f)
+	file.Add(f)
 }
 
-func (f *Func) Namespace(n string) *FunctionCaller {
+func (f *Func) Namespace(file *lang.File, n string) *FunctionCaller {
 	fn, ok := f.funcs[n]
 	if !ok {
 		panic(`Unknown namespace ` + n)
 	}
 	if !fn.used {
 		fn.used = true
-		f.gc.AddImport(fn.namespace)
+		file.AddImport(fn.namespace)
 	}
 
 	return &FunctionCaller{

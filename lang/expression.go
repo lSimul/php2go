@@ -7,7 +7,7 @@ import (
 )
 
 type Function struct {
-	parent *GlobalContext
+	parent *File
 
 	Args          []*Variable
 	VariadicCount bool
@@ -24,7 +24,7 @@ func (f Function) Parent() Node {
 
 func (f *Function) SetParent(n Node) {
 	// TODO: Fail loudly.
-	f.parent = n.(*GlobalContext)
+	f.parent = n.(*File)
 }
 
 func (f Function) HasVariable(name string, oos bool) *Variable {

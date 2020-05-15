@@ -88,7 +88,7 @@ func TestResult(t *testing.T) {
 
 		p := NewParser(NewNameTranslator(), NewFunctionTranslator())
 		// TODO: Turn it to false again.
-		res := p.Run(parsePHP([]byte(s)), true)
+		res := p.Run(parsePHP([]byte(s)), "dummy", true)
 		ref.WriteString(res.String())
 
 		fileName := strings.TrimPrefix(ref.Name(), root+"/")

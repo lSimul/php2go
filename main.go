@@ -44,7 +44,7 @@ func main() {
 	print(rootNode)
 
 	p := p.NewParser(p.NewNameTranslator(), p.NewFunctionTranslator())
-	gc := p.Run(rootNode.(*node.Root), true)
+	gc := p.Run(rootNode.(*node.Root), name, true)
 
 	if len(os.Args) < 3 {
 		fmt.Print(gc)
