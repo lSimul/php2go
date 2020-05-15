@@ -3,28 +3,21 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/lSimul/php2go/std/array"
+
+	"github.com/lSimul/php2go/serverBoilerplate/globals"
 )
-
-var W io.Writer
-
-// Intentionally bad name, same name as the
-// PHP version. I will do renaming later on.
-// This is just to make translation now easier,
-// straight match.
-var _GET array.String
 
 var server = flag.String("S", "", "Run program as a server.")
 
 func main() {
 	flag.Parse()
 
-	_GET = array.NewString()
+	globals.GET = array.NewString()
 
 	if *server != "" {
 		mux := http.NewServeMux()
@@ -38,10 +31,10 @@ func main() {
 }
 
 func mainServer(w http.ResponseWriter, r *http.Request) {
-	W = w
+	globals.W = w
 	if r.URL.Path == "/" || r.URL.Path == "/index.php" {
 		for k, v := range r.URL.Query() {
-			_GET.Edit(array.NewScalar(k), v[len(v)-1])
+			globals.GET.Edit(array.NewScalar(k), v[len(v)-1])
 		}
 		mainFunc()
 		return
@@ -50,12 +43,12 @@ func mainServer(w http.ResponseWriter, r *http.Request) {
 }
 
 func mainLCI() {
-	W = os.Stdout
+	globals.W = os.Stdout
 	mainFunc()
 }
 
 func mainFunc() {
-	fmt.Fprintf(W, `<!DOCTYPE html>
+	fmt.Fprintf(globals.W, `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
