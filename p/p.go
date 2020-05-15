@@ -10,6 +10,7 @@ import (
 	"github.com/z7zmey/php-parser/node/expr"
 	"github.com/z7zmey/php-parser/node/expr/assign"
 	"github.com/z7zmey/php-parser/node/expr/binary"
+	"github.com/z7zmey/php-parser/node/expr/cast"
 	"github.com/z7zmey/php-parser/node/name"
 	"github.com/z7zmey/php-parser/node/scalar"
 	"github.com/z7zmey/php-parser/node/stmt"
@@ -1132,8 +1133,14 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		return parser.binaryOp(b, ">>", e.Left, e.Right)
 
 	case *expr.ConstFetch:
+		n := parser.constructName(e.Constant.(*name.Name), true)
+		if n == "PHP_EOL" {
+			s := &lang.Str{Value: "\"\\n\""}
+			s.SetParent(b)
+			return s
+		}
 		c := &lang.Const{
-			Value: parser.constructName(e.Constant.(*name.Name), true),
+			Value: n,
 		}
 		c.SetParent(b)
 		return c
@@ -1177,6 +1184,16 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			panic(err)
 		}
 		return f
+
+	case *cast.Int:
+		f, err := parser.funcs.Namespace("std").Call("ToInt", []lang.Expression{
+			parser.expression(b, e.Expr),
+		})
+		if err != nil {
+			panic(err)
+		}
+		return f
+
 	}
 	return nil
 }

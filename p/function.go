@@ -113,6 +113,17 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 				Return: lang.NewTyp(lang.Bool, false),
 			},
 		},
+		"ToInt": {
+			{
+				Name: "ToInt",
+				Args: []*lang.Variable{
+					lang.NewVariable("s", lang.NewTyp(lang.Anything, false), false),
+				},
+				VariadicCount: false,
+
+				Return: lang.NewTyp(lang.Int, false),
+			},
+		},
 	}
 	fn.funcs["std"] = &funcs{
 		namespace: "github.com/lSimul/php2go/std",
