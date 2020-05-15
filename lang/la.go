@@ -41,6 +41,8 @@ type File struct {
 	vars    []*Variable
 	Funcs   map[string]*Function
 	imports []string
+
+	Server bool
 }
 
 func NewFile(gc *GlobalContext, name string) *File {
@@ -52,6 +54,8 @@ func NewFile(gc *GlobalContext, name string) *File {
 		vars:    make([]*Variable, 0),
 		Funcs:   make(map[string]*Function, 0),
 		imports: make([]string, 0),
+
+		Server: false,
 	}
 	gc.Add(f)
 	return f
@@ -109,7 +113,8 @@ func (f *File) String() string {
 		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type()))
 	}
 
-	s.WriteString(`
+	if f.Server {
+		s.WriteString(`
 var server = flag.String("S", "", "Run program as a server.")
 
 func main() {
@@ -147,6 +152,7 @@ func mainLCI() {
 }
 
 `)
+	}
 
 	s.WriteString(fn.String())
 

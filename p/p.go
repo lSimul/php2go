@@ -103,6 +103,8 @@ func (p *parser) serverFile() {
 
 	p.funcs.Namespace(p.file, "array")
 	p.file.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
+
+	p.file.Server = true
 }
 
 // SanitizeRootStmts splits statements based on their type,
