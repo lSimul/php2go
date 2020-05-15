@@ -87,8 +87,8 @@ func (t *nameTranslator) Translate(name string) string {
 
 func (t nameTranslator) resolveConflict(name string, try int) string {
 	n := fmt.Sprintf("%s%d", name, try)
-	if _, used := t.used[n]; used {
-		t.resolveConflict(name, try+1)
+	if used := t.used[n]; used {
+		return t.resolveConflict(name, try+1)
 	}
 	return n
 }
@@ -126,4 +126,27 @@ func NewFunctionTranslator() NameTranslation {
 		names: make(map[string]string),
 		used:  used,
 	}
+}
+
+type labelTranslator struct {
+	nameTranslator
+}
+
+func NewLabelTranslator() *labelTranslator {
+	return &labelTranslator{
+		nameTranslator: nameTranslator{
+			names: make(map[string]string),
+			used:  make(map[string]bool),
+		},
+	}
+}
+
+func (l *labelTranslator) Label(name string, unique bool, number int) string {
+	if unique {
+		new := l.resolveConflict(name, number)
+		l.names[name] = new
+		l.used[new] = true
+		return new
+	}
+	return l.Translate(name)
 }

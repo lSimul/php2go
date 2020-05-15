@@ -5,10 +5,9 @@ for ($a = 0; $a < 5; $a++) {
 	for ($b = 0; $b < 5; $b++) {
 		echo "\t$a:$b\n";
 		if ($b === 3 && $a === 3) {
-			break 1;
+			break 2;
 		} elseif ($b === 10) {
 			continue 2;
-			break 2;
 		}
 	}
 	echo "$a\n";
@@ -24,5 +23,4 @@ foreach ([1, 2, 3, 4, 5] as $v) {
 	}
 	echo "$v\n";
 }
-
 

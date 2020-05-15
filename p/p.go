@@ -22,6 +22,8 @@ type parser struct {
 	translator         NameTranslation
 	functionTranslator NameTranslation
 
+	labelTranslator *labelTranslator
+
 	asServer bool
 
 	gc    *lang.GlobalContext
@@ -33,6 +35,7 @@ func NewParser(v, f NameTranslation) *parser {
 		translator:         v,
 		functionTranslator: f,
 		asServer:           false,
+		labelTranslator:    NewLabelTranslator(),
 	}
 }
 
@@ -347,7 +350,8 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 
 		case *stmt.Switch:
 			sw := &lang.Switch{
-				Cases: make([]lang.Node, 0),
+				Cases:  make([]lang.Node, 0),
+				Labels: make([]lang.Const, 0),
 			}
 			sw.SetParent(b)
 			b.AddStatement(sw)
@@ -407,26 +411,35 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				}
 
 				if n == 0 {
-					c := &lang.Const{
-						// TODO: Make sure name is unique.
-						Value: "BREAK",
-					}
-					gt := &lang.Goto{
-						Value: *c,
-					}
-					gt.SetParent(b)
-					b.AddStatement(gt)
-
-					c.Value += ":"
-					c.SetParent(bb)
-					bl := bb.(lang.Block)
-					bl.AddStatement(c)
 					return
 				}
 
 				switch bb.(type) {
 				case *lang.Switch, *lang.For, *lang.Foreach:
 					n--
+					if n == 0 {
+						c := &lang.Const{
+							// Third argument is not used as it could be.
+							Value: parser.labelTranslator.Label("BREAK", true, 0),
+						}
+						c.SetParent(bb)
+
+						gt := &lang.Goto{
+							Value: *c,
+						}
+						gt.SetParent(b)
+						b.AddStatement(gt)
+
+						switch s := bb.(type) {
+						case *lang.Switch:
+							s.Labels = append(s.Labels, *c)
+						case *lang.For:
+							s.Labels = append(s.Labels, *c)
+						case *lang.Foreach:
+							s.Labels = append(s.Labels, *c)
+						}
+						return
+					}
 				}
 				bb = bb.Parent()
 			}
@@ -455,27 +468,32 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 					panic(fmt.Sprintf("Invalid continue, not enough blocks, still %d needed.", n))
 				}
 
-				if n == 0 {
-					c := &lang.Const{
-						// TODO: Make sure name is unique.
-						Value: "CONTINUE",
-					}
-					gt := &lang.Goto{
-						Value: *c,
-					}
-					gt.SetParent(b)
-					b.AddStatement(gt)
-
-					c.Value += ":"
-					c.SetParent(bb)
-					bl := bb.(lang.Block)
-					bl.AddStatement(c)
-					return
-				}
-
 				switch bb.(type) {
 				case *lang.Switch, *lang.For, *lang.Foreach:
 					n--
+					if n == 0 {
+						c := &lang.Const{
+							// Third argument is not used as it could be.
+							Value: parser.labelTranslator.Label("CONTINUE", true, 0),
+						}
+						c.SetParent(bb)
+
+						gt := &lang.Goto{
+							Value: *c,
+						}
+						gt.SetParent(b)
+						b.AddStatement(gt)
+
+						switch s := bb.(type) {
+						case *lang.Switch:
+							s.Labels = append(s.Labels, *c)
+						case *lang.For:
+							s.Labels = append(s.Labels, *c)
+						case *lang.Foreach:
+							s.Labels = append(s.Labels, *c)
+						}
+						return
+					}
 				}
 				bb = bb.Parent()
 			}
@@ -812,12 +830,12 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		return ret
 
 	case *stmt.Label:
-		n := parser.translator.Translate(s.LabelName.(*node.Identifier).Value)
+		n := parser.labelTranslator.Translate(s.LabelName.(*node.Identifier).Value)
 		return &lang.Const{Value: n + ":"}
 
 	case *stmt.Goto:
 		c := lang.Const{
-			Value: parser.translator.Translate(s.Label.(*node.Identifier).Value),
+			Value: parser.labelTranslator.Translate(s.Label.(*node.Identifier).Value),
 		}
 		return &lang.Goto{Value: c}
 	}

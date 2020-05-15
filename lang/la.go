@@ -372,6 +372,8 @@ type For struct {
 	Loop Node
 
 	Block *Code
+
+	Labels []Const
 }
 
 func (f *For) SetCond(e Expression) error {
@@ -465,6 +467,12 @@ func (f For) String() string {
 	}
 	s.WriteString(" ")
 	s.WriteString(f.Block.String())
+	if len(f.Labels) > 0 {
+		s.WriteByte('\n')
+	}
+	for _, l := range f.Labels {
+		s.WriteString(fmt.Sprintf("%s:\n", l.String()))
+	}
 	return s.String()
 }
 
@@ -476,6 +484,7 @@ func NewFor(parent Block) *For {
 			Vars:       make([]*Variable, 0),
 			Statements: make([]Node, 0),
 		},
+		Labels: make([]Const, 0),
 	}
 	f.Block = NewCode(f)
 	f.SetParent(parent)
@@ -497,6 +506,8 @@ type Foreach struct {
 	Value Variable
 
 	Block *Code
+
+	Labels []Const
 }
 
 func (f Foreach) Parent() Node {
@@ -539,6 +550,7 @@ func (_ *Foreach) unset(index int) {}
 func NewForeach(parent Block) *Foreach {
 	f := &Foreach{
 		parent: parent,
+		Labels: make([]Const, 0),
 	}
 	f.Block = NewCode(f)
 	f.SetParent(parent)
@@ -555,6 +567,12 @@ func (f Foreach) String() string {
 	s.WriteString(f.Iterated.String())
 	s.WriteString(" ")
 	s.WriteString(f.Block.String())
+	if len(f.Labels) > 0 {
+		s.WriteByte('\n')
+	}
+	for _, l := range f.Labels {
+		s.WriteString(fmt.Sprintf("%s:\n", l.String()))
+	}
 	return s.String()
 }
 
@@ -565,6 +583,8 @@ type Switch struct {
 	// Default will end up here too,
 	// to keep the order from PHP.
 	Cases []Node
+
+	Labels []Const
 }
 
 func (sw Switch) Parent() Node {
@@ -602,6 +622,12 @@ func (sw Switch) String() string {
 		s.WriteString(c.String())
 	}
 	s.WriteByte('}')
+	if len(sw.Labels) > 0 {
+		s.WriteByte('\n')
+	}
+	for _, l := range sw.Labels {
+		s.WriteString(fmt.Sprintf("%s:\n", l.String()))
+	}
 	return s.String()
 }
 
