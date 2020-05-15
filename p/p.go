@@ -1027,6 +1027,17 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		str.SetParent(b)
 		return str
 
+	case *scalar.MagicConstant:
+		s := e.Value
+		if s != "__DIR__" {
+			panic(`Invalid value of magic constant.`)
+		}
+		str := &lang.Str{
+			Value: "\".\"",
+		}
+		str.SetParent(b)
+		return str
+
 	case *expr.ShortArray:
 		items := make([]lang.Expression, 0)
 		for _, i := range e.Items {
