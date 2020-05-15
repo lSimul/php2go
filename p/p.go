@@ -45,10 +45,19 @@ func NewParser(v, f NameTranslation) *parser {
 }
 
 func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
+	dirs, err := ioutil.ReadDir(path)
+	if err != nil {
+		fmt.Println(path)
+	} else {
+		for _, d := range dirs {
+			fmt.Println(d.Name())
+		}
+	}
+
 	src, err := ioutil.ReadFile(path)
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return p.gc
 	}
 
 	parser := php7.NewParser(src, path)
@@ -1121,6 +1130,31 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		scalar.SetParent(fc)
 		fc.SetParent(b)
 		return fc
+
+	case *expr.Require:
+		expr := parser.expression(b, e.Expr)
+		var val string
+		switch e := expr.(type) {
+		case *lang.Str:
+			val = e.Value
+
+		case *lang.FunctionCall:
+			if e.Name != "std.Concat" {
+				panic(`only std.Concat can be called`)
+			}
+			for _, v := range e.Args {
+				if s, ok := v.(*lang.Str); ok {
+					val += s.Value
+				} else {
+					panic(`only string can be in concat`)
+				}
+			}
+			val = strings.ReplaceAll(val, "\"", "")
+		}
+		parser.gc = parser.RunFromString(val, false)
+		return &lang.FunctionCall{
+			Name: val,
+		}
 
 		/*
 			TODO:
