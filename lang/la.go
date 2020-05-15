@@ -400,7 +400,9 @@ func (f For) HasVariable(name string, oos bool) *Variable {
 	}
 
 	if oos {
-		return f.definesVariable(name)
+		if v := f.definesVariable(name); v != nil {
+			return v
+		}
 	}
 
 	if f.parent != nil {
@@ -475,7 +477,8 @@ func NewFor(parent Block) *For {
 			Statements: make([]Node, 0),
 		},
 	}
-	f.Block.SetParent(f)
+	f.Block = NewCode(f)
+	f.SetParent(parent)
 	return f
 }
 
