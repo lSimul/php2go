@@ -261,13 +261,15 @@ func testStatements(t *testing.T) {
 	t.Helper()
 
 	gc := lang.NewGlobalContext()
+	funcs := NewFunc(gc)
 	parser := fileParser{
 		parser: &parser{
 			gc:    gc,
-			funcs: NewFunc(gc),
+			funcs: funcs,
 		},
 	}
 	parser.file = lang.NewFile(gc, "dummy")
+	parser.funcs = &FileFunc{funcs, parser.file}
 
 	b := lang.NewCode(nil)
 	html := test.HTML("<html></html>")
