@@ -31,8 +31,6 @@ type parser struct {
 
 	gc    *lang.GlobalContext
 	funcs *Func
-
-	file *lang.File
 }
 
 func NewParser(v, f NameTranslation) *parser {
@@ -42,6 +40,12 @@ func NewParser(v, f NameTranslation) *parser {
 		asServer:           false,
 		labelTranslator:    NewLabelTranslator(),
 	}
+}
+
+type fileParser struct {
+	*parser
+
+	file *lang.File
 }
 
 func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
@@ -78,15 +82,18 @@ func (p *parser) Run(r *node.Root, path string, asServer bool) *lang.GlobalConte
 		p.gc = lang.NewGlobalContext()
 		p.funcs = NewFunc(p.gc)
 	}
-	p.file = lang.NewFile(p.gc, path)
+	fp := &fileParser{
+		parser: p,
+		file:   lang.NewFile(p.gc, path),
+	}
 
 	if asServer {
-		p.serverFile()
+		fp.serverFile()
 	}
-	return p.run(r)
+	return fp.run(r, asServer)
 }
 
-func (p *parser) run(r *node.Root) *lang.GlobalContext {
+func (p *fileParser) run(r *node.Root, asServer bool) *lang.GlobalContext {
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
@@ -128,7 +135,7 @@ func (p *parser) run(r *node.Root) *lang.GlobalContext {
 	return p.gc
 }
 
-func (p *parser) serverFile() {
+func (p *fileParser) serverFile() {
 	p.asServer = true
 
 	p.file.AddImport("flag")
@@ -165,7 +172,7 @@ func sanitizeRootStmts(r *node.Root) ([]node.Node, []stmt.Function) {
 	return main, functions
 }
 
-func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Expression) {
+func (parser *fileParser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Expression) {
 	defaultParams := make([]lang.Expression, 0)
 	if fc == nil {
 		return nil, defaultParams
@@ -207,7 +214,7 @@ func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Express
 	return f, defaultParams
 }
 
-func (p *parser) mainDef() *lang.Function {
+func (p *fileParser) mainDef() *lang.Function {
 	var f *lang.Function
 	if p.asServer {
 		f = lang.NewFunc("mainFunc")
@@ -218,7 +225,7 @@ func (p *parser) mainDef() *lang.Function {
 	return f
 }
 
-func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
+func (parser *fileParser) createFunction(b lang.Block, stmts []node.Node) {
 	for _, s := range stmts {
 		switch s := s.(type) {
 		case *stmt.Nop:
@@ -569,7 +576,7 @@ func nodeList(n node.Node) []node.Node {
 	}
 }
 
-func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
+func (p *fileParser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 	nif := lang.NewIf(b)
 	init, cond := p.flowControlExpr(nif, i.Cond)
 
@@ -605,7 +612,7 @@ func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 	return nif
 }
 
-func (p *parser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
+func (p *fileParser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	nif := lang.NewIf(b)
 	init, cond := p.flowControlExpr(nif, i.Cond)
 
@@ -620,7 +627,7 @@ func (p *parser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	return nif
 }
 
-func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
+func (parser *fileParser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 	for _, c := range cl.Cases {
 		switch c := c.(type) {
 		case *stmt.Case:
@@ -665,7 +672,7 @@ func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 	}
 }
 
-func (p *parser) makeExpression(b lang.Block, e *stmt.Expression) lang.Node {
+func (p *fileParser) makeExpression(b lang.Block, e *stmt.Expression) lang.Node {
 	s := p.statement(b, e.Expr)
 	if s != nil {
 		return s
@@ -673,7 +680,7 @@ func (p *parser) makeExpression(b lang.Block, e *stmt.Expression) lang.Node {
 	return p.complexExpression(b, e.Expr)
 }
 
-func (p *parser) simpleExpression(b lang.Block, n node.Node) lang.Node {
+func (p *fileParser) simpleExpression(b lang.Block, n node.Node) lang.Node {
 	s := p.statement(b, n)
 	if s != nil {
 		return s
@@ -701,7 +708,7 @@ func (p *parser) simpleExpression(b lang.Block, n node.Node) lang.Node {
 	panic(`SimpleExpression: something else uncatched.`)
 }
 
-func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expression {
+func (parser *fileParser) complexExpression(b lang.Block, n node.Node) lang.Expression {
 	e := parser.expression(b, n)
 	if e != nil {
 		return e
@@ -775,7 +782,7 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 	}
 }
 
-func (parser *parser) directAssignment(b lang.Block, n node.Node) lang.Expression {
+func (parser *fileParser) directAssignment(b lang.Block, n node.Node) lang.Expression {
 	assignmentFunc := func(op string, expr node.Node, nv *expr.Variable) *lang.Assign {
 		e := parser.expression(b, expr)
 		n := parser.identifierName(nv)
@@ -840,7 +847,7 @@ func (parser *parser) directAssignment(b lang.Block, n node.Node) lang.Expressio
 	return nil
 }
 
-func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
+func (parser *fileParser) statement(b lang.Block, n node.Node) lang.Node {
 	// Inpisration from parser.expression, *expr.ArrayDimFetch.
 	switch s := n.(type) {
 	case *stmt.Unset:
@@ -935,7 +942,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 	return nil
 }
 
-func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
+func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression {
 	switch e := n.(type) {
 	case *expr.Variable:
 		name := parser.identifierName(e)
@@ -1297,13 +1304,13 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 	return nil
 }
 
-func (p *parser) binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
+func (p *fileParser) binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
 	l := p.expression(b, left)
 	r := p.expression(b, right)
 	return p.bOp(b, op, l, r)
 }
 
-func (p *parser) bOp(b lang.Block, op string, l, r lang.Expression) lang.Expression {
+func (p *fileParser) bOp(b lang.Block, op string, l, r lang.Expression) lang.Expression {
 	if convertToMatchingType(l, r) {
 		p.funcs.Namespace(p.file, "std")
 	}
@@ -1409,7 +1416,7 @@ func convertToMatchingType(left, right lang.Expression) bool {
 // This is the first move from many, I want to resolve
 // everything in the examples/33.php, but code is not ready
 // for this yet.
-func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, expr lang.Expression) {
+func (p *fileParser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, expr lang.Expression) {
 	s := p.simpleExpression(b, n)
 	switch s.(type) {
 	case *lang.Assign:
@@ -1509,7 +1516,7 @@ func (p *parser) constructName(nm *name.Name, translate bool) string {
 	return p.functionTranslator.Translate(s)
 }
 
-func (p *parser) servePrint(args []lang.Expression) (*lang.FunctionCall, error) {
+func (p *fileParser) servePrint(args []lang.Expression) (*lang.FunctionCall, error) {
 	v := p.gc.HasVariable("W", false)
 	if v == nil {
 		return nil, errors.New("Variable io.Writer not defined")

@@ -75,9 +75,11 @@ func helpers(t *testing.T) {
 func functionDef(t *testing.T) {
 	t.Helper()
 
-	parser := parser{
-		translator:         NewNameTranslator(),
-		functionTranslator: NewFunctionTranslator(),
+	parser := fileParser{
+		parser: &parser{
+			translator:         NewNameTranslator(),
+			functionTranslator: NewFunctionTranslator(),
+		},
 	}
 
 	// This tests which name and return type will
@@ -157,7 +159,7 @@ func testBinaryOp(t *testing.T) {
 		{"==", lang.Bool},
 	}
 
-	parser := parser{}
+	parser := fileParser{parser: &parser{}}
 	for _, c := range cases {
 		expr := parser.expression(nil, test.BinaryOp(left, c.op, right))
 		op, ok := expr.(*lang.BinaryOp)
@@ -178,7 +180,7 @@ func unaryOp(t *testing.T) {
 
 	parent := lang.NewCode(nil)
 
-	parser := parser{}
+	parser := fileParser{parser: &parser{}}
 	for _, n := range []node.Node{
 		test.Plus(test.String(`"test"`)),
 		test.Plus(test.String(`""`)),
@@ -259,9 +261,11 @@ func testStatements(t *testing.T) {
 	t.Helper()
 
 	gc := lang.NewGlobalContext()
-	parser := parser{
-		gc:    gc,
-		funcs: NewFunc(gc),
+	parser := fileParser{
+		parser: &parser{
+			gc:    gc,
+			funcs: NewFunc(gc),
+		},
 	}
 	parser.file = lang.NewFile(gc, "dummy")
 
