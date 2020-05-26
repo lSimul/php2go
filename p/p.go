@@ -739,11 +739,11 @@ func (parser *fileParser) complexExpression(b lang.Block, n node.Node) lang.Expr
 	}
 
 	switch v := a.Variable.(type) {
-	case (*expr.Variable):
+	case *expr.Variable:
 		n := parser.identifierName(v)
 		return parser.buildAssignment(b, n, r)
 
-	case (*expr.ArrayDimFetch):
+	case *expr.ArrayDimFetch:
 		vn := parser.identifierName(v.Variable.(*expr.Variable))
 		vr := b.HasVariable(vn, true)
 		if vr == nil || vr.Type().Equal(lang.Void) {
@@ -800,7 +800,7 @@ func (parser *fileParser) directAssignment(b lang.Block, n node.Node) lang.Expre
 	}
 
 	switch a := n.(type) {
-	case (*assign.Concat):
+	case *assign.Concat:
 		e := parser.expression(b, a.Expression)
 		n := parser.identifierName(a.Variable.(*expr.Variable))
 		v := b.HasVariable(n, true)
@@ -815,34 +815,34 @@ func (parser *fileParser) directAssignment(b lang.Block, n node.Node) lang.Expre
 		}
 		return parser.buildAssignment(b, n, fc)
 
-	case (*assign.Plus):
+	case *assign.Plus:
 		return assignmentFunc("+", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.Minus):
+	case *assign.Minus:
 		return assignmentFunc("-", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.Div):
+	case *assign.Div:
 		return assignmentFunc("/", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.Mul):
+	case *assign.Mul:
 		return assignmentFunc("*", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.Mod):
+	case *assign.Mod:
 		return assignmentFunc("%", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.BitwiseAnd):
+	case *assign.BitwiseAnd:
 		return assignmentFunc("&", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.BitwiseOr):
+	case *assign.BitwiseOr:
 		return assignmentFunc("|", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.BitwiseXor):
+	case *assign.BitwiseXor:
 		return assignmentFunc("^", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.ShiftLeft):
+	case *assign.ShiftLeft:
 		return assignmentFunc("<<", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.ShiftRight):
+	case *assign.ShiftRight:
 		return assignmentFunc(">>", a.Expression, a.Variable.(*expr.Variable))
 	}
 
