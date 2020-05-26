@@ -324,7 +324,7 @@ func testMain(tt *testing.T) {
 				a := 1 + 2
 			}`,
 		},
-		// examples/4.php
+		// examples/04.php
 		{
 			source: []byte(`<?php
 
@@ -337,7 +337,7 @@ func testMain(tt *testing.T) {
 				fmt.Print(a * a)
 			}`,
 		},
-		// examples/5.php
+		// examples/05.php
 		{
 			source: []byte(`<?php
 			{
@@ -362,7 +362,7 @@ func testMain(tt *testing.T) {
 				}
 			}`,
 		},
-		// examples/6.php
+		// examples/06.php
 		{
 			source: []byte(`<?php
 			{
@@ -381,7 +381,7 @@ func testMain(tt *testing.T) {
 				fmt.Print(a)
 			}`,
 		},
-		// examples/7.php
+		// examples/07.php
 		{
 			source: []byte(`<?php
 			$a = 0;
