@@ -53,10 +53,11 @@ func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
 	dirs, err := ioutil.ReadDir(path)
 	if err != nil {
 		fmt.Println(path)
-	} else {
-		for _, d := range dirs {
-			fmt.Println(d.Name())
-		}
+		fmt.Println(err)
+		return p.gc
+	}
+	for _, d := range dirs {
+		fmt.Println(d.Name())
 	}
 
 	src, err := ioutil.ReadFile(path)
@@ -525,35 +526,36 @@ func (parser *fileParser) createFunction(b lang.Block, stmts []node.Node) {
 				switch bb.(type) {
 				case *lang.Switch, *lang.For, *lang.Foreach:
 					n--
-					if n == 0 {
-						c := &lang.Const{
-							// Third argument is not used as it could be.
-							Value: parser.labelTranslator.Label("CONTINUE", true, 0),
-						}
-						c.SetParent(bb)
-
-						gt := &lang.Goto{
-							Value: *c,
-						}
-						gt.SetParent(b)
-						b.AddStatement(gt)
-
-						switch s := bb.(type) {
-						case *lang.Switch:
-							s.Labels = append(s.Labels, *c)
-						case *lang.For:
-							s.Labels = append(s.Labels, *c)
-						case *lang.Foreach:
-							s.Labels = append(s.Labels, *c)
-						}
-						return
+					if n != 0 {
+						break
 					}
+					c := &lang.Const{
+						// Third argument is not used as it could be.
+						Value: parser.labelTranslator.Label("CONTINUE", true, 0),
+					}
+					c.SetParent(bb)
+
+					gt := &lang.Goto{
+						Value: *c,
+					}
+					gt.SetParent(b)
+					b.AddStatement(gt)
+
+					switch s := bb.(type) {
+					case *lang.Switch:
+						s.Labels = append(s.Labels, *c)
+					case *lang.For:
+						s.Labels = append(s.Labels, *c)
+					case *lang.Foreach:
+						s.Labels = append(s.Labels, *c)
+					}
+					return
 				}
 				bb = bb.Parent()
 			}
 
 		default:
-			// parser.statemtn contains also "my" statements
+			// parser.statement contains also "my" statements
 			// like {inc,dec}rements, so the structure is not
 			// 1:1 with the stuff which come from the parser.
 			n := parser.statement(b, s)
@@ -571,11 +573,10 @@ func nodeList(n node.Node) []node.Node {
 	if ok {
 		return list.Stmts
 	}
-	if n == nil {
-		return []node.Node{}
-	} else {
+	if n != nil {
 		return []node.Node{n}
 	}
+	return []node.Node{}
 }
 
 func (p *fileParser) constructIf(b lang.Block, i *stmt.If) *lang.If {
