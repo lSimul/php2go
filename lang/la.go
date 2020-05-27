@@ -22,8 +22,10 @@ func (gc *GlobalContext) Add(f *File) {
 
 func (gc GlobalContext) HasVariable(name string, oos bool) *Variable {
 	for _, f := range gc.Files {
-		if v := f.HasVariable(name, false); v != nil {
-			return v
+		for _, v := range f.vars {
+			if v.Name == name {
+				return v
+			}
 		}
 	}
 	return nil
@@ -75,6 +77,8 @@ func (f *File) DefineVariable(v *Variable) {
 			return
 		}
 	}
+	// TODO: Hack.
+	v.FirstDefinition = &VarDef{}
 	f.vars = append(f.vars, v)
 }
 
@@ -83,6 +87,9 @@ func (f File) HasVariable(name string, oos bool) *Variable {
 		if v.Name == name {
 			return v
 		}
+	}
+	if f.parent != nil {
+		return f.parent.HasVariable(name, oos)
 	}
 	return nil
 }
@@ -122,7 +129,7 @@ func (f *File) String() string {
 	}
 
 	for _, v := range f.vars {
-		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type()))
+		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.typ))
 	}
 
 	if f.withMain {
