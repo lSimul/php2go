@@ -1530,6 +1530,13 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 			fd = true
 		}
 	} else if v.CurrentType != t {
+		if v.FirstDefinition.Parent() == parent {
+			v.CurrentType = t
+		} else {
+			v = lang.NewVariable(name, t, false)
+			fd = true
+		}
+	} else if v.CurrentType != t {
 		done := false
 		if m, ok := parent.Parent().(*lang.Function); ok {
 			if f, ok := m.Parent().(*lang.File); ok {
