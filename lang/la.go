@@ -36,26 +36,30 @@ func (gc GlobalContext) String() string {
 type File struct {
 	parent *GlobalContext
 
-	name string
+	Name string
 
 	vars    []*Variable
 	Funcs   map[string]*Function
 	imports []string
 
-	Server bool
+	server   bool
+	withMain bool
+
+	Main *Function
 }
 
-func NewFile(gc *GlobalContext, name string) *File {
+func NewFile(gc *GlobalContext, name string, server, withMain bool) *File {
 	f := &File{
 		parent: gc,
 
-		name: name,
+		Name: name,
 
 		vars:    make([]*Variable, 0),
 		Funcs:   make(map[string]*Function, 0),
 		imports: make([]string, 0),
 
-		Server: false,
+		server:   server,
+		withMain: withMain,
 	}
 	gc.Add(f)
 	return f
@@ -88,6 +92,14 @@ func (f *File) Add(fc *Function) {
 }
 
 func (f *File) AddImport(name string) {
+	if name == "" {
+		return
+	}
+	for _, i := range f.imports {
+		if i == name {
+			return
+		}
+	}
 	f.imports = append(f.imports, name)
 }
 
@@ -113,8 +125,9 @@ func (f *File) String() string {
 		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type()))
 	}
 
-	if f.Server {
-		s.WriteString(`
+	if f.withMain {
+		if f.server {
+			s.WriteString(`
 var server = flag.String("S", "", "Run program as a server.")
 
 func main() {
@@ -129,7 +142,7 @@ func main() {
 		// Validate that server address
 		log.Fatal(http.ListenAndServe(*server, mux))
 	} else {
-		mainLCI()
+		mainCLI()
 	}
 }
 
@@ -140,18 +153,24 @@ func mainServer(w http.ResponseWriter, r *http.Request) {
 			_GET.Edit(array.NewScalar(k), v[len(v)-1])
 		}
 
-		mainFunc()
+		` + f.Main.Name + `()
 		return
 	}
 	http.FileServer(http.Dir(".")).ServeHTTP(w, r)
 }
 
-func mainLCI() {
+func mainCLI() {
 	W = os.Stdout
-	mainFunc()
+	` + f.Main.Name + `()
 }
-
 `)
+		} else {
+			s.WriteString(`
+func main() {
+	` + f.Main.Name + `()
+}
+`)
+		}
 	}
 
 	s.WriteString(fn.String())

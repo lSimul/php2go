@@ -49,24 +49,8 @@ type fileParser struct {
 	funcs *FileFunc
 }
 
-func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
-	dirs, err := ioutil.ReadDir(path)
-	if err != nil {
-		fmt.Println(path)
-		fmt.Println(err)
-		return p.gc
-	}
-	for _, d := range dirs {
-		fmt.Println(d.Name())
-	}
-
-	src, err := ioutil.ReadFile(path)
-	if err != nil {
-		fmt.Println(err)
-		return p.gc
-	}
-
-	parser := php7.NewParser(src, path)
+func phpParse(src []byte) *node.Root {
+	parser := php7.NewParser(src, "")
 	parser.Parse()
 
 	if errs := parser.GetErrors(); len(errs) > 0 {
@@ -75,28 +59,48 @@ func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
 		}
 		os.Exit(1)
 	}
+	return parser.GetRootNode().(*node.Root)
+}
 
-	return p.Run(parser.GetRootNode().(*node.Root), path, asServer)
+func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
+	// dirs, err := ioutil.ReadDir(path)
+	// if err != nil {
+	// fmt.Println(path)
+	// } else {
+	// for _, d := range dirs {
+	// fmt.Println(d.Name())
+	// }
+	// }
+
+	src, err := ioutil.ReadFile(path)
+	if err != nil {
+		fmt.Println(err)
+		return p.gc
+	}
+
+	p.asServer = asServer
+	return p.Run(phpParse(src), path, asServer)
 }
 
 func (p *parser) Run(r *node.Root, path string, asServer bool) *lang.GlobalContext {
-	if p.gc == nil {
-		p.gc = lang.NewGlobalContext()
-		p.funcs = NewFunc(p.gc)
-	}
-	fp := &fileParser{
-		parser: p,
-		file:   lang.NewFile(p.gc, path),
-	}
-	fp.funcs = &FileFunc{Func: p.funcs, file: fp.file}
-
-	if asServer {
-		fp.serverFile()
-	}
-	return fp.run(r, asServer)
+	p.gc = lang.NewGlobalContext()
+	p.funcs = NewFunc(p.gc)
+	p.run(r, path, asServer, true)
+	return p.gc
 }
 
-func (p *fileParser) run(r *node.Root, asServer bool) *lang.GlobalContext {
+func (parser *parser) run(r *node.Root, path string, asServer, withMain bool) {
+	f := lang.NewFile(parser.gc, path, asServer, withMain)
+	p := &fileParser{
+		parser: parser,
+		file:   f,
+		funcs:  &FileFunc{Func: parser.funcs, file: f},
+	}
+
+	if withMain && asServer {
+		p.serverFile()
+	}
+
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
@@ -132,15 +136,14 @@ func (p *fileParser) run(r *node.Root, asServer bool) *lang.GlobalContext {
 		p.funcs.Add(f.Name, f, 0)
 	}
 
-	main := p.mainDef()
-	p.funcs.Add(main.Name, main, 0)
-	p.createFunction(&main.Body, ms)
-	return p.gc
+	fn := lang.NewFunc(p.functionTranslator.Translate("mainFunc"))
+	fn.SetParent(p.file)
+	p.file.Main = fn
+	p.funcs.Add(fn.Name, fn, 0)
+	p.createFunction(&fn.Body, ms)
 }
 
 func (p *fileParser) serverFile() {
-	p.asServer = true
-
 	p.file.AddImport("flag")
 	p.file.AddImport("log")
 	p.file.AddImport("net/http")
@@ -151,8 +154,6 @@ func (p *fileParser) serverFile() {
 
 	p.funcs.Namespace("array")
 	p.file.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
-
-	p.file.Server = true
 }
 
 // SanitizeRootStmts splits statements based on their type,
@@ -173,6 +174,25 @@ func sanitizeRootStmts(r *node.Root) ([]node.Node, []stmt.Function) {
 	}
 
 	return main, functions
+}
+
+func (p *parser) require(path string) *lang.FunctionCall {
+	for _, f := range p.gc.Files {
+		if path == f.Name {
+			return &lang.FunctionCall{
+				Name: f.Main.Name,
+			}
+		}
+	}
+
+	src, err := ioutil.ReadFile(path)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	p.run(phpParse(src), path, p.asServer, false)
+	return p.require(path)
 }
 
 func (parser *fileParser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Expression) {
@@ -215,17 +235,6 @@ func (parser *fileParser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Exp
 	}
 
 	return f, defaultParams
-}
-
-func (p *fileParser) mainDef() *lang.Function {
-	var f *lang.Function
-	if p.asServer {
-		f = lang.NewFunc("mainFunc")
-	} else {
-		f = lang.NewFunc("main")
-	}
-	f.SetParent(p.file)
-	return f
 }
 
 func (parser *fileParser) createFunction(b lang.Block, stmts []node.Node) {
@@ -1148,24 +1157,32 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 		case *lang.Str:
 			val = e.Value
 
-		case *lang.FunctionCall:
-			if e.Name != "std.Concat" {
-				panic(`only std.Concat can be called`)
-			}
-			for _, v := range e.Args {
-				if s, ok := v.(*lang.Str); ok {
-					val += s.Value
-				} else {
-					panic(`only string can be in concat`)
-				}
-			}
-			val = strings.ReplaceAll(val, "\"", "")
+		// case *lang.FunctionCall:
+		// if e.Name != "std.Concat" {
+		// panic(`only std.Concat can be called`)
+		// }
+		// for _, v := range e.Args {
+		// if s, ok := v.(*lang.Str); ok {
+		// val += s.Value
+		// } else {
+		// panic(`only string can be in concat`)
+		// }
+		// }
+
+		default:
+			panic(`Only simple string can be in require.`)
 		}
-		parser.gc = parser.RunFromString(val, false)
-		return &lang.FunctionCall{
-			Name: val,
+		val = strings.ReplaceAll(val, "\"", "")
+		val = strings.ReplaceAll(val, "./", "")
+
+		// TODO: To the function, probably.
+		name := parser.file.Name
+		i := strings.LastIndex(name, "/")
+		if i > 0 {
+			name = name[:i+1]
 		}
 
+		return parser.require(name + val)
 		/*
 			TODO:
 			[.] coalesce

@@ -22,7 +22,6 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 	fn.funcs[""] = &funcs{
 		namespace: "",
 		fn:        make(map[string][]*lang.Function),
-		used:      true,
 	}
 
 	fmt := map[string][]*lang.Function{
@@ -65,7 +64,6 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 	fn.funcs["fmt"] = &funcs{
 		namespace: "fmt",
 		fn:        fmt,
-		used:      false,
 	}
 
 	std := map[string][]*lang.Function{
@@ -129,7 +127,6 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 	fn.funcs["std"] = &funcs{
 		namespace: "github.com/lSimul/php2go/std",
 		fn:        std,
-		used:      false,
 	}
 
 	arr := map[string][]*lang.Function{
@@ -170,7 +167,6 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 	fn.funcs["array"] = &funcs{
 		namespace: "github.com/lSimul/php2go/std/array",
 		fn:        arr,
-		used:      false,
 	}
 
 	return fn
@@ -179,7 +175,6 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 type funcs struct {
 	namespace string
 	fn        map[string][]*lang.Function
-	used      bool
 }
 
 type FileFunc struct {
@@ -210,11 +205,8 @@ func (f *FileFunc) Namespace(n string) *FunctionCaller {
 	if !ok {
 		panic(`Unknown namespace ` + n)
 	}
-	if !fn.used {
-		fn.used = true
-		f.file.AddImport(fn.namespace)
-	}
 
+	f.file.AddImport(fn.namespace)
 	return &FunctionCaller{
 		namespace: n,
 		Func:      &fn.fn,

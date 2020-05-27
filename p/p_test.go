@@ -110,13 +110,13 @@ func functionDef(t *testing.T) {
 		}
 	}
 
-	f = parser.mainDef()
-	if f.Name != "main" {
-		t.Errorf("'%s' expected, '%s' found.\n", "main", f.Name)
-	}
-	if !f.Return.Equal(lang.Void) {
-		t.Errorf("'%s' expected, '%s' found.\n", lang.Void, f.Return)
-	}
+	// f = mainDef(parser.file, false)
+	// if f.Name != "main" {
+	// t.Errorf("'%s' expected, '%s' found.\n", "main", f.Name)
+	// }
+	// if !f.Return.Equal(lang.Void) {
+	// t.Errorf("'%s' expected, '%s' found.\n", lang.Void, f.Return)
+	// }
 
 	// It used to be empty string, but because
 	// funcDef translates the function name,
@@ -268,7 +268,7 @@ func testStatements(t *testing.T) {
 			funcs: funcs,
 		},
 	}
-	parser.file = lang.NewFile(gc, "dummy")
+	parser.file = lang.NewFile(gc, "dummy", false, true)
 	parser.funcs = &FileFunc{funcs, parser.file}
 
 	b := lang.NewCode(nil)
@@ -320,7 +320,7 @@ func testMain(tt *testing.T) {
 			source: []byte(`<?php
 			$a = 1 + 2;
 			`),
-			expected: `func main() {
+			expected: `func mainFunc0() {
 				a := 1 + 2
 			}`,
 		},
@@ -332,7 +332,7 @@ func testMain(tt *testing.T) {
 
 			echo $a * $a;
 		`),
-			expected: `func main() {
+			expected: `func mainFunc0() {
 				a := 2 + 3 + 4 * 2
 				fmt.Print(a * a)
 			}`,
@@ -351,7 +351,7 @@ func testMain(tt *testing.T) {
 				echo $a;
 			}
 			`),
-			expected: `func main() {
+			expected: `func mainFunc0() {
 				{
 					{
 						a := "0"
@@ -372,7 +372,7 @@ func testMain(tt *testing.T) {
 			$a++;
 			echo $a;
 			`),
-			expected: `func main() {
+			expected: `func mainFunc0() {
 				var a int
 				{
 					a = 0
@@ -393,7 +393,7 @@ func testMain(tt *testing.T) {
 			$a = 2;
 			echo $a;
 			`),
-			expected: `func main() {
+			expected: `func mainFunc0() {
 				var a interface{}
 				a = 0
 				{
@@ -414,7 +414,7 @@ func testMain(tt *testing.T) {
 		}
 
 		out := parser.Run(parsePHP(t.source), "dummy", false)
-		main := out.Files[0].Funcs["main"].String()
+		main := out.Files[0].Main.String()
 		compare(tt, t.expected, main)
 	}
 }

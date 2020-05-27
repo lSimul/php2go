@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/z7zmey/php-parser/node"
 	"github.com/z7zmey/php-parser/visitor"
@@ -32,21 +33,27 @@ func main() {
 		return
 	}
 
-	var writer bytes.Buffer
-	writer.WriteString(gc.String())
-	b, err := format.Source(writer.Bytes())
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	output := os.Args[2]
 	if err := os.Mkdir(output, 0755); err != nil {
 		fmt.Print(err)
 		os.Exit(1)
 	}
-	if err := ioutil.WriteFile(output+"/main.go", b, 0644); err != nil {
-		fmt.Printf("Writing output file: %v\n", err)
-		os.Exit(1)
+	for _, f := range gc.Files {
+		i := strings.LastIndex(f.Name, "/")
+		n := f.Name[i:]
+		n = strings.ReplaceAll(n, ".php", ".go")
+
+		var writer bytes.Buffer
+		writer.WriteString(f.String())
+		b, err := format.Source(writer.Bytes())
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if err := ioutil.WriteFile(output+n, b, 0644); err != nil {
+			fmt.Printf("Writing output file: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }
 
