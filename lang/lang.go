@@ -68,6 +68,9 @@ func (t Typ) Format() string {
 }
 
 func (t Typ) String() string {
+	if t.IsPointer {
+		return "*" + t.typ
+	}
 	return t.typ
 }
 

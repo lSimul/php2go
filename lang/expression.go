@@ -150,7 +150,7 @@ func (v VarDef) String() string {
 	s := strings.Builder{}
 	s.WriteString(fmt.Sprintf("var %s %s", v.V.Name, v.V.typ))
 	if v.Right != nil {
-		s.WriteString(v.Right.String())
+		s.WriteString(" = " + v.Right.String())
 	}
 	return s.String()
 }
