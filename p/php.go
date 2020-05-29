@@ -9,6 +9,10 @@ import (
 var PHPFunctions = map[string](func(lang.Block, []lang.Expression) (*lang.FunctionCall, error)){
 	"array_push": arrayPush,
 	"count":      count,
+
+	"mysqli_connect":   mysqliConnect,
+	"mysqli_select_db": mysqliSelectDB,
+	"mysqli_query":     mysqliQuery,
 	// "echo":       true, // extra case, AST does not use echo as a function
 }
 
@@ -54,6 +58,75 @@ func count(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
 	fc := &lang.FunctionCall{
 		Name:   v.V.Name + ".Count",
 		Return: lang.NewTyp(lang.Int, false),
+	}
+
+	fc.SetParent(b)
+	return fc, nil
+}
+
+func mysqliConnect(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+	if len(args) != 3 {
+		return nil, errors.New("mysqli_connect has to have three arguments.")
+	}
+
+	fc := &lang.FunctionCall{
+		Name:   "std.NewSQL",
+		Args:   args,
+		Return: lang.NewTyp(lang.SQL, true),
+	}
+
+	fc.SetParent(b)
+	return fc, nil
+}
+
+func mysqliSelectDB(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+	if len(args) != 2 {
+		return nil, errors.New("mysqli_select_db requires exactly two arguments.")
+	}
+
+	v, ok := args[0].(*lang.VarRef)
+	if !ok {
+		return nil, errors.New("First argument should be a varref.")
+	}
+	if v.Type() != lang.NewTyp(lang.SQL, true) {
+		return nil, errors.New("First argument is not of a type std.SQL.")
+	}
+
+	if args[1].Type() != lang.NewTyp(lang.String, false) {
+		return nil, errors.New("Database name has to be a string.")
+	}
+
+	fc := &lang.FunctionCall{
+		Name:   v.V.Name + ".SelectDB",
+		Args:   args[1:],
+		Return: lang.NewTyp(lang.SQL, false),
+	}
+
+	fc.SetParent(b)
+	return fc, nil
+}
+
+func mysqliQuery(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+	if len(args) != 2 {
+		return nil, errors.New("mysqli_query requires exactly two arguments.")
+	}
+
+	v, ok := args[0].(*lang.VarRef)
+	if !ok {
+		return nil, errors.New("First argument should be a varref.")
+	}
+	if v.Type() != lang.NewTyp(lang.SQL, true) {
+		return nil, errors.New("First argument is not of a type std.SQL.")
+	}
+
+	if args[1].Type() != lang.NewTyp(lang.String, false) {
+		return nil, errors.New("Query has to be a string.")
+	}
+
+	fc := &lang.FunctionCall{
+		Name:   v.V.Name + ".Query",
+		Args:   args[1:],
+		Return: lang.NewTyp(lang.SQL, false),
 	}
 
 	fc.SetParent(b)

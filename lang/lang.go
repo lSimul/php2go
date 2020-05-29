@@ -10,6 +10,8 @@ const (
 	Bool     = "bool"
 	Anything = "interface{}"
 	Writer   = "io.Writer"
+
+	SQL = "std.SQL"
 )
 
 type Node interface {
