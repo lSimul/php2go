@@ -153,13 +153,22 @@ func (parser *parser) run(r *node.Root, path string, asServer, withMain bool) {
 }
 
 func (p *fileParser) serverFile() {
-	p.file.AddImport("flag")
 	p.file.AddImport("log")
 	p.file.AddImport("net/http")
 	p.file.AddImport("os")
 
 	p.file.AddImport("io")
 	p.file.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
+
+	v := lang.NewVariable("server", lang.NewTyp(lang.String, true), false)
+	p.file.DefineVariable(v)
+	// This should not fail.
+	v.FirstDefinition.(*lang.VarDef).Right, _ = p.funcs.Namespace("flag").Call("String",
+		[]lang.Expression{
+			&lang.Str{Value: `"S"`}, &lang.Str{Value: `""`},
+			&lang.Str{Value: `"Run program as a server."`},
+		},
+	)
 
 	p.funcs.Namespace("array")
 	p.file.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))

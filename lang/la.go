@@ -41,6 +41,7 @@ type File struct {
 	Name string
 
 	vars    []*Variable
+	vardefs []*VarDef
 	Funcs   map[string]*Function
 	imports []string
 
@@ -57,6 +58,8 @@ func NewFile(gc *GlobalContext, name string, server, withMain bool) *File {
 		Name: name,
 
 		vars:    make([]*Variable, 0),
+		vardefs: make([]*VarDef, 0),
+
 		Funcs:   make(map[string]*Function, 0),
 		imports: make([]string, 0),
 
@@ -77,9 +80,15 @@ func (f *File) DefineVariable(v *Variable) {
 			return
 		}
 	}
-	// TODO: Hack.
-	v.FirstDefinition = &VarDef{}
+	vd := &VarDef{
+		parent: f,
+		V:      v,
+
+		typ: v.typ.typ,
+	}
+	v.FirstDefinition = vd
 	f.vars = append(f.vars, v)
+	f.vardefs = append(f.vardefs, vd)
 }
 
 func (f File) HasVariable(name string, oos bool) *Variable {
@@ -128,15 +137,13 @@ func (f *File) String() string {
 		s.WriteString(")\n\n")
 	}
 
-	for _, v := range f.vars {
-		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.typ))
+	for _, v := range f.vardefs {
+		s.WriteString(v.String() + "\n")
 	}
 
 	if f.withMain {
 		if f.server {
 			s.WriteString(`
-var server = flag.String("S", "", "Run program as a server.")
-
 func main() {
 	flag.Parse()
 
