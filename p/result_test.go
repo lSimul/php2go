@@ -76,46 +76,50 @@ func TestResult(t *testing.T) {
 			t.Fatalf("executing php: %v", err)
 		}
 
-		root, err := ioutil.TempDir("", "go-build")
-		if err != nil {
-			t.Fatalf("creating temp dir: %v", err)
+		run := func(b bool) {
+			root, err := ioutil.TempDir("", "go-build")
+			if err != nil {
+				t.Fatalf("creating temp dir: %v", err)
+			}
+
+			ref, err := ioutil.TempFile(root, "")
+			if err != nil {
+				t.Fatalf("opening temp file: %v", err)
+			}
+			defer ref.Close()
+
+			p := NewParser(NewNameTranslator(), NewFunctionTranslator())
+			res := p.Run(parsePHP([]byte(s)), "dummy", b)
+			fmt.Println(res.String())
+			ref.WriteString(res.String())
+
+			fileName := strings.TrimPrefix(ref.Name(), root+"/")
+			cmd = exec.Command("mv", fileName, "main.go")
+			cmd.Dir = root
+			err = cmd.Run()
+			if err != nil {
+				t.Fatalf("changing directory: %v", err)
+			}
+
+			cmd = exec.Command("go", "run", "main.go")
+			cmd.Dir = root
+
+			var out bytes.Buffer
+			var errf bytes.Buffer
+			cmd.Stdout = &out
+			cmd.Stderr = &errf
+			err = cmd.Run()
+			if err != nil {
+				t.Error(errf.String())
+				t.Fatalf("executing go: %v", err)
+			}
+
+			if refOut.String() != out.String() {
+				t.Errorf("Expected:\n%s\nGot:\n%s\n", refOut.String(), out.String())
+			}
 		}
-
-		ref, err := ioutil.TempFile(root, "")
-		if err != nil {
-			t.Fatalf("opening temp file: %v", err)
-		}
-		defer ref.Close()
-
-		p := NewParser(NewNameTranslator(), NewFunctionTranslator())
-		// TODO: Turn it to false again.
-		res := p.Run(parsePHP([]byte(s)), "dummy", true)
-		fmt.Println(res.String())
-		ref.WriteString(res.String())
-
-		fileName := strings.TrimPrefix(ref.Name(), root+"/")
-		cmd = exec.Command("mv", fileName, "main.go")
-		cmd.Dir = root
-		err = cmd.Run()
-		if err != nil {
-			t.Fatalf("changing directory: %v", err)
-		}
-
-		cmd = exec.Command("go", "run", "main.go")
-		cmd.Dir = root
-
-		var out bytes.Buffer
-		var errf bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &errf
-		err = cmd.Run()
-		if err != nil {
-			t.Error(errf.String())
-			t.Fatalf("executing go: %v", err)
-		}
-
-		if refOut.String() != out.String() {
-			t.Errorf("Expected:\n%s\nGot:\n%s\n", refOut.String(), out.String())
-		}
+		// Runs as server and then not.
+		run(true)
+		run(false)
 	}
 }

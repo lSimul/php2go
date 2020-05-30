@@ -261,12 +261,7 @@ func mainCLI() {
 		} else {
 			s.WriteString(`
 func main() {
-	g := &global{
-		_GET: array.NewString(),
-		W: os.Stdout,
-	}
-	if *file == "" {
-	}
+	g := &global{}
 	switch *file {
 `)
 			for _, fl := range gc.Files {

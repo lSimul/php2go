@@ -80,7 +80,6 @@ func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
 		return p.gc
 	}
 
-	p.asServer = asServer
 	return p.Run(phpParse(src), path, asServer)
 }
 
@@ -92,6 +91,7 @@ func (p *parser) Run(r *node.Root, path string, asServer bool) *lang.GlobalConte
 		p.gc.Path = ""
 	}
 
+	p.asServer = asServer
 	p.funcs = NewFunc(p.gc)
 	p.run(r, path, asServer, true)
 	return p.gc
