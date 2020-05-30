@@ -74,15 +74,6 @@ func phpParse(src []byte) *node.Root {
 }
 
 func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
-	// dirs, err := ioutil.ReadDir(path)
-	// if err != nil {
-	// fmt.Println(path)
-	// } else {
-	// for _, d := range dirs {
-	// fmt.Println(d.Name())
-	// }
-	// }
-
 	src, err := ioutil.ReadFile(path)
 	if err != nil {
 		fmt.Println(err)
