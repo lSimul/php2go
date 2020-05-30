@@ -2,6 +2,7 @@ package p
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"strings"
@@ -89,6 +90,7 @@ func TestResult(t *testing.T) {
 		p := NewParser(NewNameTranslator(), NewFunctionTranslator())
 		// TODO: Turn it to false again.
 		res := p.Run(parsePHP([]byte(s)), "dummy", true)
+		fmt.Println(res.String())
 		ref.WriteString(res.String())
 
 		fileName := strings.TrimPrefix(ref.Name(), root+"/")

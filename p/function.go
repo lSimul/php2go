@@ -22,7 +22,6 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 	fn.funcs[""] = &funcs{
 		namespace: "",
 		fn:        make(map[string][]*lang.Function),
-		used:      true,
 	}
 
 	fmt := map[string][]*lang.Function{
@@ -65,7 +64,6 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 	fn.funcs["fmt"] = &funcs{
 		namespace: "fmt",
 		fn:        fmt,
-		used:      false,
 	}
 
 	std := map[string][]*lang.Function{
@@ -129,7 +127,6 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 	fn.funcs["std"] = &funcs{
 		namespace: "github.com/lSimul/php2go/std",
 		fn:        std,
-		used:      false,
 	}
 
 	arr := map[string][]*lang.Function{
@@ -170,7 +167,6 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 	fn.funcs["array"] = &funcs{
 		namespace: "github.com/lSimul/php2go/std/array",
 		fn:        arr,
-		used:      false,
 	}
 
 	return fn
@@ -179,7 +175,12 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 type funcs struct {
 	namespace string
 	fn        map[string][]*lang.Function
-	used      bool
+}
+
+type FileFunc struct {
+	*Func
+
+	file *lang.File
 }
 
 // Adds a function to the universe so it is recognized when calling
@@ -187,7 +188,7 @@ type funcs struct {
 // First argument is a real name of the function. It goes well with the
 // missingArgs argument, goal is to found the correct function. Functions
 // in PHP can have variable amount of arguments.
-func (fn *Func) Add(file *lang.File, name string, f *lang.Function, missingArgs int) {
+func (fn *FileFunc) Add(name string, f *lang.Function, missingArgs int) {
 	if _, ok := fn.funcs[""].fn[name]; !ok {
 		fn.funcs[""].fn[name] = make([]*lang.Function, 0)
 	}
@@ -196,32 +197,29 @@ func (fn *Func) Add(file *lang.File, name string, f *lang.Function, missingArgs 
 	} else {
 		fn.funcs[""].fn[name] = append(fn.funcs[""].fn[name], f)
 	}
-	file.Add(f)
+	fn.file.Add(f)
 }
 
-func (f *Func) Namespace(file *lang.File, n string) *FunctionCaller {
+func (f *FileFunc) Namespace(n string) *FunctionCaller {
 	fn, ok := f.funcs[n]
 	if !ok {
 		panic(`Unknown namespace ` + n)
 	}
-	if !fn.used {
-		fn.used = true
-		file.AddImport(fn.namespace)
-	}
 
+	f.file.AddImport(fn.namespace)
 	return &FunctionCaller{
 		namespace: n,
-		functions: &fn.fn,
+		Func:      &fn.fn,
 	}
 }
 
 type FunctionCaller struct {
 	namespace string
-	functions *map[string][]*lang.Function
+	Func      *map[string][]*lang.Function
 }
 
 func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.FunctionCall, error) {
-	funcs, ok := (*fc.functions)[name]
+	funcs, ok := (*fc.Func)[name]
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("Function '%s' is not defined.", name))
 	}

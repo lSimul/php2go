@@ -31,8 +31,6 @@ type parser struct {
 
 	gc    *lang.GlobalContext
 	funcs *Func
-
-	file *lang.File
 }
 
 func NewParser(v, f NameTranslation) *parser {
@@ -44,23 +42,15 @@ func NewParser(v, f NameTranslation) *parser {
 	}
 }
 
-func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
-	dirs, err := ioutil.ReadDir(path)
-	if err != nil {
-		fmt.Println(path)
-	} else {
-		for _, d := range dirs {
-			fmt.Println(d.Name())
-		}
-	}
+type fileParser struct {
+	*parser
 
-	src, err := ioutil.ReadFile(path)
-	if err != nil {
-		fmt.Println(err)
-		return p.gc
-	}
+	file  *lang.File
+	funcs *FileFunc
+}
 
-	parser := php7.NewParser(src, path)
+func phpParse(src []byte) *node.Root {
+	parser := php7.NewParser(src, "")
 	parser.Parse()
 
 	if errs := parser.GetErrors(); len(errs) > 0 {
@@ -69,29 +59,53 @@ func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
 		}
 		os.Exit(1)
 	}
+	return parser.GetRootNode().(*node.Root)
+}
 
-	return p.Run(parser.GetRootNode().(*node.Root), path, asServer)
+func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
+	// dirs, err := ioutil.ReadDir(path)
+	// if err != nil {
+	// fmt.Println(path)
+	// } else {
+	// for _, d := range dirs {
+	// fmt.Println(d.Name())
+	// }
+	// }
+
+	src, err := ioutil.ReadFile(path)
+	if err != nil {
+		fmt.Println(err)
+		return p.gc
+	}
+
+	p.asServer = asServer
+	return p.Run(phpParse(src), path, asServer)
 }
 
 func (p *parser) Run(r *node.Root, path string, asServer bool) *lang.GlobalContext {
-	if p.gc == nil {
-		p.gc = lang.NewGlobalContext()
-		p.funcs = NewFunc(p.gc)
-	}
-	p.file = lang.NewFile(p.gc, path)
-
-	if asServer {
-		p.serverFile()
-	}
-	return p.run(r)
+	p.gc = lang.NewGlobalContext()
+	p.funcs = NewFunc(p.gc)
+	p.run(r, path, asServer, true)
+	return p.gc
 }
 
-func (p *parser) run(r *node.Root) *lang.GlobalContext {
+func (parser *parser) run(r *node.Root, path string, asServer, withMain bool) {
+	f := lang.NewFile(parser.gc, path, asServer, withMain)
+	p := &fileParser{
+		parser: parser,
+		file:   f,
+		funcs:  &FileFunc{Func: parser.funcs, file: f},
+	}
+
+	if withMain && asServer {
+		p.serverFile()
+	}
+
 	ms, fs := sanitizeRootStmts(r)
 
 	for _, s := range fs {
 		f, defaultParams := p.funcDef(&s)
-		p.funcs.Add(p.file, f.Name, f, 0)
+		p.funcs.Add(f.Name, f, 0)
 
 		for i := len(defaultParams) - 1; i >= 0; i-- {
 			n := p.functionTranslator.Translate(fmt.Sprintf("%s%d", f.Name, i))
@@ -104,7 +118,7 @@ func (p *parser) run(r *node.Root) *lang.GlobalContext {
 			}
 			args = append(args, defaultParams[i])
 
-			c, err := p.funcs.Namespace(p.file, "").Call(f.Name, args)
+			c, err := p.funcs.Namespace("").Call(f.Name, args)
 			if err != nil {
 				panic(err)
 			}
@@ -113,24 +127,23 @@ func (p *parser) run(r *node.Root) *lang.GlobalContext {
 			} else {
 				vf.Body.AddStatement(&lang.Return{Expression: c})
 			}
-			p.funcs.Add(p.file, f.Name, vf, len(defaultParams)-i)
+			p.funcs.Add(f.Name, vf, len(defaultParams)-i)
 		}
 	}
 	for _, s := range fs {
 		f, _ := p.funcDef(&s)
 		p.createFunction(&f.Body, s.Stmts)
-		p.funcs.Add(p.file, f.Name, f, 0)
+		p.funcs.Add(f.Name, f, 0)
 	}
 
-	main := p.mainDef()
-	p.funcs.Add(p.file, main.Name, main, 0)
-	p.createFunction(&main.Body, ms)
-	return p.gc
+	fn := lang.NewFunc(p.functionTranslator.Translate("mainFunc"))
+	fn.SetParent(p.file)
+	p.file.Main = fn
+	p.funcs.Add(fn.Name, fn, 0)
+	p.createFunction(&fn.Body, ms)
 }
 
-func (p *parser) serverFile() {
-	p.asServer = true
-
+func (p *fileParser) serverFile() {
 	p.file.AddImport("flag")
 	p.file.AddImport("log")
 	p.file.AddImport("net/http")
@@ -139,10 +152,8 @@ func (p *parser) serverFile() {
 	p.file.AddImport("io")
 	p.file.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
 
-	p.funcs.Namespace(p.file, "array")
+	p.funcs.Namespace("array")
 	p.file.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
-
-	p.file.Server = true
 }
 
 // SanitizeRootStmts splits statements based on their type,
@@ -165,7 +176,26 @@ func sanitizeRootStmts(r *node.Root) ([]node.Node, []stmt.Function) {
 	return main, functions
 }
 
-func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Expression) {
+func (p *parser) require(path string) *lang.FunctionCall {
+	for _, f := range p.gc.Files {
+		if path == f.Name {
+			return &lang.FunctionCall{
+				Name: f.Main.Name,
+			}
+		}
+	}
+
+	src, err := ioutil.ReadFile(path)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	p.run(phpParse(src), path, p.asServer, false)
+	return p.require(path)
+}
+
+func (parser *fileParser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Expression) {
 	defaultParams := make([]lang.Expression, 0)
 	if fc == nil {
 		return nil, defaultParams
@@ -207,18 +237,7 @@ func (parser *parser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Express
 	return f, defaultParams
 }
 
-func (p *parser) mainDef() *lang.Function {
-	var f *lang.Function
-	if p.asServer {
-		f = lang.NewFunc("mainFunc")
-	} else {
-		f = lang.NewFunc("main")
-	}
-	f.SetParent(p.file)
-	return f
-}
-
-func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
+func (parser *fileParser) createFunction(b lang.Block, stmts []node.Node) {
 	for _, s := range stmts {
 		switch s := s.(type) {
 		case *stmt.Nop:
@@ -231,7 +250,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			if parser.asServer {
 				f, err = parser.servePrint([]lang.Expression{str})
 			} else {
-				f, err = parser.funcs.Namespace(parser.file, "fmt").Call("Print", []lang.Expression{str})
+				f, err = parser.funcs.Namespace("fmt").Call("Print", []lang.Expression{str})
 			}
 			if err != nil {
 				panic(err)
@@ -424,7 +443,7 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 			if parser.asServer {
 				f, err = parser.servePrint(args)
 			} else {
-				f, err = parser.funcs.Namespace(parser.file, "fmt").Call("Print", args)
+				f, err = parser.funcs.Namespace("fmt").Call("Print", args)
 			}
 			if err != nil {
 				panic(err)
@@ -516,35 +535,36 @@ func (parser *parser) createFunction(b lang.Block, stmts []node.Node) {
 				switch bb.(type) {
 				case *lang.Switch, *lang.For, *lang.Foreach:
 					n--
-					if n == 0 {
-						c := &lang.Const{
-							// Third argument is not used as it could be.
-							Value: parser.labelTranslator.Label("CONTINUE", true, 0),
-						}
-						c.SetParent(bb)
-
-						gt := &lang.Goto{
-							Value: *c,
-						}
-						gt.SetParent(b)
-						b.AddStatement(gt)
-
-						switch s := bb.(type) {
-						case *lang.Switch:
-							s.Labels = append(s.Labels, *c)
-						case *lang.For:
-							s.Labels = append(s.Labels, *c)
-						case *lang.Foreach:
-							s.Labels = append(s.Labels, *c)
-						}
-						return
+					if n != 0 {
+						break
 					}
+					c := &lang.Const{
+						// Third argument is not used as it could be.
+						Value: parser.labelTranslator.Label("CONTINUE", true, 0),
+					}
+					c.SetParent(bb)
+
+					gt := &lang.Goto{
+						Value: *c,
+					}
+					gt.SetParent(b)
+					b.AddStatement(gt)
+
+					switch s := bb.(type) {
+					case *lang.Switch:
+						s.Labels = append(s.Labels, *c)
+					case *lang.For:
+						s.Labels = append(s.Labels, *c)
+					case *lang.Foreach:
+						s.Labels = append(s.Labels, *c)
+					}
+					return
 				}
 				bb = bb.Parent()
 			}
 
 		default:
-			// parser.statemtn contains also "my" statements
+			// parser.statement contains also "my" statements
 			// like {inc,dec}rements, so the structure is not
 			// 1:1 with the stuff which come from the parser.
 			n := parser.statement(b, s)
@@ -562,14 +582,13 @@ func nodeList(n node.Node) []node.Node {
 	if ok {
 		return list.Stmts
 	}
-	if n == nil {
-		return []node.Node{}
-	} else {
+	if n != nil {
 		return []node.Node{n}
 	}
+	return []node.Node{}
 }
 
-func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
+func (p *fileParser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 	nif := lang.NewIf(b)
 	init, cond := p.flowControlExpr(nif, i.Cond)
 
@@ -605,7 +624,7 @@ func (p *parser) constructIf(b lang.Block, i *stmt.If) *lang.If {
 	return nif
 }
 
-func (p *parser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
+func (p *fileParser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	nif := lang.NewIf(b)
 	init, cond := p.flowControlExpr(nif, i.Cond)
 
@@ -620,7 +639,7 @@ func (p *parser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 	return nif
 }
 
-func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
+func (parser *fileParser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 	for _, c := range cl.Cases {
 		switch c := c.(type) {
 		case *stmt.Case:
@@ -665,7 +684,7 @@ func (parser *parser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 	}
 }
 
-func (p *parser) makeExpression(b lang.Block, e *stmt.Expression) lang.Node {
+func (p *fileParser) makeExpression(b lang.Block, e *stmt.Expression) lang.Node {
 	s := p.statement(b, e.Expr)
 	if s != nil {
 		return s
@@ -673,7 +692,7 @@ func (p *parser) makeExpression(b lang.Block, e *stmt.Expression) lang.Node {
 	return p.complexExpression(b, e.Expr)
 }
 
-func (p *parser) simpleExpression(b lang.Block, n node.Node) lang.Node {
+func (p *fileParser) simpleExpression(b lang.Block, n node.Node) lang.Node {
 	s := p.statement(b, n)
 	if s != nil {
 		return s
@@ -701,7 +720,7 @@ func (p *parser) simpleExpression(b lang.Block, n node.Node) lang.Node {
 	panic(`SimpleExpression: something else uncatched.`)
 }
 
-func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expression {
+func (parser *fileParser) complexExpression(b lang.Block, n node.Node) lang.Expression {
 	e := parser.expression(b, n)
 	if e != nil {
 		return e
@@ -730,11 +749,11 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 	}
 
 	switch v := a.Variable.(type) {
-	case (*expr.Variable):
+	case *expr.Variable:
 		n := parser.identifierName(v)
 		return parser.buildAssignment(b, n, r)
 
-	case (*expr.ArrayDimFetch):
+	case *expr.ArrayDimFetch:
 		vn := parser.identifierName(v.Variable.(*expr.Variable))
 		vr := b.HasVariable(vn, true)
 		if vr == nil || vr.Type().Equal(lang.Void) {
@@ -755,7 +774,7 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 			fc.SetParent(b)
 		} else {
 			args := []lang.Expression{parser.expression(b, v.Dim)}
-			scalar, err := parser.funcs.Namespace(parser.file, "array").Call("NewScalar", args)
+			scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
 			if err != nil {
 				panic(err)
 			}
@@ -775,7 +794,7 @@ func (parser *parser) complexExpression(b lang.Block, n node.Node) lang.Expressi
 	}
 }
 
-func (parser *parser) directAssignment(b lang.Block, n node.Node) lang.Expression {
+func (parser *fileParser) directAssignment(b lang.Block, n node.Node) lang.Expression {
 	assignmentFunc := func(op string, expr node.Node, nv *expr.Variable) *lang.Assign {
 		e := parser.expression(b, expr)
 		n := parser.identifierName(nv)
@@ -791,14 +810,14 @@ func (parser *parser) directAssignment(b lang.Block, n node.Node) lang.Expressio
 	}
 
 	switch a := n.(type) {
-	case (*assign.Concat):
+	case *assign.Concat:
 		e := parser.expression(b, a.Expression)
 		n := parser.identifierName(a.Variable.(*expr.Variable))
 		v := b.HasVariable(n, true)
 		if v == nil {
 			panic(n + " is not defined.")
 		}
-		fc, err := parser.funcs.Namespace(parser.file, "std").Call("Concat", []lang.Expression{
+		fc, err := parser.funcs.Namespace("std").Call("Concat", []lang.Expression{
 			lang.NewVarRef(v, v.CurrentType), e,
 		})
 		if err != nil {
@@ -806,41 +825,41 @@ func (parser *parser) directAssignment(b lang.Block, n node.Node) lang.Expressio
 		}
 		return parser.buildAssignment(b, n, fc)
 
-	case (*assign.Plus):
+	case *assign.Plus:
 		return assignmentFunc("+", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.Minus):
+	case *assign.Minus:
 		return assignmentFunc("-", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.Div):
+	case *assign.Div:
 		return assignmentFunc("/", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.Mul):
+	case *assign.Mul:
 		return assignmentFunc("*", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.Mod):
+	case *assign.Mod:
 		return assignmentFunc("%", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.BitwiseAnd):
+	case *assign.BitwiseAnd:
 		return assignmentFunc("&", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.BitwiseOr):
+	case *assign.BitwiseOr:
 		return assignmentFunc("|", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.BitwiseXor):
+	case *assign.BitwiseXor:
 		return assignmentFunc("^", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.ShiftLeft):
+	case *assign.ShiftLeft:
 		return assignmentFunc("<<", a.Expression, a.Variable.(*expr.Variable))
 
-	case (*assign.ShiftRight):
+	case *assign.ShiftRight:
 		return assignmentFunc(">>", a.Expression, a.Variable.(*expr.Variable))
 	}
 
 	return nil
 }
 
-func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
+func (parser *fileParser) statement(b lang.Block, n node.Node) lang.Node {
 	// Inpisration from parser.expression, *expr.ArrayDimFetch.
 	switch s := n.(type) {
 	case *stmt.Unset:
@@ -857,7 +876,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 				panic(vn + " is not defined.")
 			}
 			args := []lang.Expression{parser.expression(b, adf.Dim)}
-			scalar, err := parser.funcs.Namespace(parser.file, "array").Call("NewScalar", args)
+			scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
 			if err != nil {
 				panic(err)
 			}
@@ -898,7 +917,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		return lang.NewInc(
 			b, v,
 			func(e lang.Expression) (lang.Expression, error) {
-				return parser.funcs.Namespace(parser.file, "std").Call("StrInc", []lang.Expression{e})
+				return parser.funcs.Namespace("std").Call("StrInc", []lang.Expression{e})
 			},
 		)
 	}
@@ -912,7 +931,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 		return lang.NewDec(
 			b, v,
 			func(e lang.Expression) (lang.Expression, error) {
-				return parser.funcs.Namespace(parser.file, "std").Call("StrDec", []lang.Expression{e})
+				return parser.funcs.Namespace("std").Call("StrDec", []lang.Expression{e})
 			},
 		)
 	}
@@ -935,7 +954,7 @@ func (parser *parser) statement(b lang.Block, n node.Node) lang.Node {
 	return nil
 }
 
-func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
+func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression {
 	switch e := n.(type) {
 	case *expr.Variable:
 		name := parser.identifierName(e)
@@ -971,7 +990,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 					panic(vn + " is not defined.")
 				}
 
-				scalar, err := parser.funcs.Namespace(parser.file, "array").Call(
+				scalar, err := parser.funcs.Namespace("array").Call(
 					"NewScalar", []lang.Expression{parser.expression(b, p.Dim)})
 				if err != nil {
 					panic(err)
@@ -993,7 +1012,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		s.Value += "\""
 		args[0] = s
 
-		f, err := parser.funcs.Namespace(parser.file, "fmt").Call("Sprintf", args)
+		f, err := parser.funcs.Namespace("fmt").Call("Sprintf", args)
 		if err != nil {
 			panic(err)
 		}
@@ -1015,7 +1034,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		}
 
 		args := []lang.Expression{parser.expression(b, adf.Dim)}
-		scalar, err := parser.funcs.Namespace(parser.file, "array").Call("NewScalar", args)
+		scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
 		if err != nil {
 			panic(err)
 		}
@@ -1102,7 +1121,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			}
 		}
 
-		f, err := parser.funcs.Namespace(parser.file, "array").Call("New"+FirstUpper(typ), items)
+		f, err := parser.funcs.Namespace("array").Call("New"+FirstUpper(typ), items)
 		if err != nil {
 			panic(err)
 		}
@@ -1117,7 +1136,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		}
 
 		args := []lang.Expression{parser.expression(b, e.Dim)}
-		scalar, err := parser.funcs.Namespace(parser.file, "array").Call("NewScalar", args)
+		scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
 		if err != nil {
 			panic(err)
 		}
@@ -1138,24 +1157,32 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 		case *lang.Str:
 			val = e.Value
 
-		case *lang.FunctionCall:
-			if e.Name != "std.Concat" {
-				panic(`only std.Concat can be called`)
-			}
-			for _, v := range e.Args {
-				if s, ok := v.(*lang.Str); ok {
-					val += s.Value
-				} else {
-					panic(`only string can be in concat`)
-				}
-			}
-			val = strings.ReplaceAll(val, "\"", "")
+		// case *lang.FunctionCall:
+		// if e.Name != "std.Concat" {
+		// panic(`only std.Concat can be called`)
+		// }
+		// for _, v := range e.Args {
+		// if s, ok := v.(*lang.Str); ok {
+		// val += s.Value
+		// } else {
+		// panic(`only string can be in concat`)
+		// }
+		// }
+
+		default:
+			panic(`Only simple string can be in require.`)
 		}
-		parser.gc = parser.RunFromString(val, false)
-		return &lang.FunctionCall{
-			Name: val,
+		val = strings.ReplaceAll(val, "\"", "")
+		val = strings.ReplaceAll(val, "./", "")
+
+		// TODO: To the function, probably.
+		name := parser.file.Name
+		i := strings.LastIndex(name, "/")
+		if i > 0 {
+			name = name[:i+1]
 		}
 
+		return parser.require(name + val)
 		/*
 			TODO:
 			[.] coalesce
@@ -1251,7 +1278,7 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 			parser.expression(b, e.Left),
 			parser.expression(b, e.Right),
 		}
-		f, err := parser.funcs.Namespace(parser.file, "std").Call("Concat", args)
+		f, err := parser.funcs.Namespace("std").Call("Concat", args)
 		if err != nil {
 			panic(err)
 		}
@@ -1278,14 +1305,14 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 
 		n = parser.constructName(e.Function.(*name.Name), true)
 
-		f, err := parser.funcs.Namespace(parser.file, "").Call(n, args)
+		f, err := parser.funcs.Namespace("").Call(n, args)
 		if err != nil {
 			panic(err)
 		}
 		return f
 
 	case *cast.Int:
-		f, err := parser.funcs.Namespace(parser.file, "std").Call("ToInt", []lang.Expression{
+		f, err := parser.funcs.Namespace("std").Call("ToInt", []lang.Expression{
 			parser.expression(b, e.Expr),
 		})
 		if err != nil {
@@ -1297,15 +1324,15 @@ func (parser *parser) expression(b lang.Block, n node.Node) lang.Expression {
 	return nil
 }
 
-func (p *parser) binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
+func (p *fileParser) binaryOp(b lang.Block, op string, left, right node.Node) lang.Expression {
 	l := p.expression(b, left)
 	r := p.expression(b, right)
 	return p.bOp(b, op, l, r)
 }
 
-func (p *parser) bOp(b lang.Block, op string, l, r lang.Expression) lang.Expression {
+func (p *fileParser) bOp(b lang.Block, op string, l, r lang.Expression) lang.Expression {
 	if convertToMatchingType(l, r) {
-		p.funcs.Namespace(p.file, "std")
+		p.funcs.Namespace("std")
 	}
 	res, err := lang.NewBinaryOp(op, l, r)
 	if err != nil {
@@ -1409,7 +1436,7 @@ func convertToMatchingType(left, right lang.Expression) bool {
 // This is the first move from many, I want to resolve
 // everything in the examples/33.php, but code is not ready
 // for this yet.
-func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, expr lang.Expression) {
+func (p *fileParser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, expr lang.Expression) {
 	s := p.simpleExpression(b, n)
 	switch s.(type) {
 	case *lang.Assign:
@@ -1437,7 +1464,7 @@ func (p *parser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node, exp
 	}
 	if !expr.Type().Equal(lang.Bool) {
 		var err error
-		expr, err = p.funcs.Namespace(p.file, "std").Call("Truthy", []lang.Expression{expr})
+		expr, err = p.funcs.Namespace("std").Call("Truthy", []lang.Expression{expr})
 		if err != nil {
 			panic(err)
 		}
@@ -1509,11 +1536,11 @@ func (p *parser) constructName(nm *name.Name, translate bool) string {
 	return p.functionTranslator.Translate(s)
 }
 
-func (p *parser) servePrint(args []lang.Expression) (*lang.FunctionCall, error) {
+func (p *fileParser) servePrint(args []lang.Expression) (*lang.FunctionCall, error) {
 	v := p.gc.HasVariable("W", false)
 	if v == nil {
 		return nil, errors.New("Variable io.Writer not defined")
 	}
 	args = append([]lang.Expression{lang.NewVarRef(v, lang.NewTyp(lang.Writer, false))}, args...)
-	return p.funcs.Namespace(p.file, "fmt").Call("Fprintf", args)
+	return p.funcs.Namespace("fmt").Call("Fprintf", args)
 }

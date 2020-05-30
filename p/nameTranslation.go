@@ -109,7 +109,11 @@ type fnTranslator struct {
 }
 
 func (f *fnTranslator) Translate(name string) string {
-	name = strings.ToLower(name)
+	if name == "mainFunc" {
+		name = f.nameTranslator.resolveConflict(name, 0)
+	} else {
+		name = strings.ToLower(name)
+	}
 	return f.nameTranslator.Translate(name)
 }
 
@@ -121,10 +125,11 @@ func NewFunctionTranslator() NameTranslation {
 	used["main"] = true
 	used["mainServer"] = true
 	used["mainCLI"] = true
-	used["mainFunc"] = true
-	return &nameTranslator{
-		names: make(map[string]string),
-		used:  used,
+	return &fnTranslator{
+		nameTranslator{
+			names: make(map[string]string),
+			used:  used,
+		},
 	}
 }
 
