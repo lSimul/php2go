@@ -3,21 +3,23 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/lSimul/php2go/std/array"
-
-	"github.com/lSimul/php2go/serverBoilerplate/globals"
 )
 
 var server = flag.String("S", "", "Run program as a server.")
 
+type global struct {
+	_GET array.String
+	W    io.Writer
+}
+
 func main() {
 	flag.Parse()
-
-	globals.GET = array.NewString()
 
 	if *server != "" {
 		mux := http.NewServeMux()
@@ -31,24 +33,30 @@ func main() {
 }
 
 func mainServer(w http.ResponseWriter, r *http.Request) {
-	globals.W = w
+	g := &global{
+		W:    w,
+		_GET: array.NewString(),
+	}
 	if r.URL.Path == "/" || r.URL.Path == "/index.php" {
 		for k, v := range r.URL.Query() {
-			globals.GET.Edit(array.NewScalar(k), v[len(v)-1])
+			g._GET.Edit(array.NewScalar(k), v[len(v)-1])
 		}
-		mainFunc()
+		g.mainFunc()
 		return
 	}
 	http.FileServer(http.Dir(".")).ServeHTTP(w, r)
 }
 
 func mainLCI() {
-	globals.W = os.Stdout
-	mainFunc()
+	g := &global{
+		W:    os.Stdout,
+		_GET: array.NewString(),
+	}
+	g.mainFunc()
 }
 
-func mainFunc() {
-	fmt.Fprintf(globals.W, `<!DOCTYPE html>
+func (g *global) mainFunc() {
+	fmt.Fprintf(g.W, `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
