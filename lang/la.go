@@ -25,7 +25,7 @@ func (gc *GlobalContext) Add(f *File) {
 
 func (gc *GlobalContext) DefineVariable(v *Variable) {
 	for _, vr := range gc.Vars {
-		if strings.TrimPrefix(vr.Name, "g.") == v.Name {
+		if strings.TrimPrefix(vr.Name, "g.") == strings.TrimPrefix(v.Name, "g.") {
 			vr.typ = NewTyp(Anything, false)
 			return
 		}
@@ -36,7 +36,7 @@ func (gc *GlobalContext) DefineVariable(v *Variable) {
 
 func (gc *GlobalContext) HasVariable(name string, oos bool) *Variable {
 	for _, v := range gc.Vars {
-		if strings.TrimPrefix(v.Name, "g.") == name {
+		if strings.TrimPrefix(v.Name, "g.") == strings.TrimPrefix(name, "g.") {
 			return v
 		}
 	}

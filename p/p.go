@@ -1663,7 +1663,11 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 			fd = true
 		}
 	} else if !v.CurrentType.Eq(t) {
-		if v.FirstDefinition.Parent() == parent {
+		if v.FirstDefinition == nil && parser.gc.HasVariable(v.Name, false) != nil {
+			v.CurrentType = t
+			// Just redeclare it to to convert it to interface{}.
+			parser.gc.DefineVariable(v)
+		} else if v.FirstDefinition.Parent() == parent {
 			v.CurrentType = t
 		} else {
 			v = lang.NewVariable(name, t, false)
