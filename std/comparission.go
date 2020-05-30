@@ -16,7 +16,14 @@ func Truthy(i interface{}) bool {
 	case bool:
 		// Is this even needed?
 		return v
+
+	case Bool:
+		return v.ToBool()
 	}
 
 	return i != nil
+}
+
+type Bool interface {
+	ToBool() bool
 }

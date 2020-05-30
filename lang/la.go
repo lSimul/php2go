@@ -7,12 +7,17 @@ import (
 )
 
 type GlobalContext struct {
+	Path string
+
 	Files []*File
+
+	Vars []*Variable
 }
 
 func NewGlobalContext() *GlobalContext {
 	return &GlobalContext{
 		Files: make([]*File, 0),
+		Vars:  make([]*Variable, 0),
 	}
 }
 
@@ -20,12 +25,21 @@ func (gc *GlobalContext) Add(f *File) {
 	gc.Files = append(gc.Files, f)
 }
 
-func (gc GlobalContext) HasVariable(name string, oos bool) *Variable {
-	for _, f := range gc.Files {
-		for _, v := range f.vars {
-			if v.Name == name {
-				return v
-			}
+func (gc *GlobalContext) DefineVariable(v *Variable) {
+	for _, vr := range gc.Vars {
+		if strings.TrimPrefix(vr.Name, "g.") == strings.TrimPrefix(v.Name, "g.") {
+			vr.typ = NewTyp(Anything, false)
+			return
+		}
+	}
+	v.Name = "g." + v.Name
+	gc.Vars = append(gc.Vars, v)
+}
+
+func (gc *GlobalContext) HasVariable(name string, oos bool) *Variable {
+	for _, v := range gc.Vars {
+		if strings.TrimPrefix(v.Name, "g.") == strings.TrimPrefix(name, "g.") {
+			return v
 		}
 	}
 	return nil
@@ -142,17 +156,79 @@ func (f *File) String() string {
 	}
 
 	if f.withMain {
+		s.WriteString("\ntype global struct {\n")
+		for _, v := range f.parent.Vars {
+			s.WriteString(fmt.Sprintf("\t%s %s\n", strings.TrimPrefix(v.Name, "g."), v.typ))
+		}
+		s.WriteString("}\n")
+
+		gc := f.parent
 		if f.server {
 			s.WriteString(`
 func main() {
 	flag.Parse()
 
-	_GET = array.NewString()
-
 	if *server != "" {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/", mainServer)
+		g := &global{_GET: array.NewString()}
 
+		mux := http.NewServeMux()
+`)
+			simpleIndex := true
+			main := ""
+			for _, fl := range gc.Files {
+				p := strings.TrimPrefix(fl.Name, gc.Path)
+				if p == "index.php" {
+					main = fl.Main.Name
+					simpleIndex = false
+					continue
+				}
+				s.WriteString(`
+		mux.HandleFunc("/` + p + `", func(w http.ResponseWriter, r *http.Request) {
+			g.W = w
+			for k, v := range r.URL.Query() {
+				g._GET.Edit(array.NewScalar(k), v[len(v)-1])
+			}
+			g.` + fl.Main.Name + `()
+		})`)
+				if strings.HasSuffix(p, "index.php") {
+					p = strings.TrimSuffix(p, "index.php")
+					s.WriteString(`
+					mux.HandleFunc("/` + p + `", func(w http.ResponseWriter, r *http.Request) {
+						g.W = w
+						for k, v := range r.URL.Query() {
+							g._GET.Edit(array.NewScalar(k), v[len(v)-1])
+						}
+						g.` + fl.Main.Name + `()
+					})`)
+				}
+			}
+
+			if !simpleIndex {
+				s.WriteString(`
+				mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+					g := &global{
+						_GET: array.NewString(),
+						W: w,
+					}
+					if r.URL.Path == "/" || r.URL.Path == "/index.php" {
+						for k, v := range r.URL.Query() {
+							g._GET.Edit(array.NewScalar(k), v[len(v)-1])
+						}
+
+						g.` + main + `()
+						return
+					}
+					http.FileServer(http.Dir(".")).ServeHTTP(w, r)
+				})`)
+
+			} else {
+				s.WriteString(`
+				mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+					http.FileServer(http.Dir(".")).ServeHTTP(w, r)
+				})`)
+			}
+
+			s.WriteString(`
 		// Validate that server address
 		log.Fatal(http.ListenAndServe(*server, mux))
 	} else {
@@ -160,28 +236,45 @@ func main() {
 	}
 }
 
-func mainServer(w http.ResponseWriter, r *http.Request) {
-	W = w
-	if r.URL.Path == "/" || r.URL.Path == "/index.php" {
-		for k, v := range r.URL.Query() {
-			_GET.Edit(array.NewScalar(k), v[len(v)-1])
-		}
-
-		` + f.Main.Name + `()
-		return
-	}
-	http.FileServer(http.Dir(".")).ServeHTTP(w, r)
-}
-
 func mainCLI() {
-	W = os.Stdout
-	` + f.Main.Name + `()
+	g := &global{
+		_GET: array.NewString(),
+		W: os.Stdout,
+	}
+	if *file == "" {
+	}
+	switch *file {
+`)
+			for _, fl := range gc.Files {
+				p := strings.TrimPrefix(fl.Name, gc.Path)
+				s.WriteString(`
+	case "` + p + `":
+		g.` + fl.Main.Name + `()
+`)
+			}
+			s.WriteString(`
+	default:
+		g.` + f.Main.Name + `()
+	}
 }
 `)
 		} else {
 			s.WriteString(`
 func main() {
-	` + f.Main.Name + `()
+	g := &global{}
+	switch *file {
+`)
+			for _, fl := range gc.Files {
+				p := strings.TrimPrefix(fl.Name, gc.Path)
+				s.WriteString(`
+	case "` + p + `":
+		g.` + fl.Main.Name + `()
+`)
+			}
+			s.WriteString(`
+	default:
+		g.` + f.Main.Name + `()
+	}
 }
 `)
 		}
@@ -200,6 +293,9 @@ func NewFunc(name string) *Function {
 			Vars:       make([]*Variable, 0),
 			Statements: make([]Node, 0),
 		},
+
+		NeedsGlobal: false,
+
 		Return: NewTyp(Void, false),
 	}
 	f.Body.SetParent(f)
@@ -468,7 +564,7 @@ func (f For) HasVariable(name string, oos bool) *Variable {
 
 func (f *For) DefineVariable(v *Variable) {
 	for _, vr := range f.Vars {
-		if vr.Name != v.Name || vr.typ == v.typ {
+		if vr.Name != v.Name || vr.typ.Eq(v.typ) {
 			continue
 		}
 		vr.typ = NewTyp(Anything, false)
@@ -822,7 +918,7 @@ func (i If) HasVariable(name string, oos bool) *Variable {
 
 func (i *If) DefineVariable(v *Variable) {
 	for _, vr := range i.Vars {
-		if vr.Name != v.Name || vr.Type() == v.typ {
+		if vr.Name != v.Name || vr.Type().Eq(v.typ) {
 			continue
 		}
 		vr.typ = NewTyp(Anything, false)

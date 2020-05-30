@@ -10,6 +10,8 @@ const (
 	Bool     = "bool"
 	Anything = "interface{}"
 	Writer   = "io.Writer"
+
+	SQL = "std.SQL"
 )
 
 type Node interface {
@@ -45,10 +47,13 @@ type Typ struct {
 	typ       string
 	IsPointer bool
 	reference bool
+
+	Adressable bool
+	Tiles      map[string]Typ
 }
 
 func NewTyp(typ string, IsPointer bool) Typ {
-	return Typ{typ, IsPointer, false}
+	return Typ{typ, IsPointer, false, false, make(map[string]Typ)}
 }
 
 func (t Typ) Format() string {
@@ -68,6 +73,15 @@ func (t Typ) Format() string {
 }
 
 func (t Typ) String() string {
+	if t.Adressable {
+		n := "struct{\n"
+		for k, v := range t.Tiles {
+			n += k + " " + v.String() + "\n"
+		}
+		n += "}"
+		return n
+	}
+
 	if t.IsPointer {
 		return "*" + t.typ
 	}
@@ -76,6 +90,10 @@ func (t Typ) String() string {
 
 func (t Typ) Equal(s string) bool {
 	return s == t.typ
+}
+
+func (t Typ) Eq(r Typ) bool {
+	return t.typ == r.typ
 }
 
 type Variable struct {
