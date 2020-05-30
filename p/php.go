@@ -6,7 +6,7 @@ import (
 	"github.com/lSimul/php2go/lang"
 )
 
-var PHPFunctions = map[string](func(lang.Block, []lang.Expression) (*lang.FunctionCall, error)){
+var PHPFunctions = map[string](func(lang.Block, []lang.Expression) (*lang.FunctionCall, string, error)){
 	"array_push": arrayPush,
 	"count":      count,
 
@@ -17,24 +17,26 @@ var PHPFunctions = map[string](func(lang.Block, []lang.Expression) (*lang.Functi
 
 	"file_exists": fileExists,
 	"scandir":     scandir,
+
+	"microtime": microtime,
 	// "echo":       true, // extra case, AST does not use echo as a function
 }
 
-func arrayPush(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+func arrayPush(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) < 2 {
-		return nil, errors.New("array_push requires atlast two arguments")
+		return nil, "", errors.New("array_push requires atlast two arguments")
 	}
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok || !IsArray(v.Type().String()) {
-		return nil, errors.New("First argument has to be a variable, an array.")
+		return nil, "", errors.New("First argument has to be a variable, an array.")
 	}
 	typ := ArrayItem(v.Type().String())
 
 	vars := []lang.Expression{}
 	for _, arg := range args[1:] {
 		if !arg.Type().Equal(typ) {
-			return nil, errors.New("Cannot push this type.")
+			return nil, "", errors.New("Cannot push this type.")
 		}
 		vars = append(vars, arg)
 	}
@@ -46,17 +48,17 @@ func arrayPush(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error)
 	}
 
 	fc.SetParent(b)
-	return fc, nil
+	return fc, "", nil
 }
 
-func count(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+func count(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) != 1 {
-		return nil, errors.New("count requires exactly one argument")
+		return nil, "", errors.New("count requires exactly one argument")
 	}
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok || !IsArray(v.Type().String()) {
-		return nil, errors.New("Argument has to be a variable, an array.")
+		return nil, "", errors.New("Argument has to be a variable, an array.")
 	}
 
 	fc := &lang.FunctionCall{
@@ -65,12 +67,12 @@ func count(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
 	}
 
 	fc.SetParent(b)
-	return fc, nil
+	return fc, "", nil
 }
 
-func mysqliConnect(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+func mysqliConnect(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) != 3 {
-		return nil, errors.New("mysqli_connect has to have three arguments.")
+		return nil, "", errors.New("mysqli_connect has to have three arguments.")
 	}
 
 	fc := &lang.FunctionCall{
@@ -80,24 +82,24 @@ func mysqliConnect(b lang.Block, args []lang.Expression) (*lang.FunctionCall, er
 	}
 
 	fc.SetParent(b)
-	return fc, nil
+	return fc, "std", nil
 }
 
-func mysqliSelectDB(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+func mysqliSelectDB(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) != 2 {
-		return nil, errors.New("mysqli_select_db requires exactly two arguments.")
+		return nil, "", errors.New("mysqli_select_db requires exactly two arguments.")
 	}
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok {
-		return nil, errors.New("First argument should be a varref.")
+		return nil, "", errors.New("First argument should be a varref.")
 	}
 	if !v.Type().Eq(lang.NewTyp(lang.SQL, true)) {
-		return nil, errors.New("First argument is not of a type *std.SQL.")
+		return nil, "", errors.New("First argument is not of a type *std.SQL.")
 	}
 
 	if !args[1].Type().Eq(lang.NewTyp(lang.String, false)) {
-		return nil, errors.New("Database name has to be a string.")
+		return nil, "", errors.New("Database name has to be a string.")
 	}
 
 	fc := &lang.FunctionCall{
@@ -107,24 +109,24 @@ func mysqliSelectDB(b lang.Block, args []lang.Expression) (*lang.FunctionCall, e
 	}
 
 	fc.SetParent(b)
-	return fc, nil
+	return fc, "", nil
 }
 
-func mysqliQuery(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+func mysqliQuery(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) != 2 {
-		return nil, errors.New("mysqli_query requires exactly two arguments.")
+		return nil, "", errors.New("mysqli_query requires exactly two arguments.")
 	}
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok {
-		return nil, errors.New("First argument should be a varref.")
+		return nil, "", errors.New("First argument should be a varref.")
 	}
 	if !v.Type().Eq(lang.NewTyp(lang.SQL, true)) {
-		return nil, errors.New("First argument is not of a type *std.SQL.")
+		return nil, "", errors.New("First argument is not of a type *std.SQL.")
 	}
 
 	if !args[1].Type().Eq(lang.NewTyp(lang.String, false)) {
-		return nil, errors.New("Query has to be a string.")
+		return nil, "", errors.New("Query has to be a string.")
 	}
 
 	fc := &lang.FunctionCall{
@@ -134,21 +136,21 @@ func mysqliQuery(b lang.Block, args []lang.Expression) (*lang.FunctionCall, erro
 	}
 
 	fc.SetParent(b)
-	return fc, nil
+	return fc, "", nil
 }
 
 // Not 1:1, only MYSQLI_ASSOC will be supported.
-func mysqliFetchArray(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+func mysqliFetchArray(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) < 1 {
-		return nil, errors.New("mysqli_fetch_array requires atlast one argument.")
+		return nil, "", errors.New("mysqli_fetch_array requires atlast one argument.")
 	}
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok {
-		return nil, errors.New("First argument should be a varref.")
+		return nil, "", errors.New("First argument should be a varref.")
 	}
 	if !v.Type().Eq(lang.NewTyp("std.Rows", true)) {
-		return nil, errors.New("First argument is not of a type *std.SQL.")
+		return nil, "", errors.New("First argument is not of a type *std.SQL.")
 	}
 
 	next := &lang.FunctionCall{
@@ -159,9 +161,9 @@ func mysqliFetchArray(b lang.Block, args []lang.Expression) (*lang.FunctionCall,
 
 	switch b.(type) {
 	case *lang.For:
-		return next, nil
+		return next, "", nil
 	case *lang.If:
-		return next, nil
+		return next, "", nil
 	}
 
 	fc := &lang.FunctionCall{
@@ -170,16 +172,16 @@ func mysqliFetchArray(b lang.Block, args []lang.Expression) (*lang.FunctionCall,
 	}
 
 	fc.SetParent(b)
-	return fc, nil
+	return fc, "", nil
 }
 
-func fileExists(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+func fileExists(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) != 1 {
-		return nil, errors.New("file_exists requires exactly one argument")
+		return nil, "", errors.New("file_exists requires exactly one argument")
 	}
 
 	if !args[0].Type().Equal(lang.String) {
-		return nil, errors.New("Argument has to be a string.")
+		return nil, "", errors.New("Argument has to be a string.")
 	}
 
 	fc := &lang.FunctionCall{
@@ -189,16 +191,16 @@ func fileExists(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error
 	}
 
 	fc.SetParent(b)
-	return fc, nil
+	return fc, "std", nil
 }
 
-func scandir(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+func scandir(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) != 1 {
-		return nil, errors.New("scandir requires exactly one argument")
+		return nil, "", errors.New("scandir requires exactly one argument")
 	}
 
 	if !args[0].Type().Equal(lang.String) {
-		return nil, errors.New("Argument has to be a string.")
+		return nil, "", errors.New("Argument has to be a string.")
 	}
 
 	fc := &lang.FunctionCall{
@@ -208,5 +210,16 @@ func scandir(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
 	}
 
 	fc.SetParent(b)
-	return fc, nil
+	return fc, "std", nil
+}
+
+// Not 1:1, it will always return float.
+func microtime(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
+	fc := &lang.FunctionCall{
+		Name:   "std.Microtime",
+		Return: lang.NewTyp(lang.Float64, false),
+	}
+
+	fc.SetParent(b)
+	return fc, "std", nil
 }

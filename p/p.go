@@ -1404,11 +1404,27 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 			args = append(args, parser.expression(b, a.(*node.Argument).Expr))
 		}
 
-		if fc, ok := PHPFunctions[n]; ok {
-			f, err := fc(b, args)
+		if n == "printf" {
+			var err error
+			var f *lang.FunctionCall
+			if parser.asServer {
+				requireGlobal(b)
+				f, err = parser.servePrint(args)
+			} else {
+				f, err = parser.funcs.Namespace("fmt").Call("Print", args)
+			}
 			if err != nil {
 				panic(err)
 			}
+			return f
+		}
+
+		if fc, ok := PHPFunctions[n]; ok {
+			f, n, err := fc(b, args)
+			if err != nil {
+				panic(err)
+			}
+			parser.funcs.Namespace(n)
 			return f
 		}
 
