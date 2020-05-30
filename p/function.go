@@ -169,6 +169,26 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 		fn:        arr,
 	}
 
+	flag := map[string][]*lang.Function{
+		"String": {
+			{
+				Name: "String",
+				Args: []*lang.Variable{
+					lang.NewVariable("name", lang.NewTyp(lang.String, false), false),
+					lang.NewVariable("value", lang.NewTyp(lang.String, false), false),
+					lang.NewVariable("usage", lang.NewTyp(lang.String, false), false),
+				},
+				VariadicCount: false,
+
+				Return: lang.NewTyp(lang.String, true),
+			},
+		},
+	}
+	fn.funcs["flag"] = &funcs{
+		namespace: "flag",
+		fn:        flag,
+	}
+
 	return fn
 }
 

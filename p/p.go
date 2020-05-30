@@ -17,6 +17,7 @@ import (
 	"github.com/z7zmey/php-parser/node/scalar"
 	"github.com/z7zmey/php-parser/node/stmt"
 	"github.com/z7zmey/php-parser/php7"
+	"github.com/z7zmey/php-parser/visitor"
 
 	"github.com/lSimul/php2go/lang"
 )
@@ -59,6 +60,13 @@ func phpParse(src []byte) *node.Root {
 		}
 		os.Exit(1)
 	}
+
+	visitor := visitor.Dumper{
+		Writer: os.Stderr,
+		Indent: "",
+	}
+	parser.GetRootNode().Walk(&visitor)
+
 	return parser.GetRootNode().(*node.Root)
 }
 
@@ -130,27 +138,37 @@ func (parser *parser) run(r *node.Root, path string, asServer, withMain bool) {
 			p.funcs.Add(f.Name, vf, len(defaultParams)-i)
 		}
 	}
-	for _, s := range fs {
-		f, _ := p.funcDef(&s)
-		p.createFunction(&f.Body, s.Stmts)
-		p.funcs.Add(f.Name, f, 0)
-	}
 
 	fn := lang.NewFunc(p.functionTranslator.Translate("mainFunc"))
 	fn.SetParent(p.file)
 	p.file.Main = fn
 	p.funcs.Add(fn.Name, fn, 0)
 	p.createFunction(&fn.Body, ms)
+
+	for _, s := range fs {
+		f, _ := p.funcDef(&s)
+		p.createFunction(&f.Body, s.Stmts)
+		p.funcs.Add(f.Name, f, 0)
+	}
 }
 
 func (p *fileParser) serverFile() {
-	p.file.AddImport("flag")
 	p.file.AddImport("log")
 	p.file.AddImport("net/http")
 	p.file.AddImport("os")
 
 	p.file.AddImport("io")
 	p.file.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
+
+	v := lang.NewVariable("server", lang.NewTyp(lang.String, true), false)
+	p.file.DefineVariable(v)
+	// This should not fail.
+	v.FirstDefinition.(*lang.VarDef).Right, _ = p.funcs.Namespace("flag").Call("String",
+		[]lang.Expression{
+			&lang.Str{Value: `"S"`}, &lang.Str{Value: `""`},
+			&lang.Str{Value: `"Run program as a server."`},
+		},
+	)
 
 	p.funcs.Namespace("array")
 	p.file.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
@@ -902,6 +920,19 @@ func (parser *fileParser) statement(b lang.Block, n node.Node) lang.Node {
 			Value: parser.labelTranslator.Translate(s.Label.(*node.Identifier).Value),
 		}
 		return &lang.Goto{Value: c}
+
+	case *stmt.Global:
+		for _, v := range s.Vars {
+			vn := parser.identifierName(v.(*expr.Variable))
+			v := parser.gc.HasVariable(vn, false)
+			if v == nil {
+				panic(fmt.Sprintf("'%s' is not defined.", vn))
+			}
+			b.DefineVariable(v)
+		}
+		// Blank const just to return something better then nil.
+		// nil has special meaning.
+		return &lang.Const{}
 	}
 
 	var v *lang.VarRef
@@ -1484,16 +1515,40 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 	fd := false
 	if v == nil {
 		v = lang.NewVariable(name, t, false)
-		parent.DefineVariable(v)
-		fd = true
-	} else if v.CurrentType != t {
-		if v.FirstDefinition.Parent() == parent {
-			v.CurrentType = t
-		} else {
-			v = lang.NewVariable(name, t, false)
-			fd = true
+
+		done := false
+		if m, ok := parent.Parent().(*lang.Function); ok {
+			if f, ok := m.Parent().(*lang.File); ok {
+				if f.Main == m {
+					f.DefineVariable(v)
+					done = true
+				}
+			}
 		}
 		parent.DefineVariable(v)
+		if !done {
+			fd = true
+		}
+	} else if v.CurrentType != t {
+		done := false
+		if m, ok := parent.Parent().(*lang.Function); ok {
+			if f, ok := m.Parent().(*lang.File); ok {
+				if f.Main == m {
+					v.CurrentType = t
+					f.DefineVariable(v)
+					done = true
+				}
+			}
+		}
+		if !done {
+			if v.FirstDefinition.Parent() == parent {
+				v.CurrentType = t
+			} else {
+				v = lang.NewVariable(name, t, false)
+				fd = true
+			}
+			parent.DefineVariable(v)
+		}
 	}
 
 	as, err := lang.NewAssign(v, right)

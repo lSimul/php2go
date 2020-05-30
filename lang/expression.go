@@ -27,13 +27,12 @@ func (f *Function) SetParent(n Node) {
 	f.parent = n.(*File)
 }
 
-func (f Function) HasVariable(name string, oos bool) *Variable {
-	v := f.definesVariable(name)
-	if v != nil {
+func (f *Function) HasVariable(name string, oos bool) *Variable {
+	if v := f.definesVariable(name); v != nil {
 		return v
 	}
-	if p := f.parent; p != nil {
-		return p.HasVariable(name, oos)
+	if f.parent.Main == f && f.parent.parent != nil {
+		return f.parent.parent.HasVariable(name, oos)
 	}
 	return nil
 }

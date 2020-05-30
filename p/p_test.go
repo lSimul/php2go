@@ -318,21 +318,24 @@ func testMain(tt *testing.T) {
 		// Sandbox
 		{
 			source: []byte(`<?php
-			$a = 1 + 2;
+			function fc() {
+				$a = 1 + 2;
+			}
 			`),
-			expected: `func mainFunc0() {
+			expected: `func fc() {
 				a := 1 + 2
 			}`,
 		},
 		// examples/04.php
 		{
 			source: []byte(`<?php
+			function fc() {
+				$a = 2 + 3 + 4 * 2;
 
-			$a = 2 + 3 + 4 * 2;
-
-			echo $a * $a;
+				echo $a * $a;
+			}
 		`),
-			expected: `func mainFunc0() {
+			expected: `func fc() {
 				a := 2 + 3 + 4 * 2
 				fmt.Print(a * a)
 			}`,
@@ -340,18 +343,20 @@ func testMain(tt *testing.T) {
 		// examples/05.php
 		{
 			source: []byte(`<?php
-			{
+			function fc() {
 				{
-					$a = "0";
-					// Added to compile it in Go. This var is not used.
+					{
+						$a = "0";
+						// Added to compile it in Go. This var is not used.
+						echo $a;
+					}
+					$a = 1;
+
 					echo $a;
 				}
-				$a = 1;
-
-				echo $a;
 			}
 			`),
-			expected: `func mainFunc0() {
+			expected: `func fc() {
 				{
 					{
 						a := "0"
@@ -365,14 +370,16 @@ func testMain(tt *testing.T) {
 		// examples/06.php
 		{
 			source: []byte(`<?php
-			{
-				$a = 0;
-			}
+			function fc() {
+				{
+					$a = 0;
+				}
 
-			$a++;
-			echo $a;
+				$a++;
+				echo $a;
+			}
 			`),
-			expected: `func mainFunc0() {
+			expected: `func fc() {
 				var a int
 				{
 					a = 0
@@ -384,16 +391,18 @@ func testMain(tt *testing.T) {
 		// examples/07.php
 		{
 			source: []byte(`<?php
-			$a = 0;
-			{
-				$a = "1";
+			function fc() {
+				$a = 0;
+				{
+					$a = "1";
+					echo $a;
+				}
+				echo $a;
+				$a = 2;
 				echo $a;
 			}
-			echo $a;
-			$a = 2;
-			echo $a;
 			`),
-			expected: `func mainFunc0() {
+			expected: `func fc() {
 				var a interface{}
 				a = 0
 				{
@@ -414,8 +423,12 @@ func testMain(tt *testing.T) {
 		}
 
 		out := parser.Run(parsePHP(t.source), "dummy", false)
-		main := out.Files[0].Main.String()
-		compare(tt, t.expected, main)
+		for _, f := range out.Files {
+			if f.Name == "fc" {
+				main := f.String()
+				compare(tt, t.expected, main)
+			}
+		}
 	}
 }
 

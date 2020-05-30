@@ -22,8 +22,10 @@ func (gc *GlobalContext) Add(f *File) {
 
 func (gc GlobalContext) HasVariable(name string, oos bool) *Variable {
 	for _, f := range gc.Files {
-		if v := f.HasVariable(name, false); v != nil {
-			return v
+		for _, v := range f.vars {
+			if v.Name == name {
+				return v
+			}
 		}
 	}
 	return nil
@@ -39,6 +41,7 @@ type File struct {
 	Name string
 
 	vars    []*Variable
+	vardefs []*VarDef
 	Funcs   map[string]*Function
 	imports []string
 
@@ -55,6 +58,8 @@ func NewFile(gc *GlobalContext, name string, server, withMain bool) *File {
 		Name: name,
 
 		vars:    make([]*Variable, 0),
+		vardefs: make([]*VarDef, 0),
+
 		Funcs:   make(map[string]*Function, 0),
 		imports: make([]string, 0),
 
@@ -75,7 +80,15 @@ func (f *File) DefineVariable(v *Variable) {
 			return
 		}
 	}
+	vd := &VarDef{
+		parent: f,
+		V:      v,
+
+		typ: v.typ.typ,
+	}
+	v.FirstDefinition = vd
 	f.vars = append(f.vars, v)
+	f.vardefs = append(f.vardefs, vd)
 }
 
 func (f File) HasVariable(name string, oos bool) *Variable {
@@ -83,6 +96,9 @@ func (f File) HasVariable(name string, oos bool) *Variable {
 		if v.Name == name {
 			return v
 		}
+	}
+	if f.parent != nil {
+		return f.parent.HasVariable(name, oos)
 	}
 	return nil
 }
@@ -121,15 +137,13 @@ func (f *File) String() string {
 		s.WriteString(")\n\n")
 	}
 
-	for _, v := range f.vars {
-		s.WriteString(fmt.Sprintf("var %s %s\n", v, v.Type()))
+	for _, v := range f.vardefs {
+		s.WriteString(v.String() + "\n")
 	}
 
 	if f.withMain {
 		if f.server {
 			s.WriteString(`
-var server = flag.String("S", "", "Run program as a server.")
-
 func main() {
 	flag.Parse()
 
