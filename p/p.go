@@ -1016,6 +1016,29 @@ func (parser *fileParser) statement(b lang.Block, n node.Node) lang.Node {
 }
 
 func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression {
+	includeRequire := func(n node.Node) lang.Expression {
+		expr := parser.expression(b, n)
+		var val string
+		switch e := expr.(type) {
+		case *lang.Str:
+			val = e.Value
+
+		default:
+			panic(`Only simple string can be in require.`)
+		}
+		val = strings.ReplaceAll(val, "\"", "")
+		val = strings.ReplaceAll(val, "./", "")
+
+		// TODO: To the function, probably.
+		name := parser.file.Name
+		i := strings.LastIndex(name, "/")
+		if i > 0 {
+			name = name[:i+1]
+		}
+
+		return parser.require(name + val)
+	}
+
 	switch e := n.(type) {
 	case *expr.Variable:
 		name := parser.identifierName(e)
@@ -1249,38 +1272,13 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 		return fc
 
 	case *expr.Require:
-		expr := parser.expression(b, e.Expr)
-		var val string
-		switch e := expr.(type) {
-		case *lang.Str:
-			val = e.Value
-
-		// case *lang.FunctionCall:
-		// if e.Name != "std.Concat" {
-		// panic(`only std.Concat can be called`)
-		// }
-		// for _, v := range e.Args {
-		// if s, ok := v.(*lang.Str); ok {
-		// val += s.Value
-		// } else {
-		// panic(`only string can be in concat`)
-		// }
-		// }
-
-		default:
-			panic(`Only simple string can be in require.`)
-		}
-		val = strings.ReplaceAll(val, "\"", "")
-		val = strings.ReplaceAll(val, "./", "")
-
-		// TODO: To the function, probably.
-		name := parser.file.Name
-		i := strings.LastIndex(name, "/")
-		if i > 0 {
-			name = name[:i+1]
-		}
-
-		return parser.require(name + val)
+		return includeRequire(e.Expr)
+	case *expr.RequireOnce:
+		return includeRequire(e.Expr)
+	case *expr.Include:
+		return includeRequire(e.Expr)
+	case *expr.IncludeOnce:
+		return includeRequire(e.Expr)
 		/*
 			TODO:
 			[.] coalesce
