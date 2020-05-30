@@ -15,6 +15,8 @@ var PHPFunctions = map[string](func(lang.Block, []lang.Expression) (*lang.Functi
 	"mysqli_query":       mysqliQuery,
 	"mysqli_fetch_array": mysqliFetchArray,
 
+	"mysqlDefer": mysqlDefer,
+
 	"file_exists": fileExists,
 	"scandir":     scandir,
 
@@ -106,6 +108,28 @@ func mysqliSelectDB(b lang.Block, args []lang.Expression) (*lang.FunctionCall, s
 		Name:   v.V.Name + ".SelectDB",
 		Args:   args[1:],
 		Return: lang.NewTyp(lang.SQL, false),
+	}
+
+	fc.SetParent(b)
+	return fc, "", nil
+}
+
+func mysqlDefer(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
+	if len(args) < 1 {
+		return nil, "", errors.New("mysqlDefer requires atlast one argument.")
+	}
+
+	v, ok := args[0].(*lang.VarRef)
+	if !ok {
+		return nil, "", errors.New("First argument should be a varref.")
+	}
+	if !v.Type().Eq(lang.NewTyp(lang.SQL, true)) {
+		return nil, "", errors.New("First argument is not of a type *std.SQL.")
+	}
+
+	fc := &lang.FunctionCall{
+		Name:   "defer " + v.V.Name + ".Close",
+		Return: lang.NewTyp(lang.Void, false),
 	}
 
 	fc.SetParent(b)

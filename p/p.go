@@ -1420,11 +1420,17 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 		}
 
 		if fc, ok := PHPFunctions[n]; ok {
-			f, n, err := fc(b, args)
+			f, nsp, err := fc(b, args)
 			if err != nil {
 				panic(err)
 			}
-			parser.funcs.Namespace(n)
+			parser.funcs.Namespace(nsp)
+
+			if n == "mysqli_select_db" {
+				b.AddStatement(f)
+				f, _, _ = PHPFunctions["mysqlDefer"](b, args)
+			}
+
 			return f
 		}
 
