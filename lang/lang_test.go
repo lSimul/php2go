@@ -140,7 +140,7 @@ func constructors(t *testing.T) {
 	}
 
 	a, err = NewAssign(v, vr)
-	if a.Type() != v.Type() {
+	if !a.Type().Eq(v.Type()) {
 		t.Errorf("'%s' expected, '%s' found.\n", v.Type(), a.Type())
 	}
 	if a.FirstDefinition {

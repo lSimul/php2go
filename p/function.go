@@ -123,6 +123,17 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 				Return: lang.NewTyp(lang.Int, false),
 			},
 		},
+		"FileExists": {
+			{
+				Name: "FileExists",
+				Args: []*lang.Variable{
+					lang.NewVariable("s", lang.NewTyp(lang.String, false), false),
+				},
+				VariadicCount: false,
+
+				Return: lang.NewTyp(lang.Bool, false),
+			},
+		},
 	}
 	fn.funcs["std"] = &funcs{
 		namespace: "github.com/lSimul/php2go/std",
@@ -267,7 +278,7 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 			if f.Args[i].Type().Equal(lang.Anything) {
 				continue
 			}
-			if args[i].Type() != f.Args[i].Type() {
+			if !args[i].Type().Eq(f.Args[i].Type()) {
 				return nil, errors.New("Wrong argument type.")
 			}
 		}
@@ -277,7 +288,7 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 			if ref.Type().Equal(lang.Anything) {
 				continue
 			}
-			if args[i].Type() != ref.Type() {
+			if !args[i].Type().Eq(ref.Type()) {
 				return nil, errors.New("Wrong argument type.")
 			}
 		}
@@ -293,7 +304,7 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 			if f.Args[i].Type().Equal(lang.Anything) {
 				continue
 			}
-			if t := f.Args[i].Type(); args[i].Type() != t {
+			if t := f.Args[i].Type(); !args[i].Type().Eq(t) {
 				if t.IsPointer && !args[i].Type().IsPointer {
 					t, ok := args[i].(*lang.VarRef)
 					if !ok {

@@ -468,7 +468,7 @@ func (f For) HasVariable(name string, oos bool) *Variable {
 
 func (f *For) DefineVariable(v *Variable) {
 	for _, vr := range f.Vars {
-		if vr.Name != v.Name || vr.typ == v.typ {
+		if vr.Name != v.Name || vr.typ.Eq(v.typ) {
 			continue
 		}
 		vr.typ = NewTyp(Anything, false)
@@ -822,7 +822,7 @@ func (i If) HasVariable(name string, oos bool) *Variable {
 
 func (i *If) DefineVariable(v *Variable) {
 	for _, vr := range i.Vars {
-		if vr.Name != v.Name || vr.Type() == v.typ {
+		if vr.Name != v.Name || vr.Type().Eq(v.typ) {
 			continue
 		}
 		vr.typ = NewTyp(Anything, false)

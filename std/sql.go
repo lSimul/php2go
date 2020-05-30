@@ -1,11 +1,12 @@
 package std
 
 import (
-	"database/sql"
-
 	// TODO: It does not have to be always MySQL.
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 )
+
+var _ Bool = (*SQL)(nil)
 
 type SQL struct {
 	server   string
@@ -14,7 +15,7 @@ type SQL struct {
 
 	table string
 
-	db *sql.DB
+	db *sqlx.DB
 
 	err error
 }
@@ -29,12 +30,35 @@ func NewSQL(server, user, password string) *SQL {
 
 func (s *SQL) SelectDB(table string) {
 	s.table = table
-	s.db, s.err = sql.Open("mysql", s.user+":"+s.password+"(tcp"+s.server+")/"+s.table)
+	s.db, s.err = sqlx.Open("mysql", s.user+":"+s.password+"@tcp("+s.server+")/"+s.table)
+	s.db = s.db.Unsafe()
 }
 
-func (s *SQL) Query(q string) {
+func (s *SQL) Query(q string) *Rows {
 	if s.err != nil {
 		panic(s.err)
 	}
-	_, s.err = s.db.Query(q)
+
+	var rows *sqlx.Rows
+	rows, s.err = s.db.Queryx(q)
+	return &Rows{rows}
+}
+
+func (s SQL) ToBool() bool {
+	return s.err == nil
+}
+
+type Rows struct {
+	rows *sqlx.Rows
+}
+
+func (r *Rows) Next() bool {
+	if r.rows == nil {
+		return false
+	}
+	return r.rows.Next()
+}
+
+func (r *Rows) Scan(t interface{}) {
+	r.rows.StructScan(t)
 }

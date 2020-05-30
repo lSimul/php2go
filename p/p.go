@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -52,6 +54,7 @@ type fileParser struct {
 
 func phpParse(src []byte) *node.Root {
 	parser := php7.NewParser(src, "")
+	parser.WithFreeFloating()
 	parser.Parse()
 
 	if errs := parser.GetErrors(); len(errs) > 0 {
@@ -257,6 +260,8 @@ func (parser *fileParser) funcDef(fc *stmt.Function) (*lang.Function, []lang.Exp
 
 func (parser *fileParser) createFunction(b lang.Block, stmts []node.Node) {
 	for _, s := range stmts {
+		parser.freeFloatingComment(b, s)
+
 		switch s := s.(type) {
 		case *stmt.Nop:
 			// Alias for <?php ?> and "empty semicolon", nothing to do.
@@ -778,6 +783,31 @@ func (parser *fileParser) complexExpression(b lang.Block, n node.Node) lang.Expr
 			panic(vn + " is not defined.")
 		}
 
+		if vr.Type().Adressable {
+			e := parser.expression(b, v.Dim)
+			str, ok := e.(*lang.Str)
+			if !ok {
+				panic(`Addressable structs can be used only with simple string.`)
+			}
+			s := strings.ReplaceAll(str.Value, "\"", "")
+			s = FirstUpper(s)
+
+			t, ok := vr.Type().Tiles[s]
+			if !ok {
+				panic(`Unknown tile struct.`)
+			}
+
+			if !r.Type().Eq(t) {
+				panic(`Uncompatible types for the assignment in the struct.`)
+			}
+
+			a, err := lang.NewAssign(lang.NewVariable(vr.String()+"."+s, t, false), r)
+			if err != nil {
+				panic(err)
+			}
+			return a
+		}
+
 		if l, r := ArrayItem(vr.Type().String()), r.Type().String(); l != r {
 			panic(fmt.Sprintf("Array editing: '%s' expected, '%s' given.", l, r))
 		}
@@ -1021,23 +1051,43 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 					panic(vn + " is not defined.")
 				}
 
-				scalar, err := parser.funcs.Namespace("array").Call(
-					"NewScalar", []lang.Expression{parser.expression(b, p.Dim)})
-				if err != nil {
-					panic(err)
+				if v.Type().Adressable {
+					e := parser.expression(b, p.Dim)
+					str, ok := e.(*lang.Str)
+					if !ok {
+						panic(`Addressable structs can be used only with simple string.`)
+					}
+					s := strings.ReplaceAll(str.Value, "\"", "")
+					s = FirstUpper(s)
+
+					t, ok := v.Type().Tiles[s]
+					if !ok {
+						panic(`Unknown tile struct.`)
+					}
+
+					args = append(args, lang.NewVarRef(
+						lang.NewVariable(v.String()+"."+s, t, false),
+						t,
+					))
+				} else {
+					scalar, err := parser.funcs.Namespace("array").Call(
+						"NewScalar", []lang.Expression{parser.expression(b, p.Dim)})
+					if err != nil {
+						panic(err)
+					}
+
+					fc := &lang.FunctionCall{
+						Name:   fmt.Sprintf("%s.At", v),
+						Args:   []lang.Expression{scalar},
+						Return: lang.NewTyp(ArrayItem(v.Type().String()), false),
+					}
+					scalar.SetParent(fc)
+					fc.SetParent(b)
+
+					s.Value += fc.Type().Format()
+
+					args = append(args, fc)
 				}
-
-				fc := &lang.FunctionCall{
-					Name:   fmt.Sprintf("%s.At", v),
-					Args:   []lang.Expression{scalar},
-					Return: lang.NewTyp(ArrayItem(v.Type().String()), false),
-				}
-				scalar.SetParent(fc)
-				fc.SetParent(b)
-
-				s.Value += fc.Type().Format()
-
-				args = append(args, fc)
 			}
 		}
 		s.Value += "\""
@@ -1166,6 +1216,23 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 			panic(`Expected variable to be indexed.`)
 		}
 
+		if v.Type().Adressable {
+			ex := parser.expression(b, e.Dim)
+			str, ok := ex.(*lang.Str)
+			if !ok {
+				panic(`Addressable structs can be used only with simple string.`)
+			}
+			s := strings.ReplaceAll(str.Value, "\"", "")
+			s = FirstUpper(s)
+
+			t, ok := v.Type().Tiles[s]
+			if !ok {
+				panic(`Unknown tile struct.`)
+			}
+
+			return lang.NewVarRef(lang.NewVariable(v.String()+"."+s, t, false), t)
+		}
+
 		args := []lang.Expression{parser.expression(b, e.Dim)}
 		scalar, err := parser.funcs.Namespace("array").Call("NewScalar", args)
 		if err != nil {
@@ -1250,8 +1317,16 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 	case *binary.Greater:
 		return parser.binaryOp(b, ">", e.Left, e.Right)
 
+	// TODO: Improve solution to really just use equal.
+	case *binary.Equal:
+		return parser.binaryOp(b, "==", e.Left, e.Right)
+
 	case *binary.Identical:
 		return parser.binaryOp(b, "==", e.Left, e.Right)
+
+		// TODO: Improve solution to really just use not-equal.
+	case *binary.NotEqual:
+		return parser.binaryOp(b, "!=", e.Left, e.Right)
 
 	case *binary.NotIdentical:
 		return parser.binaryOp(b, "!=", e.Left, e.Right)
@@ -1377,7 +1452,7 @@ func (p *fileParser) bOp(b lang.Block, op string, l, r lang.Expression) lang.Exp
 func convertToMatchingType(left, right lang.Expression) bool {
 	lt := left.Type()
 	rt := right.Type()
-	if lt == rt {
+	if lt.Eq(rt) {
 		return false
 	}
 
@@ -1472,8 +1547,50 @@ func (p *fileParser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node,
 	switch s.(type) {
 	case *lang.Assign:
 		a := s.(*lang.Assign)
-		init = a
-		expr = lang.NewVarRef(a.Left(), a.Left().CurrentType)
+
+		done := false
+		// Special case for mysqli_fetch_array
+		if fc, ok := (*a.Right).(*lang.FunctionCall); ok {
+			if strings.HasSuffix(fc.Name, ".Next") {
+				v := a.Left()
+				if a.Left().FirstDefinition.Parent() == b {
+					ref := a.Left()
+					switch t := b.(type) {
+					case *lang.For:
+						for i, v := range t.Vars {
+							if v == a.Left() {
+								copy(t.Vars[i:], t.Vars[i+1:])
+								t.Vars = t.Vars[:len(t.Vars)-1]
+							}
+						}
+					}
+					// Intentionaly not searching out of scope.
+					v = b.HasVariable(ref.Name, false)
+					if v == nil {
+						panic(ref.String() + " is not defined due to movement in the for " +
+							" cycle (deleted boolean value from the for cycle).")
+					}
+				}
+				expr = *a.Right
+				done = true
+				n := strings.TrimSuffix(fc.Name, ".Next")
+				vr := lang.NewVarRef(a.Left(), a.Left().Type())
+				if !vr.Type().IsPointer {
+					vr.ByReference()
+				}
+				b.AddStatement(&lang.FunctionCall{
+					Name:   n + ".Scan",
+					Args:   []lang.Expression{vr},
+					Return: lang.NewTyp(lang.Void, false),
+				})
+			}
+		}
+		// esac
+
+		if !done {
+			init = a
+			expr = lang.NewVarRef(a.Left(), a.Left().CurrentType)
+		}
 
 	case *lang.Dec:
 		d := s.(*lang.Dec)
@@ -1529,14 +1646,14 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 		if !done {
 			fd = true
 		}
-	} else if v.CurrentType != t {
+	} else if !v.CurrentType.Eq(t) {
 		if v.FirstDefinition.Parent() == parent {
 			v.CurrentType = t
 		} else {
 			v = lang.NewVariable(name, t, false)
 			fd = true
 		}
-	} else if v.CurrentType != t {
+	} else if !v.CurrentType.Eq(t) {
 		done := false
 		if m, ok := parent.Parent().(*lang.Function); ok {
 			if f, ok := m.Parent().(*lang.File); ok {
@@ -1605,4 +1722,152 @@ func (p *fileParser) servePrint(args []lang.Expression) (*lang.FunctionCall, err
 	}
 	args = append([]lang.Expression{lang.NewVarRef(v, lang.NewTyp(lang.Writer, false))}, args...)
 	return p.funcs.Namespace("fmt").Call("Fprintf", args)
+}
+
+func (p *fileParser) freeFloatingComment(b lang.Block, n node.Node) {
+	ff := n.GetFreeFloating()
+	mr := reflect.ValueOf(*ff).MapRange()
+	for mr.Next() {
+		k := mr.Key().Int()
+		if k != 0 {
+			continue
+		}
+		v := mr.Value()
+		for i := 0; i < v.Len(); i++ {
+			s := v.Index(i).FieldByName("Value").String()
+
+			j := strings.LastIndex(s, "@var")
+			if j == -1 {
+				continue
+			}
+			s = s[j:]
+
+			r := regexp.MustCompile(`\$(\w+)`)
+			name := r.FindString(s)
+			if len(name) <= 1 {
+				panic(`wrong name`)
+			}
+			name = name[1:]
+
+			se := r.FindStringIndex(s)
+			s = s[se[1]:]
+
+			r = regexp.MustCompile(`(\w+)`)
+			se = r.FindStringIndex(s)
+			typ := s[se[0]:se[1]]
+			s = s[se[1]:]
+
+			vt, err := stringToTyp(typ)
+			if typ == "array" {
+				types := p.freeFloatingStruct(b, s)
+				vt = lang.NewTyp("", false)
+				vt.Adressable = true
+				vt.Tiles = types
+			} else if err != nil {
+				panic(err)
+			}
+
+			v := b.HasVariable(name, true)
+
+			if v == nil {
+				v = lang.NewVariable(name, vt, false)
+				if m, ok := b.Parent().(*lang.Function); ok {
+					if f, ok := m.Parent().(*lang.File); ok {
+						if f.Main == m {
+							f.DefineVariable(v)
+						}
+					}
+				}
+				b.DefineVariable(v)
+				// TODO: Better solution?
+				if v.FirstDefinition == nil {
+					v.FirstDefinition = &lang.VarDef{
+						V: v,
+					}
+					b.AddStatement(v.FirstDefinition)
+				}
+			}
+		}
+	}
+}
+
+func (p *fileParser) freeFloatingStruct(b lang.Block, s string) map[string]lang.Typ {
+	// Start: find opening curly bracket.
+	l := strings.Index(s, "{")
+	if l == -1 {
+		panic(`No opening bracket.`)
+	}
+	s = s[l:]
+
+	types := make(map[string]lang.Typ)
+
+	first := true
+	w := regexp.MustCompile(`(\w+)`)
+	for {
+		if !first {
+			i := strings.Index(s, ",")
+			if i == -1 {
+				break
+			}
+			s = s[i:]
+		}
+
+		se := w.FindStringIndex(s)
+		if se == nil {
+			if first {
+				panic(`empty array`)
+			}
+			break
+		}
+
+		tile := s[se[0]:se[1]]
+		tile = FirstUpper(tile)
+		s = s[se[1]:]
+
+		i := strings.Index(s, ":")
+		if i == -1 {
+			panic(`missing colon`)
+		}
+		s = s[i:]
+
+		se = w.FindStringIndex(s)
+		if se == nil {
+			panic(`missing type`)
+		}
+
+		typ, err := stringToTyp(s[se[0]:se[1]])
+		if err != nil {
+			panic(`invalid type`)
+		}
+		types[tile] = typ
+
+		s = s[se[1]:]
+		first = false
+	}
+
+	// End: find closing curly bracket.
+	l = strings.Index(s, "}")
+	if l == -1 {
+		panic(`No closing bracket.`)
+	}
+
+	return types
+}
+
+func stringToTyp(s string) (lang.Typ, error) {
+	switch s {
+	case "string":
+		return lang.NewTyp(lang.String, false), nil
+
+	case "bool":
+		return lang.NewTyp(lang.Bool, false), nil
+
+	case "int":
+		return lang.NewTyp(lang.Int, false), nil
+
+	case "float":
+		return lang.NewTyp(lang.Float64, false), nil
+
+	}
+	return lang.Typ{}, errors.New("Unknown string")
 }

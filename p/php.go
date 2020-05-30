@@ -10,9 +10,13 @@ var PHPFunctions = map[string](func(lang.Block, []lang.Expression) (*lang.Functi
 	"array_push": arrayPush,
 	"count":      count,
 
-	"mysqli_connect":   mysqliConnect,
-	"mysqli_select_db": mysqliSelectDB,
-	"mysqli_query":     mysqliQuery,
+	"mysqli_connect":     mysqliConnect,
+	"mysqli_select_db":   mysqliSelectDB,
+	"mysqli_query":       mysqliQuery,
+	"mysqli_fetch_array": mysqliFetchArray,
+
+	"file_exists": fileExists,
+	"scandir":     scandir,
 	// "echo":       true, // extra case, AST does not use echo as a function
 }
 
@@ -88,11 +92,11 @@ func mysqliSelectDB(b lang.Block, args []lang.Expression) (*lang.FunctionCall, e
 	if !ok {
 		return nil, errors.New("First argument should be a varref.")
 	}
-	if v.Type() != lang.NewTyp(lang.SQL, true) {
-		return nil, errors.New("First argument is not of a type std.SQL.")
+	if !v.Type().Eq(lang.NewTyp(lang.SQL, true)) {
+		return nil, errors.New("First argument is not of a type *std.SQL.")
 	}
 
-	if args[1].Type() != lang.NewTyp(lang.String, false) {
+	if !args[1].Type().Eq(lang.NewTyp(lang.String, false)) {
 		return nil, errors.New("Database name has to be a string.")
 	}
 
@@ -115,18 +119,92 @@ func mysqliQuery(b lang.Block, args []lang.Expression) (*lang.FunctionCall, erro
 	if !ok {
 		return nil, errors.New("First argument should be a varref.")
 	}
-	if v.Type() != lang.NewTyp(lang.SQL, true) {
-		return nil, errors.New("First argument is not of a type std.SQL.")
+	if !v.Type().Eq(lang.NewTyp(lang.SQL, true)) {
+		return nil, errors.New("First argument is not of a type *std.SQL.")
 	}
 
-	if args[1].Type() != lang.NewTyp(lang.String, false) {
+	if !args[1].Type().Eq(lang.NewTyp(lang.String, false)) {
 		return nil, errors.New("Query has to be a string.")
 	}
 
 	fc := &lang.FunctionCall{
 		Name:   v.V.Name + ".Query",
 		Args:   args[1:],
-		Return: lang.NewTyp(lang.SQL, false),
+		Return: lang.NewTyp("std.Rows", true),
+	}
+
+	fc.SetParent(b)
+	return fc, nil
+}
+
+// Not 1:1, only MYSQLI_ASSOC will be supported.
+func mysqliFetchArray(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+	if len(args) < 1 {
+		return nil, errors.New("mysqli_fetch_array requires atlast one argument.")
+	}
+
+	v, ok := args[0].(*lang.VarRef)
+	if !ok {
+		return nil, errors.New("First argument should be a varref.")
+	}
+	if !v.Type().Eq(lang.NewTyp("std.Rows", true)) {
+		return nil, errors.New("First argument is not of a type *std.SQL.")
+	}
+
+	next := &lang.FunctionCall{
+		Name:   v.V.Name + ".Next",
+		Return: lang.NewTyp(lang.Bool, false),
+	}
+	next.SetParent(b)
+
+	switch b.(type) {
+	case *lang.For:
+		return next, nil
+	case *lang.If:
+		return next, nil
+	}
+
+	fc := &lang.FunctionCall{
+		Name:   v.V.Name + ".Scan",
+		Return: lang.NewTyp(lang.Bool, false),
+	}
+
+	fc.SetParent(b)
+	return fc, nil
+}
+
+func fileExists(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+	if len(args) != 1 {
+		return nil, errors.New("file_exists requires exactly one argument")
+	}
+
+	if !args[0].Type().Equal(lang.String) {
+		return nil, errors.New("Argument has to be a string.")
+	}
+
+	fc := &lang.FunctionCall{
+		Name:   "std.FileExists",
+		Args:   args,
+		Return: lang.NewTyp(lang.Bool, false),
+	}
+
+	fc.SetParent(b)
+	return fc, nil
+}
+
+func scandir(b lang.Block, args []lang.Expression) (*lang.FunctionCall, error) {
+	if len(args) != 1 {
+		return nil, errors.New("scandir requires exactly one argument")
+	}
+
+	if !args[0].Type().Equal(lang.String) {
+		return nil, errors.New("Argument has to be a string.")
+	}
+
+	fc := &lang.FunctionCall{
+		Name:   "std.Scandir",
+		Args:   args,
+		Return: lang.NewTyp(ArrayType(lang.String), false),
 	}
 
 	fc.SetParent(b)

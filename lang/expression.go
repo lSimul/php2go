@@ -242,7 +242,7 @@ type Assign struct {
 	// assignment does not have this
 	// issue.
 	left  *Variable
-	right *Expression
+	Right *Expression
 
 	FirstDefinition bool
 }
@@ -267,7 +267,7 @@ func (a Assign) String() string {
 	} else {
 		s.WriteString(" = ")
 	}
-	s.WriteString((*a.right).String())
+	s.WriteString((*a.Right).String())
 	return s.String()
 }
 
@@ -289,7 +289,7 @@ func NewAssign(left *Variable, right Expression) (*Assign, error) {
 	}
 	return &Assign{
 		left:  left,
-		right: &right,
+		Right: &right,
 
 		FirstDefinition: false,
 	}, nil
