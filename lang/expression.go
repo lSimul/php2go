@@ -14,6 +14,8 @@ type Function struct {
 
 	Body Code
 
+	NeedsGlobal bool
+
 	Name   string
 	Return Typ
 }
@@ -59,7 +61,11 @@ func (f Function) unset(index int) {}
 
 func (f Function) String() string {
 	s := strings.Builder{}
-	s.WriteString("func " + f.Name + "(")
+	s.WriteString("func ")
+	if f.NeedsGlobal {
+		s.WriteString("(g *global) ")
+	}
+	s.WriteString(f.Name + "(")
 	for i := 0; i < len(f.Args); i++ {
 		a := f.Args[i]
 		s.WriteString(a.Name + " ")
@@ -515,6 +521,7 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 type FunctionCall struct {
 	parent Node
 
+	Func   *Function
 	Name   string
 	Args   []Expression
 	Return Typ
@@ -536,8 +543,11 @@ func (f FunctionCall) Type() Typ {
 	return f.Return
 }
 
-func (f FunctionCall) String() string {
+func (f *FunctionCall) String() string {
 	s := strings.Builder{}
+	if f.Func != nil && f.Func.NeedsGlobal {
+		s.WriteString("g.")
+	}
 	s.WriteString(f.Name)
 	s.WriteString("(")
 	for i := 0; i < len(f.Args); i++ {

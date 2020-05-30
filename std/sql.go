@@ -2,6 +2,8 @@ package std
 
 import (
 	// TODO: It does not have to be always MySQL.
+	"time"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -32,6 +34,7 @@ func (s *SQL) SelectDB(table string) {
 	s.table = table
 	s.db, s.err = sqlx.Open("mysql", s.user+":"+s.password+"@tcp("+s.server+")/"+s.table)
 	s.db = s.db.Unsafe()
+	s.db.DB.SetConnMaxLifetime(time.Second)
 }
 
 func (s *SQL) Query(q string) *Rows {
@@ -42,6 +45,10 @@ func (s *SQL) Query(q string) *Rows {
 	var rows *sqlx.Rows
 	rows, s.err = s.db.Queryx(q)
 	return &Rows{rows}
+}
+
+func (s *SQL) Close() {
+	s.db.Close()
 }
 
 func (s SQL) ToBool() bool {

@@ -35,6 +35,10 @@ var keywords = map[string]bool{
 
 	"array": true,
 	"std":   true,
+
+	// For globals implementation
+	"g":      true,
+	"global": true,
 }
 
 func ArrayType(s string) string {

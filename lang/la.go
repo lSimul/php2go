@@ -8,11 +8,14 @@ import (
 
 type GlobalContext struct {
 	Files []*File
+
+	Vars []*Variable
 }
 
 func NewGlobalContext() *GlobalContext {
 	return &GlobalContext{
 		Files: make([]*File, 0),
+		Vars:  make([]*Variable, 0),
 	}
 }
 
@@ -20,12 +23,21 @@ func (gc *GlobalContext) Add(f *File) {
 	gc.Files = append(gc.Files, f)
 }
 
-func (gc GlobalContext) HasVariable(name string, oos bool) *Variable {
-	for _, f := range gc.Files {
-		for _, v := range f.vars {
-			if v.Name == name {
-				return v
-			}
+func (gc *GlobalContext) DefineVariable(v *Variable) {
+	for _, vr := range gc.Vars {
+		if strings.TrimPrefix(vr.Name, "g.") == v.Name {
+			vr.typ = NewTyp(Anything, false)
+			return
+		}
+	}
+	v.Name = "g." + v.Name
+	gc.Vars = append(gc.Vars, v)
+}
+
+func (gc *GlobalContext) HasVariable(name string, oos bool) *Variable {
+	for _, v := range gc.Vars {
+		if strings.TrimPrefix(v.Name, "g.") == name {
+			return v
 		}
 	}
 	return nil
@@ -142,12 +154,16 @@ func (f *File) String() string {
 	}
 
 	if f.withMain {
+		s.WriteString("\ntype global struct {\n")
+		for _, v := range f.parent.Vars {
+			s.WriteString(fmt.Sprintf("\t%s %s\n", strings.TrimPrefix(v.Name, "g."), v.typ))
+		}
+		s.WriteString("}\n")
+
 		if f.server {
 			s.WriteString(`
 func main() {
 	flag.Parse()
-
-	_GET = array.NewString()
 
 	if *server != "" {
 		mux := http.NewServeMux()
@@ -161,27 +177,33 @@ func main() {
 }
 
 func mainServer(w http.ResponseWriter, r *http.Request) {
-	W = w
+	g := &global{
+		_GET: array.NewString(),
+		W: w,
+	}
 	if r.URL.Path == "/" || r.URL.Path == "/index.php" {
 		for k, v := range r.URL.Query() {
-			_GET.Edit(array.NewScalar(k), v[len(v)-1])
+			g._GET.Edit(array.NewScalar(k), v[len(v)-1])
 		}
 
-		` + f.Main.Name + `()
+		g.` + f.Main.Name + `()
 		return
 	}
 	http.FileServer(http.Dir(".")).ServeHTTP(w, r)
 }
 
 func mainCLI() {
-	W = os.Stdout
-	` + f.Main.Name + `()
+	g := &global{
+		_GET: array.NewString(),
+		W: os.Stdout,
+	}
+	g.` + f.Main.Name + `()
 }
 `)
 		} else {
 			s.WriteString(`
 func main() {
-	` + f.Main.Name + `()
+	g.` + f.Main.Name + `()
 }
 `)
 		}
@@ -200,6 +222,9 @@ func NewFunc(name string) *Function {
 			Vars:       make([]*Variable, 0),
 			Statements: make([]Node, 0),
 		},
+
+		NeedsGlobal: false,
+
 		Return: NewTyp(Void, false),
 	}
 	f.Body.SetParent(f)

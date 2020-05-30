@@ -327,7 +327,9 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 	n += f.Name
 
 	c := &lang.FunctionCall{
-		Name:   n,
+		Func: f,
+		Name: n,
+
 		Args:   args,
 		Return: f.Return,
 	}

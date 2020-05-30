@@ -143,6 +143,7 @@ func (parser *parser) run(r *node.Root, path string, asServer, withMain bool) {
 	}
 
 	fn := lang.NewFunc(p.functionTranslator.Translate("mainFunc"))
+	fn.NeedsGlobal = true
 	fn.SetParent(p.file)
 	p.file.Main = fn
 	p.funcs.Add(fn.Name, fn, 0)
@@ -150,8 +151,9 @@ func (parser *parser) run(r *node.Root, path string, asServer, withMain bool) {
 
 	for _, s := range fs {
 		f, _ := p.funcDef(&s)
-		p.createFunction(&f.Body, s.Stmts)
-		p.funcs.Add(f.Name, f, 0)
+		fn := p.funcs.Namespace("")
+		fc := (*fn.Func)[f.Name][0]
+		p.createFunction(&fc.Body, s.Stmts)
 	}
 }
 
@@ -161,7 +163,7 @@ func (p *fileParser) serverFile() {
 	p.file.AddImport("os")
 
 	p.file.AddImport("io")
-	p.file.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
+	p.gc.DefineVariable(lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false))
 
 	v := lang.NewVariable("server", lang.NewTyp(lang.String, true), false)
 	p.file.DefineVariable(v)
@@ -174,7 +176,7 @@ func (p *fileParser) serverFile() {
 	)
 
 	p.funcs.Namespace("array")
-	p.file.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
+	p.gc.DefineVariable(lang.NewVariable("_GET", lang.NewTyp(ArrayType(lang.String), false), false))
 }
 
 // SanitizeRootStmts splits statements based on their type,
@@ -201,7 +203,7 @@ func (p *parser) require(path string) *lang.FunctionCall {
 	for _, f := range p.gc.Files {
 		if path == f.Name {
 			return &lang.FunctionCall{
-				Name: f.Main.Name,
+				Name: "g." + f.Main.Name,
 			}
 		}
 	}
@@ -271,6 +273,7 @@ func (parser *fileParser) createFunction(b lang.Block, stmts []node.Node) {
 			var err error
 			var f *lang.FunctionCall
 			if parser.asServer {
+				requireGlobal(b)
 				f, err = parser.servePrint([]lang.Expression{str})
 			} else {
 				f, err = parser.funcs.Namespace("fmt").Call("Print", []lang.Expression{str})
@@ -464,6 +467,7 @@ func (parser *fileParser) createFunction(b lang.Block, stmts []node.Node) {
 			var err error
 			var f *lang.FunctionCall
 			if parser.asServer {
+				requireGlobal(b)
 				f, err = parser.servePrint(args)
 			} else {
 				f, err = parser.funcs.Namespace("fmt").Call("Print", args)
@@ -740,7 +744,7 @@ func (p *fileParser) simpleExpression(b lang.Block, n node.Node) lang.Node {
 		n := p.identifierName(a.Variable.(*expr.Variable))
 		return p.buildAssignment(b, n, r)
 	}
-	panic(`SimpleExpression: something else uncatched.`)
+	panic(`SimpleExpression: something else uncatched. (` + n.GetPosition().String() + `)`)
 }
 
 func (parser *fileParser) complexExpression(b lang.Block, n node.Node) lang.Expression {
@@ -755,7 +759,7 @@ func (parser *fileParser) complexExpression(b lang.Block, n node.Node) lang.Expr
 
 	a, ok := n.(*assign.Assign)
 	if !ok {
-		panic(`ComplexExpression: something else uncatched.`)
+		panic(`ComplexExpression: something else uncatched. (` + n.GetPosition().String() + `)`)
 	}
 
 	// Every expression should have return value.
@@ -959,6 +963,7 @@ func (parser *fileParser) statement(b lang.Block, n node.Node) lang.Node {
 				panic(fmt.Sprintf("'%s' is not defined.", vn))
 			}
 			b.DefineVariable(v)
+			requireGlobal(b)
 		}
 		// Blank const just to return something better then nil.
 		// nil has special meaning.
@@ -1635,7 +1640,7 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 		if m, ok := parent.Parent().(*lang.Function); ok {
 			if f, ok := m.Parent().(*lang.File); ok {
 				if f.Main == m {
-					f.DefineVariable(v)
+					parser.gc.DefineVariable(v)
 					done = true
 				}
 			}
@@ -1657,7 +1662,7 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 			if f, ok := m.Parent().(*lang.File); ok {
 				if f.Main == m {
 					v.CurrentType = t
-					f.DefineVariable(v)
+					parser.gc.DefineVariable(v)
 					done = true
 				}
 			}
@@ -1772,7 +1777,7 @@ func (p *fileParser) freeFloatingComment(b lang.Block, n node.Node) {
 				if m, ok := b.Parent().(*lang.Function); ok {
 					if f, ok := m.Parent().(*lang.File); ok {
 						if f.Main == m {
-							f.DefineVariable(v)
+							p.gc.DefineVariable(v)
 						}
 					}
 				}
@@ -1868,4 +1873,18 @@ func stringToTyp(s string) (lang.Typ, error) {
 
 	}
 	return lang.Typ{}, errors.New("Unknown string")
+}
+
+func requireGlobal(b lang.Block) {
+	var bl lang.Node = b
+	for {
+		if bl == nil {
+			panic(`Cannot find parent function.`)
+		}
+		if f, ok := bl.(*lang.Function); ok {
+			f.NeedsGlobal = true
+			break
+		}
+		bl = bl.Parent()
+	}
 }
