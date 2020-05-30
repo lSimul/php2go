@@ -7,6 +7,8 @@ import (
 )
 
 type GlobalContext struct {
+	Path string
+
 	Files []*File
 
 	Vars []*Variable
@@ -166,9 +168,67 @@ func main() {
 	flag.Parse()
 
 	if *server != "" {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/", mainServer)
+		g := &global{_GET: array.NewString()}
 
+		mux := http.NewServeMux()
+`)
+			gc := f.parent
+			simpleIndex := true
+			main := ""
+			for _, fl := range gc.Files {
+				p := strings.TrimPrefix(fl.Name, gc.Path)
+				if p == "index.php" {
+					main = fl.Main.Name
+					simpleIndex = false
+					continue
+				}
+				s.WriteString(`
+		mux.HandleFunc("/` + p + `", func(w http.ResponseWriter, r *http.Request) {
+			g.W = w
+			for k, v := range r.URL.Query() {
+				g._GET.Edit(array.NewScalar(k), v[len(v)-1])
+			}
+			g.` + fl.Main.Name + `()
+		})`)
+				if strings.HasSuffix(p, "index.php") {
+					p = strings.TrimSuffix(p, "index.php")
+					s.WriteString(`
+					mux.HandleFunc("/` + p + `", func(w http.ResponseWriter, r *http.Request) {
+						g.W = w
+						for k, v := range r.URL.Query() {
+							g._GET.Edit(array.NewScalar(k), v[len(v)-1])
+						}
+						g.` + fl.Main.Name + `()
+					})`)
+				}
+			}
+
+			if !simpleIndex {
+				s.WriteString(`
+				mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+					g := &global{
+						_GET: array.NewString(),
+						W: w,
+					}
+					if r.URL.Path == "/" || r.URL.Path == "/index.php" {
+						for k, v := range r.URL.Query() {
+							g._GET.Edit(array.NewScalar(k), v[len(v)-1])
+						}
+
+						g.` + main + `()
+						return
+					}
+					http.FileServer(http.Dir(".")).ServeHTTP(w, r)
+				})`)
+
+			} else {
+				s.WriteString(`
+				mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+					http.FileServer(http.Dir(".")).ServeHTTP(w, r)
+				})`)
+			}
+
+			s.WriteString(`
 		// Validate that server address
 		log.Fatal(http.ListenAndServe(*server, mux))
 	} else {
@@ -176,28 +236,26 @@ func main() {
 	}
 }
 
-func mainServer(w http.ResponseWriter, r *http.Request) {
-	g := &global{
-		_GET: array.NewString(),
-		W: w,
-	}
-	if r.URL.Path == "/" || r.URL.Path == "/index.php" {
-		for k, v := range r.URL.Query() {
-			g._GET.Edit(array.NewScalar(k), v[len(v)-1])
-		}
-
-		g.` + f.Main.Name + `()
-		return
-	}
-	http.FileServer(http.Dir(".")).ServeHTTP(w, r)
-}
-
 func mainCLI() {
 	g := &global{
 		_GET: array.NewString(),
 		W: os.Stdout,
 	}
-	g.` + f.Main.Name + `()
+	if *file == "" {
+	}
+	switch *file {
+`)
+			for _, fl := range gc.Files {
+				p := strings.TrimPrefix(fl.Name, gc.Path)
+				s.WriteString(`
+	case "` + p + `":
+		g.` + fl.Main.Name + `()
+`)
+			}
+			s.WriteString(`
+	default:
+		g.` + f.Main.Name + `()
+	}
 }
 `)
 		} else {

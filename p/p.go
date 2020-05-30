@@ -86,6 +86,12 @@ func (p *parser) RunFromString(path string, asServer bool) *lang.GlobalContext {
 
 func (p *parser) Run(r *node.Root, path string, asServer bool) *lang.GlobalContext {
 	p.gc = lang.NewGlobalContext()
+	if i := strings.LastIndex(path, "/"); i > 0 {
+		p.gc.Path = path[:i+1]
+	} else {
+		p.gc.Path = ""
+	}
+
 	p.funcs = NewFunc(p.gc)
 	p.run(r, path, asServer, true)
 	return p.gc
@@ -163,6 +169,16 @@ func (p *fileParser) serverFile() {
 		[]lang.Expression{
 			&lang.Str{Value: `"S"`}, &lang.Str{Value: `""`},
 			&lang.Str{Value: `"Run program as a server."`},
+		},
+	)
+
+	v = lang.NewVariable("file", lang.NewTyp(lang.String, true), false)
+	p.file.DefineVariable(v)
+	// This should not fail.
+	v.FirstDefinition.(*lang.VarDef).Right, _ = p.funcs.Namespace("flag").Call("String",
+		[]lang.Expression{
+			&lang.Str{Value: `"f"`}, &lang.Str{Value: `""`},
+			&lang.Str{Value: `"Run designeted file."`},
 		},
 	)
 
