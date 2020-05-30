@@ -105,8 +105,19 @@ func (parser *parser) run(r *node.Root, path string, asServer, withMain bool) {
 		funcs:  &FileFunc{Func: parser.funcs, file: f},
 	}
 
-	if withMain && asServer {
-		p.serverFile()
+	if withMain {
+		if p.asServer {
+			p.serverFile()
+		}
+		v := lang.NewVariable("file", lang.NewTyp(lang.String, true), false)
+		p.file.DefineVariable(v)
+		// This should not fail.
+		v.FirstDefinition.(*lang.VarDef).Right, _ = p.funcs.Namespace("flag").Call("String",
+			[]lang.Expression{
+				&lang.Str{Value: `"f"`}, &lang.Str{Value: `""`},
+				&lang.Str{Value: `"Run designeted file."`},
+			},
+		)
 	}
 
 	ms, fs := sanitizeRootStmts(r)
@@ -169,16 +180,6 @@ func (p *fileParser) serverFile() {
 		[]lang.Expression{
 			&lang.Str{Value: `"S"`}, &lang.Str{Value: `""`},
 			&lang.Str{Value: `"Run program as a server."`},
-		},
-	)
-
-	v = lang.NewVariable("file", lang.NewTyp(lang.String, true), false)
-	p.file.DefineVariable(v)
-	// This should not fail.
-	v.FirstDefinition.(*lang.VarDef).Right, _ = p.funcs.Namespace("flag").Call("String",
-		[]lang.Expression{
-			&lang.Str{Value: `"f"`}, &lang.Str{Value: `""`},
-			&lang.Str{Value: `"Run designeted file."`},
 		},
 	)
 

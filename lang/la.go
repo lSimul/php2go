@@ -162,6 +162,7 @@ func (f *File) String() string {
 		}
 		s.WriteString("}\n")
 
+		gc := f.parent
 		if f.server {
 			s.WriteString(`
 func main() {
@@ -172,7 +173,6 @@ func main() {
 
 		mux := http.NewServeMux()
 `)
-			gc := f.parent
 			simpleIndex := true
 			main := ""
 			for _, fl := range gc.Files {
@@ -261,7 +261,25 @@ func mainCLI() {
 		} else {
 			s.WriteString(`
 func main() {
-	g.` + f.Main.Name + `()
+	g := &global{
+		_GET: array.NewString(),
+		W: os.Stdout,
+	}
+	if *file == "" {
+	}
+	switch *file {
+`)
+			for _, fl := range gc.Files {
+				p := strings.TrimPrefix(fl.Name, gc.Path)
+				s.WriteString(`
+	case "` + p + `":
+		g.` + fl.Main.Name + `()
+`)
+			}
+			s.WriteString(`
+	default:
+		g.` + f.Main.Name + `()
+	}
 }
 `)
 		}
