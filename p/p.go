@@ -115,7 +115,7 @@ func (parser *parser) run(r *node.Root, path string, asServer, withMain bool) {
 		v.FirstDefinition.(*lang.VarDef).Right, _ = p.funcs.Namespace("flag").Call("String",
 			[]lang.Expression{
 				&lang.Str{Value: `"f"`}, &lang.Str{Value: `""`},
-				&lang.Str{Value: `"Run designeted file."`},
+				&lang.Str{Value: `"Run designated file."`},
 			},
 		)
 	}

@@ -169,8 +169,6 @@ func main() {
 	flag.Parse()
 
 	if *server != "" {
-		g := &global{_GET: array.NewString()}
-
 		mux := http.NewServeMux()
 `)
 			simpleIndex := true
@@ -184,7 +182,10 @@ func main() {
 				}
 				s.WriteString(`
 		mux.HandleFunc("/` + p + `", func(w http.ResponseWriter, r *http.Request) {
-			g.W = w
+			g := &global{
+				_GET: array.NewString(),
+				W: w,
+			}
 			for k, v := range r.URL.Query() {
 				g._GET.Edit(array.NewScalar(k), v[len(v)-1])
 			}
@@ -194,7 +195,10 @@ func main() {
 					p = strings.TrimSuffix(p, "index.php")
 					s.WriteString(`
 					mux.HandleFunc("/` + p + `", func(w http.ResponseWriter, r *http.Request) {
-						g.W = w
+						g := &global{
+							_GET: array.NewString(),
+							W: w,
+						}
 						for k, v := range r.URL.Query() {
 							g._GET.Edit(array.NewScalar(k), v[len(v)-1])
 						}
@@ -240,8 +244,6 @@ func mainCLI() {
 	g := &global{
 		_GET: array.NewString(),
 		W: os.Stdout,
-	}
-	if *file == "" {
 	}
 	switch *file {
 `)
