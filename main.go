@@ -24,7 +24,11 @@ func main() {
 	}
 
 	p := p.NewParser(p.NewNameTranslator(), p.NewFunctionTranslator())
-	gc := p.RunFromString(os.Args[1], true)
+	f := os.Args[1]
+	if !strings.HasPrefix(f, "./") {
+		f = "./" + f
+	}
+	gc := p.RunFromString(f, true)
 
 	if len(os.Args) < 3 {
 		for _, f := range gc.Files {
