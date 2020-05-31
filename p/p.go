@@ -1804,14 +1804,17 @@ func (p *fileParser) freeFloatingComment(b lang.Block, n node.Node) {
 				panic(err)
 			}
 
-			v := b.HasVariable(name, true)
+			// Do not move structs, redeclaration is complicated.
+			v := b.HasVariable(name, false)
 
 			if v == nil {
 				v = lang.NewVariable(name, vt, false)
-				if m, ok := b.Parent().(*lang.Function); ok {
-					if f, ok := m.Parent().(*lang.File); ok {
-						if f.Main == m {
-							p.gc.DefineVariable(v)
+				if typ != "array" {
+					if m, ok := b.Parent().(*lang.Function); ok {
+						if f, ok := m.Parent().(*lang.File); ok {
+							if f.Main == m {
+								p.gc.DefineVariable(v)
+							}
 						}
 					}
 				}
@@ -1823,6 +1826,8 @@ func (p *fileParser) freeFloatingComment(b lang.Block, n node.Node) {
 					}
 					b.AddStatement(v.FirstDefinition)
 				}
+			} else if typ == "array" {
+				panic(`Redeclaration of the struct.`)
 			}
 		}
 	}
