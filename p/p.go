@@ -1419,7 +1419,7 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 				requireGlobal(b)
 				f, err = parser.servePrint(args)
 			} else {
-				f, err = parser.funcs.Namespace("fmt").Call("Print", args)
+				f, err = parser.funcs.Namespace("fmt").Call("Printf", args)
 			}
 			if err != nil {
 				panic(err)
