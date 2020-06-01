@@ -19,7 +19,7 @@ import (
 func main() {
 	flag.Parse()
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: php2go <php file> [<output folder>]")
+		fmt.Println("Usage: php2go <php file> [<output folder>] [<anything-to-disable-server-behaviour>]")
 		return
 	}
 
@@ -28,7 +28,7 @@ func main() {
 	if !strings.HasPrefix(f, "./") {
 		f = "./" + f
 	}
-	gc := p.RunFromString(f, true)
+	gc := p.RunFromString(f, len(os.Args) != 4)
 
 	if len(os.Args) < 3 {
 		for _, f := range gc.Files {
