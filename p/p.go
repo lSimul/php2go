@@ -1684,31 +1684,26 @@ func (parser *parser) buildAssignment(parent lang.Block, name string, right lang
 			v.CurrentType = t
 			// Just redeclare it to to convert it to interface{}.
 			parser.gc.DefineVariable(v)
-		} else if v.FirstDefinition.Parent() == parent {
-			v.CurrentType = t
 		} else {
-			v = lang.NewVariable(name, t, false)
-			fd = true
-		}
-	} else if !v.CurrentType.Eq(t) {
-		done := false
-		if m, ok := parent.Parent().(*lang.Function); ok {
-			if f, ok := m.Parent().(*lang.File); ok {
-				if f.Main == m {
-					v.CurrentType = t
-					parser.gc.DefineVariable(v)
-					done = true
+			done := false
+			if m, ok := parent.Parent().(*lang.Function); ok {
+				if f, ok := m.Parent().(*lang.File); ok {
+					if f.Main == m {
+						v.CurrentType = t
+						parser.gc.DefineVariable(v)
+						done = true
+					}
 				}
 			}
-		}
-		if !done {
-			if v.FirstDefinition.Parent() == parent {
-				v.CurrentType = t
-			} else {
-				v = lang.NewVariable(name, t, false)
-				fd = true
+			if !done {
+				if v.FirstDefinition.Parent() == parent {
+					v.CurrentType = t
+				} else {
+					v = lang.NewVariable(name, t, false)
+					fd = true
+				}
+				parent.DefineVariable(v)
 			}
-			parent.DefineVariable(v)
 		}
 	}
 
