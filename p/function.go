@@ -36,6 +36,17 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 				Return: lang.NewTyp(lang.Void, false),
 			},
 		},
+		"Printf": {
+			{
+				Name: "Printf",
+				Args: []*lang.Variable{
+					lang.NewVariable("vals", lang.NewTyp(lang.Anything, false), false),
+				},
+				VariadicCount: true,
+
+				Return: lang.NewTyp(lang.Void, false),
+			},
+		},
 		"Fprintf": {
 			{
 				Name: "Fprintf",
