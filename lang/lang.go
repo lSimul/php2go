@@ -93,7 +93,9 @@ func (t Typ) Equal(s string) bool {
 }
 
 func (t Typ) Eq(r Typ) bool {
-	return t.typ == r.typ
+	tr := t.reference || t.IsPointer
+	rr := r.reference || r.IsPointer
+	return t.typ == r.typ && tr == rr
 }
 
 type Variable struct {

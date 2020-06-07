@@ -69,9 +69,6 @@ func (f Function) String() string {
 	for i := 0; i < len(f.Args); i++ {
 		a := f.Args[i]
 		s.WriteString(a.Name + " ")
-		if a.typ.IsPointer {
-			s.WriteByte('*')
-		}
 		s.WriteString(a.typ.String())
 		if i < len(f.Args)-1 {
 			s.WriteString(", ")
