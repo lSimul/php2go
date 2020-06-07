@@ -294,6 +294,8 @@ func NewFunc(name string) *Function {
 		Body: Code{
 			Vars:       make([]*Variable, 0),
 			Statements: make([]Node, 0),
+
+			withBrackets: true,
 		},
 
 		NeedsGlobal: false,
@@ -357,6 +359,8 @@ type Code struct {
 
 	Vars       []*Variable
 	Statements []Node
+
+	withBrackets bool
 }
 
 func (c Code) Parent() Node {
@@ -490,12 +494,16 @@ func (c *Code) AddStatement(n Node) {
 
 func (c Code) String() string {
 	s := strings.Builder{}
-	s.WriteString("{\n")
+	if c.withBrackets {
+		s.WriteString("{\n")
+	}
 	for _, st := range c.Statements {
 		s.WriteString(st.String())
 		s.WriteString("\n")
 	}
-	s.WriteString("}")
+	if c.withBrackets {
+		s.WriteString("}")
+	}
 	return s.String()
 }
 
@@ -510,6 +518,8 @@ func NewCode(parent Node) *Code {
 		parent:     p,
 		Vars:       make([]*Variable, 0),
 		Statements: make([]Node, 0),
+
+		withBrackets: true,
 	}
 }
 
@@ -828,6 +838,7 @@ func (Case) unset(int)                        {}
 func NewCase(parent *Switch) *Case {
 	c := &Case{parent: parent}
 	c.Block = NewCode(c)
+	c.Block.withBrackets = false
 	return c
 }
 
@@ -874,6 +885,7 @@ func (d Default) String() string {
 func NewDefault(parent *Switch) *Default {
 	d := &Default{parent: parent}
 	d.Block = NewCode(d)
+	d.Block.withBrackets = false
 	return d
 }
 
