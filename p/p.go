@@ -1470,7 +1470,8 @@ func (p *fileParser) binaryOp(b lang.Block, op string, left, right node.Node) la
 }
 
 func (p *fileParser) bOp(b lang.Block, op string, l, r lang.Expression) lang.Expression {
-	if convertToMatchingType(l, r) {
+	l, r, c := convertToMatchingType(l, r)
+	if c {
 		p.funcs.Namespace("std")
 	}
 	res, err := lang.NewBinaryOp(op, l, r)
@@ -1482,11 +1483,11 @@ func (p *fileParser) bOp(b lang.Block, op string, l, r lang.Expression) lang.Exp
 }
 
 // Returns a sign if namespace "std" has to be imported.
-func convertToMatchingType(left, right lang.Expression) bool {
+func convertToMatchingType(left, right lang.Expression) (lang.Expression, lang.Expression, bool) {
 	lt := left.Type()
 	rt := right.Type()
 	if lt.Eq(rt) {
-		return false
+		return left, right, false
 	}
 
 	// PHP tries to convert string to number,
@@ -1562,7 +1563,7 @@ func convertToMatchingType(left, right lang.Expression) bool {
 			t = true
 		}
 	}
-	return t
+	return left, right, t
 }
 
 // flowControlExpr parses next statement and tries
