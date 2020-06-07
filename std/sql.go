@@ -1,9 +1,9 @@
 package std
 
 import (
-	// TODO: It does not have to be always MySQL.
 	"time"
 
+	// TODO: It does not have to be always MySQL.
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
