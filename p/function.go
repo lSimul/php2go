@@ -260,6 +260,16 @@ type FunctionCaller struct {
 	Func      *map[string][]*lang.Function
 }
 
+func (fc *FunctionCaller) NeedsGlobal(name string) {
+	funcs, ok := (*fc.Func)[name]
+	if !ok {
+		return
+	}
+	for _, f := range funcs {
+		f.NeedsGlobal = true
+	}
+}
+
 func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.FunctionCall, error) {
 	funcs, ok := (*fc.Func)[name]
 	if !ok {

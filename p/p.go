@@ -281,7 +281,7 @@ func (parser *fileParser) createFunction(b lang.Block, stmts []node.Node) {
 			var err error
 			var f *lang.FunctionCall
 			if parser.asServer {
-				requireGlobal(b)
+				parser.requireGlobal(b)
 				f, err = parser.servePrint([]lang.Expression{str})
 			} else {
 				f, err = parser.funcs.Namespace("fmt").Call("Print", []lang.Expression{str})
@@ -475,7 +475,7 @@ func (parser *fileParser) createFunction(b lang.Block, stmts []node.Node) {
 			var err error
 			var f *lang.FunctionCall
 			if parser.asServer {
-				requireGlobal(b)
+				parser.requireGlobal(b)
 				f, err = parser.servePrint(args)
 			} else {
 				f, err = parser.funcs.Namespace("fmt").Call("Print", args)
@@ -971,7 +971,7 @@ func (parser *fileParser) statement(b lang.Block, n node.Node) lang.Node {
 				panic(fmt.Sprintf("'%s' is not defined.", vn))
 			}
 			b.DefineVariable(v)
-			requireGlobal(b)
+			parser.requireGlobal(b)
 		}
 		// Blank const just to return something better then nil.
 		// nil has special meaning.
@@ -1416,7 +1416,7 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 			var err error
 			var f *lang.FunctionCall
 			if parser.asServer {
-				requireGlobal(b)
+				parser.requireGlobal(b)
 				f, err = parser.servePrint(args)
 			} else {
 				f, err = parser.funcs.Namespace("fmt").Call("Printf", args)
@@ -1910,13 +1910,14 @@ func stringToTyp(s string) (lang.Typ, error) {
 	return lang.Typ{}, errors.New("Unknown string")
 }
 
-func requireGlobal(b lang.Block) {
+func (p *fileParser) requireGlobal(b lang.Block) {
 	var bl lang.Node = b
 	for {
 		if bl == nil {
 			panic(`Cannot find parent function.`)
 		}
 		if f, ok := bl.(*lang.Function); ok {
+			p.funcs.Namespace("").NeedsGlobal(f.Name)
 			f.NeedsGlobal = true
 			break
 		}
