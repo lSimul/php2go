@@ -22,10 +22,9 @@ func main() {
 	flag.Parse()
 
 	if *server != "" {
-		g := &global{_GET: array.NewString()}
-
 		mux := http.NewServeMux()
 		mux.HandleFunc("/index.php", func(w http.ResponseWriter, r *http.Request) {
+			g := &global{_GET: array.NewString()}
 			g.W = w
 			for k, v := range r.URL.Query() {
 				g._GET.Edit(array.NewScalar(k), v[len(v)-1])
@@ -34,6 +33,7 @@ func main() {
 		})
 
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			g := &global{_GET: array.NewString()}
 			g.W = w
 			if r.URL.Path != "/" {
 				http.FileServer(http.Dir(".")).ServeHTTP(w, r)
