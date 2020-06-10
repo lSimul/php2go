@@ -402,7 +402,8 @@ func (c *Code) HasVariable(name string, oos bool) *Variable {
 				return v
 
 			case *Assign:
-				if s.left.Name == name {
+				if strings.TrimPrefix(s.left.Name, "g.") ==
+					strings.TrimPrefix(name, "g.") {
 					return c.HasVariable(name, false)
 				}
 			}
