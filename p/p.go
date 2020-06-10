@@ -1377,7 +1377,7 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 
 	case *expr.ConstFetch:
 		n := parser.constructName(e.Constant.(*name.Name), true)
-		if n == "PHP_EOL" {
+		if n == "php_eol" {
 			s := &lang.Str{Value: "\"\\n\""}
 			s.SetParent(b)
 			return s
