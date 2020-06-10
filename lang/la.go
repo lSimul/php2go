@@ -374,6 +374,7 @@ func (c *Code) SetParent(n Node) {
 }
 
 func (c *Code) HasVariable(name string, oos bool) *Variable {
+	name = strings.TrimPrefix(name, "g.")
 	if oos {
 		for i := len(c.Statements) - 1; i >= 0; i-- {
 			switch s := c.Statements[i].(type) {
@@ -383,7 +384,7 @@ func (c *Code) HasVariable(name string, oos bool) *Variable {
 					continue
 				}
 				for _, cv := range c.Vars {
-					if cv.Name == name {
+					if strings.TrimPrefix(cv.Name, "g.") == name {
 						// This is a nasty hack. Instead of changing
 						// VarDefs pointing to "v" I change its type.
 						// Fixing this will not be that hard, during every
@@ -402,8 +403,7 @@ func (c *Code) HasVariable(name string, oos bool) *Variable {
 				return v
 
 			case *Assign:
-				if strings.TrimPrefix(s.left.Name, "g.") ==
-					strings.TrimPrefix(name, "g.") {
+				if strings.TrimPrefix(s.left.Name, "g.") == name {
 					return c.HasVariable(name, false)
 				}
 			}
@@ -411,7 +411,7 @@ func (c *Code) HasVariable(name string, oos bool) *Variable {
 	}
 
 	for _, v := range c.Vars {
-		if v.Name == name {
+		if strings.TrimPrefix(v.Name, "g.") == name {
 			return v
 		}
 	}
@@ -921,6 +921,7 @@ func (i *If) SetParent(n Node) {
 }
 
 func (i If) HasVariable(name string, oos bool) *Variable {
+	name = strings.TrimPrefix(name, "g.")
 	v := i.definesVariable(name)
 	if v != nil {
 		return v
