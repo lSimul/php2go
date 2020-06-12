@@ -1,0 +1,10 @@
+Execution time of script = 0.021590 sec.
+Execution time of script = 0.020731 sec.
+Execution time of script = 0.021754 sec.
+Execution time of script = 0.020345 sec.
+Execution time of script = 0.020115 sec.
+Execution time of script = 0.019794 sec.
+Execution time of script = 0.019883 sec.
+Execution time of script = 0.019515 sec.
+Execution time of script = 0.019179 sec.
+Execution time of script = 0.019174 sec.
