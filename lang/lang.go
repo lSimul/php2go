@@ -48,8 +48,8 @@ type Typ struct {
 	IsPointer bool
 	reference bool
 
-	Adressable bool
-	Tiles      map[string]Typ
+	Addressable bool
+	Tiles       map[string]Typ
 }
 
 func NewTyp(typ string, IsPointer bool) Typ {
@@ -73,7 +73,7 @@ func (t Typ) Format() string {
 }
 
 func (t Typ) String() string {
-	if t.Adressable {
+	if t.Addressable {
 		n := "struct{\n"
 		for k, v := range t.Tiles {
 			n += k + " " + v.String() + "\n"

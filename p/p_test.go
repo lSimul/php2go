@@ -20,7 +20,7 @@ func TestP(t *testing.T) {
 	t.Run("binary operations", testBinaryOp)
 	t.Run("unary operations", unaryOp)
 	t.Run("statements", testStatements)
-	t.Run("text comparision of the main function", testMain)
+	t.Run("text comparison of the main function", testMain)
 }
 
 func helpers(t *testing.T) {

@@ -795,7 +795,7 @@ func (parser *fileParser) complexExpression(b lang.Block, n node.Node) lang.Expr
 			panic(vn + " is not defined.")
 		}
 
-		if vr.Type().Adressable {
+		if vr.Type().Addressable {
 			e := parser.expression(b, v.Dim)
 			str, ok := e.(*lang.Str)
 			if !ok {
@@ -810,7 +810,7 @@ func (parser *fileParser) complexExpression(b lang.Block, n node.Node) lang.Expr
 			}
 
 			if !r.Type().Eq(t) {
-				panic(`Uncompatible types for the assignment in the struct.`)
+				panic(`Incompatible types for the assignment in the struct.`)
 			}
 
 			a, err := lang.NewAssign(lang.NewVariable(vr.String()+"."+s, t, false), r)
@@ -1087,7 +1087,7 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 					panic(vn + " is not defined.")
 				}
 
-				if v.Type().Adressable {
+				if v.Type().Addressable {
 					e := parser.expression(b, p.Dim)
 					str, ok := e.(*lang.Str)
 					if !ok {
@@ -1252,7 +1252,7 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 			panic(`Expected variable to be indexed.`)
 		}
 
-		if v.Type().Adressable {
+		if v.Type().Addressable {
 			ex := parser.expression(b, e.Dim)
 			str, ok := ex.(*lang.Str)
 			if !ok {
@@ -1572,7 +1572,7 @@ func convertToMatchingType(left, right lang.Expression) (lang.Expression, lang.E
 // be, nothing happens, expression is returned.
 // Extra work will be done with an assign and {inc,dec}rements.
 // They will be moved to the "Init" section, condition will
-// be replaced by a variable + possible convertion using std.Truthy.
+// be replaced by a variable + possible conversion using std.Truthy.
 // This is the first move from many, I want to resolve
 // everything in the examples/33.php, but code is not ready
 // for this yet.
@@ -1794,7 +1794,7 @@ func (p *fileParser) freeFloatingComment(b lang.Block, n node.Node) {
 			if typ == "array" {
 				types := p.freeFloatingStruct(b, s)
 				vt = lang.NewTyp("", false)
-				vt.Adressable = true
+				vt.Addressable = true
 				vt.Tiles = types
 			} else if err != nil {
 				panic(err)

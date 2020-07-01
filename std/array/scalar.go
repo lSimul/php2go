@@ -6,7 +6,7 @@ import (
 )
 
 // TODO: PHP do not think that it is always a string,
-// but it can be overriden ignoring the type:
+// but it can be overridden ignoring the type:
 // 0 == "0" == 0.1 == false
 // Part of this issue is resolved using IntValue().
 
