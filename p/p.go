@@ -1586,7 +1586,6 @@ func (p *fileParser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node,
 		// Special case for mysqli_fetch_array
 		if fc, ok := (*a.Right).(*lang.FunctionCall); ok {
 			if strings.HasSuffix(fc.Name, ".Next") {
-				v := a.Left()
 				if a.Left().FirstDefinition.Parent() == b {
 					ref := a.Left()
 					switch t := b.(type) {
@@ -1599,7 +1598,7 @@ func (p *fileParser) flowControlExpr(b lang.Block, n node.Node) (init lang.Node,
 						}
 					}
 					// Intentionaly not searching out of scope.
-					v = b.HasVariable(ref.Name, false)
+					v := b.HasVariable(ref.Name, false)
 					if v == nil {
 						panic(ref.String() + " is not defined due to movement in the for " +
 							" cycle (deleted boolean value from the for cycle).")

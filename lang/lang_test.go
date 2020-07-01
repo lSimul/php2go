@@ -140,6 +140,9 @@ func constructors(t *testing.T) {
 	}
 
 	a, err = NewAssign(v, vr)
+	if err != nil {
+		t.Errorf("Unexpected error %v.", err)
+	}
 	if !a.Type().Eq(v.Type()) {
 		t.Errorf("'%s' expected, '%s' found.\n", v.Type(), a.Type())
 	}
