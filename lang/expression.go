@@ -477,6 +477,20 @@ func (p BinaryOp) String() string {
 	return s.String()
 }
 
+var boolOps = map[string]bool{
+	"<":  true,
+	"<=": true,
+	">":  true,
+	">=": true,
+	"==": true,
+	"!=": true,
+	"&&": true,
+	"||": true,
+	"^":  true,
+	"&":  true,
+	"|":  true,
+}
+
 func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 	if left == nil {
 		return nil, errors.New("Left expression is missing.")
@@ -491,10 +505,10 @@ func NewBinaryOp(op string, left, right Expression) (*BinaryOp, error) {
 		return nil, errors.New(`Binary op cannot be used with "void"`)
 	}
 
-	if op == "<" || op == "<=" || op == ">" || op == ">=" || op == "==" || op == "!=" ||
-		op == "&&" || op == "||" || op == "^" || op == "&" || op == "|" {
+	if boolOps[op] {
 		lt = NewTyp(Bool, false)
 	}
+
 	ret := &BinaryOp{
 		inBrackets: false,
 		Operation:  op,
