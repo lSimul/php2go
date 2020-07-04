@@ -2,6 +2,8 @@ package std
 
 import "fmt"
 
+// Concat joins two values, interfaces, to one string.
+// Represents PHP's "." concat operator.
 func Concat(left, right interface{}) string {
 	return interfaceToString(left) + interfaceToString(right)
 }
@@ -27,11 +29,15 @@ func interfaceToString(i interface{}) string {
 	return ""
 }
 
+// StrDec behaves the same way
+// as PHP string--.
 // TODO: Implement this.
 func StrDec(s string) string {
 	return s
 }
 
+// StrInc behaves the same way
+// as PHP string++.
 // TODO: Implement this.
 func StrInc(s string) string {
 	return s

@@ -1,5 +1,7 @@
 package std
 
+// BoolToInt converts b to int
+// the same way like PHP do.
 func BoolToInt(b bool) int {
 	if b {
 		return 1
@@ -8,10 +10,8 @@ func BoolToInt(b bool) int {
 	}
 }
 
+// BoolToFloat converts b to float
+// the same way like PHP do.
 func BoolToFloat64(b bool) float64 {
-	if b {
-		return 1
-	} else {
-		return 0
-	}
+	return float64(BoolToInt(b))
 }

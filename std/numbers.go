@@ -5,6 +5,13 @@ import (
 	"strconv"
 )
 
+// ToInt transfers anything to int.
+// The main part is conversion from
+// string to int. It does the same thing
+// as (int) in PHP, that means it tries to
+// parse it as long it looks like an int.
+// BUG(ls): it does not support diferent
+// bases like HEX etc.
 func ToInt(s interface{}) int {
 	switch s := s.(type) {
 	case int:

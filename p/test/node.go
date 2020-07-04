@@ -99,7 +99,7 @@ func Plus(e node.Node) *expr.UnaryPlus {
 	return expr.NewUnaryPlus(e)
 }
 
-// Plus prepends minus for node e.
+// Minus prepends minus for node e.
 func Minus(e node.Node) *expr.UnaryMinus {
 	return expr.NewUnaryMinus(e)
 }
