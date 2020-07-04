@@ -41,25 +41,38 @@ var keywords = map[string]bool{
 	"global": true,
 }
 
+// ArrayType formats array type name
+// for given type.
+// The convention is simple, it is package
+// name "array" and exported s.
 func ArrayType(s string) string {
 	return "array." + FirstUpper(s)
 }
 
+// ArrayItem is a reverse function
+// to ArrayType, formating type
+// present in the array.
 func ArrayItem(s string) string {
 	s = strings.TrimLeft(s, "array.")
 	return FirstLower(s)
 }
 
+// IsArray checks, if the s is a name
+// suitable for array type.
 func IsArray(s string) bool {
 	return strings.HasPrefix(s, "array.")
 }
 
+// FirstUpper uppercases first letter
+// in s.
 func FirstUpper(s string) string {
 	b := []byte(s)
 	b[0] = bytes.ToUpper(b)[0]
 	return string(b)
 }
 
+// FirstLower lowercases first letter
+// in s.
 func FirstLower(s string) string {
 	b := []byte(s)
 	b[0] = bytes.ToLower(b)[0]
