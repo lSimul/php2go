@@ -1422,7 +1422,7 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 			return f
 		}
 
-		if fc, ok := PHPFunctions[n]; ok {
+		if fc, ok := functionsPHP[n]; ok {
 			f, nsp, err := fc(b, args)
 			if err != nil {
 				panic(err)
@@ -1431,7 +1431,7 @@ func (parser *fileParser) expression(b lang.Block, n node.Node) lang.Expression 
 
 			if n == "mysqli_select_db" {
 				b.AddStatement(f)
-				f, _, _ = PHPFunctions["mysqlDefer"](b, args)
+				f, _, _ = functionsPHP["mysqlDefer"](b, args)
 			}
 
 			return f

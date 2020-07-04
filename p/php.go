@@ -6,7 +6,7 @@ import (
 	"github.com/lSimul/php2go/lang"
 )
 
-var PHPFunctions = map[string](func(lang.Block, []lang.Expression) (*lang.FunctionCall, string, error)){
+var functionsPHP = map[string](func(lang.Block, []lang.Expression) (*lang.FunctionCall, string, error)){
 	"array_push": arrayPush,
 	"count":      count,
 
