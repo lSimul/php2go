@@ -675,6 +675,18 @@ func (p *fileParser) constructElif(b lang.Block, i *stmt.ElseIf) *lang.If {
 }
 
 func (parser *fileParser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
+	switchBreak := func(parent lang.Node, c *lang.Code) {
+		switch c.Statements[len(c.Statements)-1].(type) {
+		case *lang.Goto, *lang.Continue:
+		case *lang.Break:
+			c.Statements = c.Statements[:len(c.Statements)-1]
+		default:
+			f := &lang.Fallthrough{}
+			f.SetParent(parent)
+			c.Statements = append(c.Statements, f)
+		}
+	}
+
 	for _, c := range cl.Cases {
 		switch c := c.(type) {
 		case *stmt.Case:
@@ -686,15 +698,7 @@ func (parser *fileParser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 			if len(b.Statements) <= 0 {
 				break
 			}
-			switch b.Statements[len(b.Statements)-1].(type) {
-			case *lang.Goto, *lang.Continue:
-			case *lang.Break:
-				b.Statements = b.Statements[:len(b.Statements)-1]
-			default:
-				f := &lang.Fallthrough{}
-				f.SetParent(lc)
-				b.Statements = append(b.Statements, f)
-			}
+			switchBreak(lc, b)
 
 		case *stmt.Default:
 			d := lang.NewDefault(s)
@@ -705,16 +709,7 @@ func (parser *fileParser) constructSwitch(s *lang.Switch, cl *stmt.CaseList) {
 			if len(b.Statements) <= 0 {
 				break
 			}
-
-			switch b.Statements[len(b.Statements)-1].(type) {
-			case *lang.Goto, *lang.Continue:
-			case *lang.Break:
-				b.Statements = b.Statements[:len(b.Statements)-1]
-			default:
-				f := &lang.Fallthrough{}
-				f.SetParent(d)
-				b.Statements = append(b.Statements, f)
-			}
+			switchBreak(d, b)
 		}
 	}
 }
