@@ -13,6 +13,7 @@ import (
 	"github.com/z7zmey/php-parser/node"
 	"github.com/z7zmey/php-parser/visitor"
 
+	"github.com/lSimul/php2go/lang"
 	"github.com/lSimul/php2go/p"
 )
 
@@ -34,9 +35,12 @@ func main() {
 		for _, f := range gc.Files {
 			fmt.Println(f.String())
 		}
-		return
+	} else {
+		toFiles(gc)
 	}
+}
 
+func toFiles(gc *lang.GlobalContext) {
 	output := os.Args[2]
 	if err := os.Mkdir(output, 0755); err != nil {
 		fmt.Print(err)
