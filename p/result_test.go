@@ -100,6 +100,18 @@ func TestResult(t *testing.T) {
 			if err != nil {
 				t.Fatalf("changing directory: %v", err)
 			}
+			cmd = exec.Command("go", "mod", "init", "example")
+			cmd.Dir = root
+			err = cmd.Run()
+			if err != nil {
+				t.Fatalf("running go mod init: %v", err)
+			}
+			cmd = exec.Command("go", "mod", "tidy")
+			cmd.Dir = root
+			err = cmd.Run()
+			if err != nil {
+				t.Fatalf("running go mod tidy: %v", err)
+			}
 
 			cmd = exec.Command("go", "run", "main.go")
 			cmd.Dir = root
