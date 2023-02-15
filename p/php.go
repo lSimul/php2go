@@ -31,14 +31,14 @@ func arrayPush(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok || !IsArray(v.Type().String()) {
-		return nil, "", errors.New("First argument has to be a variable, an array.")
+		return nil, "", errors.New("first argument has to be a variable, an array")
 	}
 	typ := ArrayItem(v.Type().String())
 
 	vars := []lang.Expression{}
 	for _, arg := range args[1:] {
 		if !arg.Type().Equal(typ) {
-			return nil, "", errors.New("Cannot push this type.")
+			return nil, "", errors.New("cannot push this type")
 		}
 		vars = append(vars, arg)
 	}
@@ -60,7 +60,7 @@ func count(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, er
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok || !IsArray(v.Type().String()) {
-		return nil, "", errors.New("Argument has to be a variable, an array.")
+		return nil, "", errors.New("argument has to be a variable, an array")
 	}
 
 	fc := &lang.FunctionCall{
@@ -74,7 +74,7 @@ func count(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, er
 
 func mysqliConnect(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) != 3 {
-		return nil, "", errors.New("mysqli_connect has to have three arguments.")
+		return nil, "", errors.New("mysqli_connect has to have three arguments")
 	}
 
 	fc := &lang.FunctionCall{
@@ -89,19 +89,19 @@ func mysqliConnect(b lang.Block, args []lang.Expression) (*lang.FunctionCall, st
 
 func mysqliSelectDB(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) != 2 {
-		return nil, "", errors.New("mysqli_select_db requires exactly two arguments.")
+		return nil, "", errors.New("mysqli_select_db requires exactly two arguments")
 	}
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok {
-		return nil, "", errors.New("First argument should be a varref.")
+		return nil, "", errors.New("first argument should be a varref")
 	}
 	if !v.Type().Eq(lang.NewTyp(lang.SQL, true)) {
-		return nil, "", errors.New("First argument is not of a type *std.SQL.")
+		return nil, "", errors.New("first argument is not of a type *std.SQL")
 	}
 
 	if !args[1].Type().Eq(lang.NewTyp(lang.String, false)) {
-		return nil, "", errors.New("Database name has to be a string.")
+		return nil, "", errors.New("database name has to be a string")
 	}
 
 	fc := &lang.FunctionCall{
@@ -116,15 +116,15 @@ func mysqliSelectDB(b lang.Block, args []lang.Expression) (*lang.FunctionCall, s
 
 func mysqlDefer(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) < 1 {
-		return nil, "", errors.New("mysqlDefer requires atlast one argument.")
+		return nil, "", errors.New("mysqlDefer requires atlast one argument")
 	}
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok {
-		return nil, "", errors.New("First argument should be a varref.")
+		return nil, "", errors.New("first argument should be a varref")
 	}
 	if !v.Type().Eq(lang.NewTyp(lang.SQL, true)) {
-		return nil, "", errors.New("First argument is not of a type *std.SQL.")
+		return nil, "", errors.New("first argument is not of a type *std.SQL")
 	}
 
 	fc := &lang.FunctionCall{
@@ -138,19 +138,19 @@ func mysqlDefer(b lang.Block, args []lang.Expression) (*lang.FunctionCall, strin
 
 func mysqliQuery(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) != 2 {
-		return nil, "", errors.New("mysqli_query requires exactly two arguments.")
+		return nil, "", errors.New("mysqli_query requires exactly two arguments")
 	}
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok {
-		return nil, "", errors.New("First argument should be a varref.")
+		return nil, "", errors.New("first argument should be a varref")
 	}
 	if !v.Type().Eq(lang.NewTyp(lang.SQL, true)) {
-		return nil, "", errors.New("First argument is not of a type *std.SQL.")
+		return nil, "", errors.New("first argument is not of a type *std.SQL")
 	}
 
 	if !args[1].Type().Eq(lang.NewTyp(lang.String, false)) {
-		return nil, "", errors.New("Query has to be a string.")
+		return nil, "", errors.New("query has to be a string")
 	}
 
 	fc := &lang.FunctionCall{
@@ -166,15 +166,15 @@ func mysqliQuery(b lang.Block, args []lang.Expression) (*lang.FunctionCall, stri
 // Not 1:1, only MYSQLI_ASSOC will be supported.
 func mysqliFetchArray(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, error) {
 	if len(args) < 1 {
-		return nil, "", errors.New("mysqli_fetch_array requires atlast one argument.")
+		return nil, "", errors.New("mysqli_fetch_array requires atlast one argument")
 	}
 
 	v, ok := args[0].(*lang.VarRef)
 	if !ok {
-		return nil, "", errors.New("First argument should be a varref.")
+		return nil, "", errors.New("first argument should be a varref")
 	}
 	if !v.Type().Eq(lang.NewTyp("std.Rows", true)) {
-		return nil, "", errors.New("First argument is not of a type *std.SQL.")
+		return nil, "", errors.New("first argument is not of a type *std.SQL")
 	}
 
 	next := &lang.FunctionCall{
@@ -205,7 +205,7 @@ func fileExists(b lang.Block, args []lang.Expression) (*lang.FunctionCall, strin
 	}
 
 	if !args[0].Type().Equal(lang.String) {
-		return nil, "", errors.New("Argument has to be a string.")
+		return nil, "", errors.New("argument has to be a string")
 	}
 
 	fc := &lang.FunctionCall{
@@ -224,7 +224,7 @@ func scandir(b lang.Block, args []lang.Expression) (*lang.FunctionCall, string, 
 	}
 
 	if !args[0].Type().Equal(lang.String) {
-		return nil, "", errors.New("Argument has to be a string.")
+		return nil, "", errors.New("argument has to be a string")
 	}
 
 	fc := &lang.FunctionCall{

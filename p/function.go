@@ -273,14 +273,14 @@ func (fc *FunctionCaller) NeedsGlobal(name string) {
 func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.FunctionCall, error) {
 	funcs, ok := (*fc.Func)[name]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("Function '%s' is not defined.", name))
+		return nil, fmt.Errorf("function '%s' is not defined", name)
 	}
 
 	f := funcs[0]
 	if !f.VariadicCount {
 		i := len(f.Args) - len(args)
 		if i >= len(funcs) {
-			return nil, errors.New("Undefined function for this amount of parameters")
+			return nil, errors.New("undefined function for this amount of parameters")
 		}
 		if i != 0 {
 			f = funcs[i]
@@ -290,7 +290,7 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 	// TODO: Refactor this.
 	if f.VariadicCount {
 		if len(f.Args)-1 > len(args) {
-			return nil, errors.New("Not enough arguments.")
+			return nil, errors.New("not enough arguments")
 		}
 		// Compare first N-1 args.
 		for i := 0; i < len(f.Args)-1; i++ {
@@ -300,7 +300,7 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 				continue
 			}
 			if !args[i].Type().Eq(f.Args[i].Type()) {
-				return nil, errors.New("Wrong argument type.")
+				return nil, errors.New("wrong argument type")
 			}
 		}
 		// Compare the rest, if any.
@@ -310,12 +310,12 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 				continue
 			}
 			if !args[i].Type().Eq(ref.Type()) {
-				return nil, errors.New("Wrong argument type.")
+				return nil, errors.New("wrong argument type")
 			}
 		}
 	} else {
 		if len(f.Args) != len(args) {
-			return nil, errors.New("Wrong argument count.")
+			return nil, errors.New("wrong argument count")
 		}
 
 		// TODO: Check for passing by reference.
@@ -329,13 +329,13 @@ func (fc *FunctionCaller) Call(name string, args []lang.Expression) (*lang.Funct
 				if t.IsPointer && !args[i].Type().IsPointer {
 					t, ok := args[i].(*lang.VarRef)
 					if !ok {
-						return nil, errors.New("Only variable can be send by reference.")
+						return nil, errors.New("only variable can be send by reference")
 					}
 					if err := t.ByReference(); err != nil {
 						return nil, err
 					}
 				} else {
-					return nil, errors.New("Wrong argument type.")
+					return nil, errors.New("wrong argument type")
 				}
 			}
 		}

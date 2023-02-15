@@ -53,7 +53,7 @@ func ArrayType(s string) string {
 // to ArrayType, formating type
 // present in the array.
 func ArrayItem(s string) string {
-	s = strings.TrimLeft(s, "array.")
+	s = strings.TrimPrefix(s, "array.")
 	return FirstLower(s)
 }
 

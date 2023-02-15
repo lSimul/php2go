@@ -1745,7 +1745,7 @@ func (p *parser) constructName(nm *name.Name, translate bool) string {
 func (p *fileParser) servePrint(args []lang.Expression) (*lang.FunctionCall, error) {
 	v := p.gc.HasVariable("W", false)
 	if v == nil {
-		return nil, errors.New("Variable io.Writer not defined")
+		return nil, errors.New("variable io.Writer not defined")
 	}
 	args = append([]lang.Expression{lang.NewVarRef(v, lang.NewTyp(lang.Writer, false))}, args...)
 	return p.funcs.Namespace("fmt").Call("Fprintf", args)
@@ -1901,7 +1901,7 @@ func stringToTyp(s string) (lang.Typ, error) {
 		return lang.NewTyp(lang.Float64, false), nil
 
 	}
-	return lang.Typ{}, errors.New("Unknown string")
+	return lang.Typ{}, errors.New("unknown string")
 }
 
 func (p *fileParser) requireGlobal(b lang.Block) {
