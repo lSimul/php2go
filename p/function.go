@@ -52,6 +52,7 @@ func NewFunc(gc *lang.GlobalContext) *Func {
 				Name: "Fprintf",
 				Args: []*lang.Variable{
 					lang.NewVariable("W", lang.NewTyp(lang.Writer, false), false),
+					lang.NewVariable("format", lang.NewTyp(lang.Anything, false), false),
 					lang.NewVariable("vals", lang.NewTyp(lang.Anything, false), false),
 				},
 				VariadicCount: true,

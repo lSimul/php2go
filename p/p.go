@@ -1747,6 +1747,14 @@ func (p *fileParser) servePrint(args []lang.Expression) (*lang.FunctionCall, err
 	if v == nil {
 		return nil, errors.New("variable io.Writer not defined")
 	}
+
+	// TODO: Terrible hack for Fprintf.
+	// first argument always has to be string <=> format.
+	// This hack is done to meet the needs in the example 01.php.
+	if len(args) == 1 {
+		args = append([]lang.Expression{&lang.Str{Value: `"` + args[0].Type().Format() + `"`}}, args...)
+	}
+
 	args = append([]lang.Expression{lang.NewVarRef(v, lang.NewTyp(lang.Writer, false))}, args...)
 	return p.funcs.Namespace("fmt").Call("Fprintf", args)
 }
